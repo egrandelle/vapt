@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Parametros de entrega do job (parametros-entrega/1): o que o DA decide por formato ate a tela do M7.
 
-    desdobra parametros-entrega --job <pasta> --formato <id> [--rotacao-sentido horario|anti_horario]
+    vapt parametros-entrega --job <pasta> --formato <id> [--rotacao-sentido horario|anti_horario]
         [--condicao hospedado|por_tag|tag_carga_inicial|tag_carga_posterior] [--cor-de-achatamento #rrggbb]
         [--borda-1px sim|nao] [--limpar <campo> ...]
 

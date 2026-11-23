@@ -68,7 +68,7 @@ O_QUE_FAZER = {
                          'acrescente a folha; um formato só de medição é marcado sem_folha no briefing.',
     'spec_por_confirmar': 'Um valor de spec deste formato (a medida, a faixa, a área útil ou a área segura) ainda '
                           'espera a sua confirmação. Confirme os valores dele em Valores de spec, no passo 1, e o '
-                          'desdobra monta a peça com os valores confirmados.',
+                          'Vapt monta a peça com os valores confirmados.',
     'mestre_por_confirmar': 'O formato da mestre desta família ainda espera a confirmação de um valor de spec (a '
                             'medida, a faixa, a área útil ou a área segura). Confirme os valores dele em Valores de '
                             'spec, no passo 1, e o Vapt monta as peças da família com os valores confirmados.',
@@ -84,7 +84,7 @@ O_QUE_FAZER = {
     'quebra_sem_medida': 'Há quebra aprovada para a família deste formato, e a largura das linhas juntadas não foi '
                          'medida (a medida roda no Chromium com a fonte do job). O "Salvar e seguir" do DA, na tela, '
                          'deriva de novo; se a medida faltar outra vez, peça ao Claude para conferir a instalação do '
-                         'desdobra (/vapt:doctor).',
+                         'Vapt (/vapt:doctor).',
     'erro_no_formato': 'A derivação deste formato parou com um erro do motor; os outros formatos seguiram. Mande o '
                        'derivacao/<formato>.json para a Trezion.',
 }

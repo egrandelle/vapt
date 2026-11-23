@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""O nucleo comum da aprovacao (M7b, B4; arquitetura-v1.md, 9.7; decisoes-v1.md, 138): o que o "desdobra aprovar" do
+"""O nucleo comum da aprovacao (M7b, B4; arquitetura-v1.md, 9.7; decisoes-v1.md, 138): o que o "vapt aprovar" do
 terminal (vapt.entrega, so para a Trezion e para os testes) e o ato de aprovar da tela (vapt.tela.ato_aprovar)
 fazem igual.
 

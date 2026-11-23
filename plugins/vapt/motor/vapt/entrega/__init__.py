@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""desdobra aprovar, desdobra entregar e desdobra conferir-entrega (M6, arquitetura-v1.md, 9.7; decisoes-v1.md, 138, 139
+"""vapt aprovar, vapt entregar e vapt conferir-entrega (M6, arquitetura-v1.md, 9.7; decisoes-v1.md, 138, 139
 e 142).
 
-    desdobra aprovar --job <pasta> --formato <id> [--formato <id> ...]
-    desdobra entregar --job <pasta>
-    desdobra conferir-entrega --job <pasta>
-    desdobra parametros-entrega --job <pasta> --formato <id> [--rotacao-sentido ...] [--condicao ...]
+    vapt aprovar --job <pasta> --formato <id> [--formato <id> ...]
+    vapt entregar --job <pasta>
+    vapt conferir-entrega --job <pasta>
+    vapt parametros-entrega --job <pasta> --formato <id> [--rotacao-sentido ...] [--condicao ...]
         [--cor-de-achatamento #rrggbb] [--borda-1px sim|nao] [--limpar <campo> ...]
 
 aprovar, entregar e parametros-entrega so partem do DA, num terminal interativo (vapt.humano; o gancho PreToolUse
@@ -392,4 +392,4 @@ def _conferir_entrega(args):
                      contagens=cont, linhas_humanas=linhas,
                      o_que_fazer='entrega/ mudou depois da entrega ou não foi gravada pelo motor, e a entrega precisa '
                                  'ser feita de novo pelo DA. A entrega dos arquivos finais chega no próximo marco do '
-                                 'desdobra; por enquanto, o job termina na aprovação de cada formato, na tela.')
+                                 'Vapt; por enquanto, o job termina na aprovação de cada formato, na tela.')

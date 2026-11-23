@@ -2,7 +2,7 @@
 """O gravador do briefing confirmado pelo DA (M7a, fatia 5; decisoes-v1.md, 159, 164, 167, 169, 170 e 171).
 
 "Salvar e seguir" e um ato da janela da tela (vapt.tela.atos, com a confirmacao do DA na propria janela e o
-Disparo da tela) e o "desdobra briefing confirmar" do terminal fica so para os testes e para a Trezion (decisoes-v1.md,
+Disparo da tela) e o "vapt briefing confirmar" do terminal fica so para os testes e para a Trezion (decisoes-v1.md,
 159; o Disparo do console). Os dois chamam este gravador, que:
   - so grava quando todas as familias da tela estao confirmadas no rascunho (briefing/rascunho.json, pelo ato
     "Confirmar familia"), com a confirmacao de mesma origem do Disparo, quando o DA escolheu o modo de dados na tela e

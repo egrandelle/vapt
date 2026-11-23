@@ -39,7 +39,7 @@ entrega anterior vai para entrega/anteriores/<carimbo>/ (o relatorio primeiro, e
 a nova entra (o relatorio por ultimo, e ele que fecha a troca). Cada passo e um os.replace; se um falha, os passos feitos
 voltam. Depois da troca, o manifesto-licenca.json fecha na raiz do job (vapt.entrega.relatorio), e o relatorio guarda
 o selo dele. entrega/previa/ (a aprovacao) e entrega/anteriores/ ficam fora da troca. So grava com o Disparo do "entregar"
-(vapt.humano) e com a trava do job (quem chama e o "desdobra entregar").
+(vapt.humano) e com a trava do job (quem chama e o "vapt entregar").
 
 conferir_entrega() so le (nunca grava, nem a trava do job): confere o relatorio pelo selo, cada arquivo listado pelo
 sha256 e pelos bytes, que nada sobra em aprovados/ e reprovados/, que nenhum arquivo com verificacao que reprova esta em
@@ -170,7 +170,7 @@ SUGESTOES.update({
                                   'chega no próximo marco do Vapt).',
     'borda_com_valor_desconhecido': 'Confira o valor da borda na folha: a v1 desenha a borda preta de espessura inteira.',
     'sem_tipos_aceitos_confirmados': 'O DA confirma os tipos de arquivo aceitos na folha, na tela do '
-                                     'desdobra.',
+                                     'Vapt.',
     'sem_tipo_com_encoder': 'A folha só aceita tipos que a v1 não entrega: confirme com o veículo JPEG ou PNG.',
 })
 FONTE_ENCODER = {'tipo': 'decisao', 'arquivo': 'decisoes-v1.md',

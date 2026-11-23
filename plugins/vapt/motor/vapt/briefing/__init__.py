@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """Briefing do job (briefing/1, arquitetura-v1.md, 5.3).
 
-    desdobra briefing importar --teste <arquivo.json> --job <pasta>
-    desdobra briefing rascunho --job <pasta> [--saida <arquivo.json>]
-    desdobra briefing funcoes --job <pasta>
-    desdobra briefing confirmar --job <pasta>
+    vapt briefing importar --teste <arquivo.json> --job <pasta>
+    vapt briefing rascunho --job <pasta> [--saida <arquivo.json>]
+    vapt briefing funcoes --job <pasta>
+    vapt briefing confirmar --job <pasta>
 
 "importar --teste" grava em briefing/briefing-confirmado.json um briefing escrito a mao (por exemplo o fixture do
 M5), com a origem fixture_de_teste e o cabecalho (hashes do laudo, das specs, do design system e da conferencia de
 fontes) dos arquivos do job de agora. O motor deriva e renderiza a partir dele; o entregar (M6) recusa todo job cujo
 briefing tenha essa origem. Sem --teste, o importar recusa: quem grava como confirmado pelo DA e a tela (M7) ou
-"desdobra briefing confirmar" no terminal interativo, que entra com a tela.
+"vapt briefing confirmar" no terminal interativo, que entra com a tela.
 
 "rascunho" monta o briefing sem nenhum valor (todo campo pendente), um item por grupo e por camada desenhavel e a
 sugestao citada da regra da decisao 10 nas cobertas: e o ponto de partida da rotulagem do DA. Grava em --saida (por

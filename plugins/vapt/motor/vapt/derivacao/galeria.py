@@ -45,7 +45,7 @@ O layout editado pelo DA no palco passa pela mesma conferencia. O piso da 133 ou
 escalado pelo DA fura e decisao dele (decisoes_do_da; M7b, D5, pergunta 10 do plano): sai das falhas ("Pede ajuste")
 com o valor a vista. O elemento que o solver mexeu continua falha, e a validacao do motor continua devolvendo o formato.
 
-So previa, em memoria: nada aqui grava arquivo, e o que o "desdobra derivar" grava nao muda. Origem: o prototipo da
+So previa, em memoria: nada aqui grava arquivo, e o que o "vapt derivar" grava nao muda. Origem: o prototipo da
 galeria de 05/11 (revisado) e o prototipo "fluxo" de 19/11, escolhido pelo juiz, com os enxertos dos prototipos "zonas"
 (piso por bloco, saturacao da nota, teto do titulo, limpas primeiro) e "busca" (menor corpo, bloco esmagado, falhas
 previstas, legal do lado do conteudo).

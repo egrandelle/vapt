@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""desdobra derivar: derivacao deterministica por familia (M5, arquitetura-v1.md, 4.10 e 9.6).
+"""vapt derivar: derivacao deterministica por familia (M5, arquitetura-v1.md, 4.10 e 9.6).
 
-    desdobra derivar --job <pasta> [--formato <id>]...
+    vapt derivar --job <pasta> [--formato <id>]...
 
 Le o briefing gravado (briefing/briefing-confirmado.json, do DA ou fixture de teste), sem tela, e grava
 derivacao/<formato>.json de cada formato do briefing e derivacao/devolucoes.json. Recusa sem briefing, com briefing
 desatualizado (o cabecalho nao bate com o laudo, as specs, o design system ou a conferencia de fontes), com briefing
 que tem pendente obrigatorio e com fases do job desatualizadas. Nao renderiza: o render de cada formato derivado e do
-DA ("desdobra render --job <pasta> --formato <id>", num terminal interativo).
+DA ("vapt render --job <pasta> --formato <id>", num terminal interativo).
 """
 from pathlib import Path
 
@@ -15,7 +15,7 @@ from vapt.resultado import Codigo, Resultado
 
 O_QUE_FAZER_OK = ('As derivações estão em derivacao/<formato>.json e os formatos devolvidos ao DA, com o motivo, em '
                   'derivacao/devolucoes.json. O render de cada formato derivado é um clique do DA na tela do '
-                  'desdobra. Peça ao Claude para abrir a tela do job (/vapt:continuar).')
+                  'Vapt. Peça ao Claude para abrir a tela do job (/vapt:continuar).')
 O_QUE_FAZER_ERRO = {
     'sem_briefing': 'O job não tem briefing. O briefing confirmado sai da tela, no "Salvar e seguir" do DA (nos testes, '
                     'do briefing de teste importado).',
