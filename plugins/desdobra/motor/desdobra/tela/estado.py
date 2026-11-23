@@ -469,12 +469,13 @@ def _mapear(caixa, tr):
             _arred(dy + (caixa[3] - oy) * s)]
 
 
-def _linhas(texto, face_de, juntar=(), inserir=()):
+def _linhas(texto, face_de, juntar=(), inserir=(), com_just=False):
     """Linhas do texto do PSD como o render as monta (render.texto.linhas_da_camada: quebras gravadas, as juntadas
     pela familia do formato e as inseridas na mestre propria), cada uma com os trechos de estilo dela (texto, face,
     cor, corpo, tracking) e a entrelinha da linha no documento (a distancia da linha de base da anterior, a mesma do
     render: o fator do paragrafo vezes o corpo na automatica, a do trecho na fixa, vezes a escala da matriz). None
-    quando o laudo nao traz o texto dos trechos."""
+    quando o laudo nao traz o texto dos trechos. com_just: cada linha leva tambem a justificacao do paragrafo dela
+    ('just', 0.12.0), so para o alinhamento do DA (justificacoes_no_formato); o palco nunca a leva."""
     from desdobra.render import texto as rt
     texto = texto or {}
     runs = texto.get('runs') or []
@@ -489,7 +490,10 @@ def _linhas(texto, face_de, juntar=(), inserir=()):
             cor = r.get('cor_hex') if isinstance(r.get('cor_hex'), str) and COR.match(r.get('cor_hex')) else None
             trechos.append({'texto': parte, 'fonte_ps': r.get('fonte_ps'), 'face': face_de(r.get('fonte_ps')),
                             'cor': cor, 'corpo': r.get('corpo_efetivo'), 'tracking': r.get('tracking') or 0})
-        linhas.append({'trechos': trechos, 'entrelinha': _arred(ln['entrelinha'] * sy) if ln['entrelinha'] else None})
+        linha = {'trechos': trechos, 'entrelinha': _arred(ln['entrelinha'] * sy) if ln['entrelinha'] else None}
+        if com_just:
+            linha['just'] = ln.get('just') or 'LEFT'
+        linhas.append(linha)
     while linhas and not linhas[-1]['trechos']:
         linhas.pop()
     return linhas or None
@@ -539,11 +543,36 @@ def pecas_base(laudo, asset_por_camada, face_de):
     return base
 
 
+def _linhas_no_formato(peca, el, com_just=False):
+    """As linhas da peca de texto com as quebras do elemento no formato, como o render as desenha: a quebra da familia
+    da tela (juntadas e inseridas, M7b, C2), a da mestre propria (inseridas) ou as do KV."""
+    from desdobra.derivacao import quebras as mq
+    lid = peca['camada']
+    q = el.get('quebras')
+
+    def face_de(ps):
+        return peca['_faces'].get(ps)
+    fam = next((x for x in (q.get('familia') or []) if x['layer_id'] == lid), None) if isinstance(q, dict) else None
+    if fam is not None:
+        # a quebra da familia da tela tambem insere (M7b, C2), como o render
+        return _linhas(peca['_texto'], face_de, juntar=mq.juntadas({'texto': peca['_texto']}, fam['aprovadas']),
+                       inserir=fam.get('inseridas') or (), com_just=com_just)
+    if isinstance(q, list) and el.get('quebras_camada') == lid:
+        return _linhas(peca['_texto'], face_de, inserir=q, com_just=com_just)
+    return _linhas(peca['_texto'], face_de, com_just=True) if com_just else peca['linhas']
+
+
+def justificacoes_no_formato(peca, el):
+    """[justificacao de cada linha] da peca de texto no formato (0.12.0), na ordem das linhas do palco
+    (_peca_no_formato): a pagina poe a linha mais larga onde o KV a poe e alinha as outras nela, como o render
+    (render.derivado.alinhar_na_entrada)."""
+    return [ln['just'] for ln in _linhas_no_formato(peca, el, com_just=True) or []]
+
+
 def _peca_no_formato(peca, tr, el, W, H):
     """A peca no formato: caixa e recorte pela transformacao do elemento. O texto leva as quebras do elemento no
     formato e o recorte e a regiao da pagina do texto no render (a caixa validada com folga), nunca o recorte do
     elemento: o render nao corta o texto ali."""
-    from desdobra.derivacao import quebras as mq
     from desdobra.render import derivado as rd
     s = float(tr['s'])
     p = {k: v for k, v in peca.items() if k not in ('caixa', 'caixa_tinta', 'linhas') and not k.startswith('_')}
@@ -553,18 +582,7 @@ def _peca_no_formato(peca, tr, el, W, H):
     if 'linhas' in peca:
         lid = peca['camada']
         alvo = dict(el, transformacao=tr)
-        q = el.get('quebras')
-        linhas = peca['linhas']
-
-        def face_de(ps):
-            return peca['_faces'].get(ps)
-        fam = next((x for x in (q.get('familia') or []) if x['layer_id'] == lid), None) if isinstance(q, dict) else None
-        if fam is not None:
-            # a quebra da familia da tela tambem insere (M7b, C2), como o render
-            linhas = _linhas(peca['_texto'], face_de, juntar=mq.juntadas({'texto': peca['_texto']}, fam['aprovadas']),
-                             inserir=fam.get('inseridas') or ())
-        elif isinstance(q, list) and el.get('quebras_camada') == lid:
-            linhas = _linhas(peca['_texto'], face_de, inserir=q)
+        linhas = _linhas_no_formato(peca, el)
         cv = rd.caixa_validada_do_texto(alvo, lid, peca['caixa_tinta'])
         p['caixa_tinta'] = _mapear(peca['caixa_tinta'], tr)
         p['caixa_validada'] = [_arred(x) for x in cv]

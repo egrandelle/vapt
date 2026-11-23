@@ -236,6 +236,28 @@ def caixa_visivel(el_cf, geo, tinta_doc):
                         'destino': [float(geo[0]), float(geo[1])]}, tinta_doc)
 
 
+def alinhamentos_do_da(ctx, kv, edicoes):
+    """{id do elemento: alinhamento das linhas (esquerda, centro ou direita)} que o DA escolheu e que muda o texto
+    (0.12.0; derivacao.quebras.alinhamento_efetivo: o do KV escolhido de novo volta ao KV e fica de fora). So o
+    elemento com um texto de ponto so, que nao vai como imagem (a regra da tela, desdobra.tela.edicao.Editor.
+    _alinhamento): a edicao em outro elemento a tela recusa, e o "Salvar e seguir" para antes (pendencias)."""
+    from desdobra.briefing import modelo as mb
+    from desdobra.derivacao import quebras as mq
+    if not any(e.get('acao') == 'alinhar_texto' for e in edicoes or ()):
+        return {}
+    cam = mb.camadas_do_laudo(ctx['laudo'])
+    saida = {}
+    for e in kv['elementos']:
+        textos = [cam.get(lid) for lid in e['layer_ids'] if (cam.get(lid) or {}).get('tipo') == 'texto']
+        if len(textos) != 1 or any((cam.get(lid) or {}).get('texto_como_imagem') for lid in e['layer_ids']) or \
+                (textos[0].get('texto') or {}).get('tipo_caixa') == 'paragrafo':
+            continue
+        valor = mq.alinhamento_efetivo(edicoes, e['id'], textos[0])
+        if valor is not None:
+            saida[e['id']] = valor
+    return saida
+
+
 def tintas_editadas(ctx, kv, edicoes, fid):
     """{id do elemento: tinta das linhas do DA no documento} de cada elemento so de texto com texto editado nas
     edicoes (0.9.6; decisao 196), com a quebra da familia do formato fid sobre o texto novo. A medida e a mesma da
@@ -243,6 +265,7 @@ def tintas_editadas(ctx, kv, edicoes, fid):
     from desdobra.briefing import modelo as mb
     from desdobra.derivacao import quebras as mq
     cam = mb.camadas_do_laudo(ctx['laudo'])
+    alin = alinhamentos_do_da(ctx, kv, edicoes)
     els = []
     for e in kv['elementos']:
         texto = mq.texto_editado(edicoes, e['id'])
@@ -250,6 +273,9 @@ def tintas_editadas(ctx, kv, edicoes, fid):
                 any((cam.get(lid) or {}).get('tipo') != 'texto' for lid in e['layer_ids']):
             continue
         x = {'id': e['id'], 'layer_ids': list(e['layer_ids']), 'texto_editado': texto}
+        if e['id'] in alin:
+            # 0.12.0: a tinta das linhas do DA com o alinhamento novo (a caixa do bloco fica no lugar)
+            x['alinhamento_do_da'] = {'alinhamento': alin[e['id']]}
         _quebras_do_editado(ctx, x, fid)
         els.append(x)
     if not els:
@@ -267,7 +293,8 @@ def _figura_de_fundo(fundo, apagados):
     return fundo[0] if fundo and fundo[0] not in apagados else None
 
 
-def layout_do_membro(cf, elementos, edicoes, *, kv_por_id, conteudo, kv_caixas, kv_tamanho, tintas=None, fundo=()):
+def layout_do_membro(cf, elementos, edicoes, *, kv_por_id, conteudo, kv_caixas, kv_tamanho, tintas=None, fundo=(),
+                     alinhamentos=None):
     """O layout de um membro da familia com as edicoes do DA: as edicoes em proporcao ao formato (o alinhamento no
     quadro com os quadros do membro, M7b, D2), a intencao de alinhamento entre os elementos de conteudo depois de cada
     edicao, so no que ela mexeu (edicao.editar, decisao 185), o alinhamento no quadro firmado de novo e a conferencia
@@ -292,7 +319,9 @@ def layout_do_membro(cf, elementos, edicoes, *, kv_por_id, conteudo, kv_caixas, 
     dela.
     Devolve {'caixas', 'caixas_visiveis', 'sangra', 'apagados', 'textos', 'mexidos', 'alinhados', 'no_quadro',
     'quadros', 'sangria_do_da', 'falhas', 'decisoes_do_da', 'avisos', 'reprovadas', 'elementos',
-    'figura_de_fundo'}."""
+    'figura_de_fundo', 'alinhamentos'}.
+    alinhamentos (0.12.0): {id: alinhamento das linhas do texto} que o DA escolheu (alinhamentos_do_da). Nao mexe em
+    caixa nenhuma; o layout so o leva, sem o elemento apagado."""
     from desdobra import limites
     from desdobra.derivacao import elementos as mod_elementos
     from desdobra.derivacao import galeria as mg
@@ -378,7 +407,8 @@ def layout_do_membro(cf, elementos, edicoes, *, kv_por_id, conteudo, kv_caixas, 
             'sangria_do_da': sangria_do_da,
             'falhas': falhas, 'decisoes_do_da': decisoes, 'avisos': avisos, 'reprovadas': reprovadas,
             'elementos': mg.elementos_do_layout(cf, caixas, sangra, apagados),
-            'figura_de_fundo': _figura_de_fundo(fundo, apagados)}
+            'figura_de_fundo': _figura_de_fundo(fundo, apagados),
+            'alinhamentos': {k: v for k, v in sorted((alinhamentos or {}).items()) if k in caixas}}
 
 
 # ------------------------------------------------------------------ a familia segue o arquivo de edicao (199)
@@ -540,7 +570,8 @@ def _copia(ctx, cf, modelo, lay_ref, membro, fundo=()):
                 'ajustes': [{k: v for k, v in a.items() if k != 'estado'} for a in est['ajustes']],
                 'relacoes_quebradas': [dict(q) for q in est['relacoes_quebradas']]}
     return {'caixas': caixas, 'caixas_visiveis': vis, 'sangra': sangra, 'apagados': apagados,
-            'textos': dict(lay_ref['textos']), 'mexidos': [], 'alinhados': [], 'no_quadro': [],
+            'textos': dict(lay_ref['textos']), 'alinhamentos': dict(lay_ref.get('alinhamentos') or {}),
+            'mexidos': [], 'alinhados': [], 'no_quadro': [],
             'quadros': quadros_do_membro(cf), 'sangria_do_da': {k: list(v) for k, v in lay_ref['sangria_do_da'].items()},
             'falhas': falhas, 'decisoes_do_da': decisoes, 'avisos': avisos, 'reprovadas': reprovadas,
             'elementos': mg.elementos_do_layout(cf, caixas, sangra, apagados), 'situacao': situacao,
@@ -651,7 +682,8 @@ def layout_da_familia(ctx, kv, familia, *, derivados, versoes=None, tintas=None,
     # a figura de fundo da versao de partida no arquivo de edicao (decisoes-v1.md, n 202): a mesma regra da galeria,
     # para a previa, a copia e o "Salvar e seguir" verem o mesmo
     fundo_ref = mg.fundo_da_versao(cf_ref, vid)
-    lay_ref = layout_do_membro(cf_ref, elementos, edicoes, tintas=tintas, fundo=fundo_ref, **extra)
+    lay_ref = layout_do_membro(cf_ref, elementos, edicoes, tintas=tintas, fundo=fundo_ref,
+                               alinhamentos=alinhamentos_do_da(ctx, kv, edicoes), **extra)
     lay_ref.update(cf=cf_ref, caminho=caminho, mestre=mestre, arquivo_de_edicao=ref, situacao='arquivo_de_edicao',
                    frases=[], transferencia=None, versao=vid)
     saida[ref] = lay_ref
@@ -699,7 +731,16 @@ def _caixas_editadas(ctx, elementos):
     """A caixa medida do texto editado de cada elemento (Linhas do DA, 0.9.4), no espaco do documento: {id do elemento:
     (caixa_doc ou None, motivo da falta ou None)}. As linhas sao as do DA (derivacao.quebras.linhas_editadas, com a
     quebra da familia do elemento), com o mesmo corpo; a tinta e medida no Chromium com o cache
-    (derivacao.medida_quebras.medir_editados). O elemento com mais de um texto fica com a caixa que junta todos."""
+    (derivacao.medida_quebras.medir_editados). O elemento com mais de um texto fica com a caixa que junta todos. Com o
+    alinhamento do DA (0.12.0, x['alinhamento_do_da']), a tinta sai pela justificacao nova, com a linha mais larga no
+    lugar."""
+    por_el, medidas, motivo = _medidas_editadas(ctx, elementos)
+    return _caixas_das_medidas(por_el, medidas, motivo)
+
+
+def _medidas_editadas(ctx, elementos):
+    """(por_el {id do elemento: [(layer_id, chave)]}, medidas {chave: medida}, motivo da falta de todas ou None) do
+    texto editado de cada elemento (_caixas_editadas)."""
     from pathlib import Path
 
     from desdobra import contratos
@@ -713,15 +754,16 @@ def _caixas_editadas(ctx, elementos):
             continue
         fam = {i['layer_id']: i for i in ((x.get('quebras') or {}).get('familia') or [])} \
             if isinstance(x.get('quebras'), dict) else {}
+        j = mq.ALINHAMENTO_PARA_JUSTIFICACAO.get((x.get('alinhamento_do_da') or {}).get('alinhamento'))
         por_el[x['id']] = []
         for lid in x['layer_ids']:
             if (cam.get(lid) or {}).get('tipo') != 'texto':
                 continue
             linhas = mq.linhas_editadas(x['texto_editado'], fam.get(lid))
-            pedidos.append((lid, linhas))
-            por_el[x['id']].append(mq.chave_editado(lid, linhas))
+            pedidos.append((lid, linhas) if j is None else (lid, linhas, j))
+            por_el[x['id']].append((lid, mq.chave_editado(lid, linhas, j)))
     if not pedidos:
-        return {}
+        return {}, {}, None
     medidas, motivo = {}, None
     pasta = ctx.get('pasta')
     try:
@@ -732,10 +774,14 @@ def _caixas_editadas(ctx, elementos):
             medidas = medida_quebras.medir_editados(pasta, ctx['laudo'], estado, pedidos)
     except (contratos.ErroContrato, OSError, ValueError, KeyError):
         motivo = 'sem_medida'
+    return por_el, medidas, motivo
+
+
+def _caixas_das_medidas(por_el, medidas, motivo):
     saida = {}
-    for eid, chaves in por_el.items():
+    for eid, pares in por_el.items():
         caixa, falta = None, motivo
-        for ch in chaves:
+        for _lid, ch in pares:
             m = medidas.get(ch) or {}
             if 'caixa_doc' not in m:
                 falta = falta or m.get('erro') or 'sem_medida'
@@ -745,6 +791,86 @@ def _caixas_editadas(ctx, elementos):
                                                   max(caixa[3], c[3])]
         saida[eid] = (None, falta or 'sem_medida') if caixa is None or falta else (caixa, None)
     return saida
+
+
+def _quebras_do_render(x, camada, lid):
+    """(manter, inseridas) das quebras que o render aplica no texto do KV layer_id do elemento x
+    (render.derivado.quebras_da_entrada): as da familia, as da mestre propria, ou todas as gravadas e nenhuma
+    inserida."""
+    from desdobra.derivacao import quebras as mq
+    q = x.get('quebras')
+    if isinstance(q, dict):
+        item = next((i for i in q.get('familia') or [] if i['layer_id'] == lid), None)
+        if item is not None:
+            return list(item['aprovadas']), list(item.get('inseridas') or ())
+    todas = list(range(len(mq.posicoes_de_quebra(camada))))
+    if isinstance(q, list) and x.get('quebras_camada') == lid:
+        return todas, list(q)
+    return todas, []
+
+
+def _alinhamentos_medidos(ctx, elementos, por_el, medidas_ed):
+    """As camadas do alinhamento do DA (0.12.0) de cada elemento com x['alinhamento_do_da'], no lugar, e os registros
+    da medida que falta. O texto editado ja foi medido com a justificacao nova (_medidas_editadas: o desvio vem de la);
+    o texto do KV e medido aqui (derivacao.medida_quebras.medir_alinhados), com as quebras que o render aplica, e a
+    caixa medida (caixa_doc, no documento) e a caixa validada do render. Sem medida, a camada fica so com a
+    justificacao: o render desenha o texto como o KV e registra (texto_alinhado_sem_medida)."""
+    from pathlib import Path
+
+    from desdobra import contratos
+    from desdobra.briefing import modelo as mb
+    from desdobra.derivacao import medida_quebras
+    from desdobra.derivacao import quebras as mq
+    alinhados = [x for x in elementos if x.get('alinhamento_do_da')]
+    if not alinhados:
+        return []
+    cam = mb.camadas_do_laudo(ctx['laudo'])
+    pedidos, chaves = [], {}
+    for x in alinhados:
+        j = mq.ALINHAMENTO_PARA_JUSTIFICACAO[x['alinhamento_do_da']['alinhamento']]
+        if x.get('texto_editado') is not None:
+            continue
+        for lid in x['layer_ids']:
+            c = cam.get(lid) or {}
+            if c.get('tipo') != 'texto':
+                continue
+            manter, inseridas = _quebras_do_render(x, c, lid)
+            pedidos.append((lid, manter, inseridas, j))
+            chaves[(x['id'], lid)] = mq.chave_alinhado(lid, manter, inseridas, j)
+    medidas, motivo = {}, None
+    if pedidos:
+        pasta = ctx.get('pasta')
+        try:
+            estado = contratos.ler(Path(pasta) / 'estado.json', 'estado/1') if pasta else None
+            if estado is None:
+                motivo = 'sem_job'
+            else:
+                medidas = medida_quebras.medir_alinhados(pasta, ctx['laudo'], estado, pedidos)
+        except (contratos.ErroContrato, OSError, ValueError, KeyError):
+            motivo = 'sem_medida'
+    registros = []
+    for x in alinhados:
+        j = mq.ALINHAMENTO_PARA_JUSTIFICACAO[x['alinhamento_do_da']['alinhamento']]
+        if x.get('texto_editado') is not None:
+            pares = por_el.get(x['id']) or []
+            achadas = [(lid, medidas_ed.get(ch) or {}) for lid, ch in pares]
+        else:
+            achadas = [(lid, medidas.get(ch) or {}) for (eid, lid), ch in sorted(chaves.items()) if eid == x['id']]
+        camadas, falta = [], None
+        for lid, m in achadas:
+            item = {'layer_id': lid, 'justificacao': j}
+            if 'desvio' in m:
+                item['desvio'] = m['desvio']
+                if x.get('texto_editado') is None and 'caixa_doc' in m:
+                    item['caixa_doc'] = list(m['caixa_doc'])
+            else:
+                falta = falta or motivo or m.get('erro') or 'sem_medida'
+            camadas.append(item)
+        x['alinhamento_do_da']['camadas'] = camadas
+        if falta or not camadas:
+            registros.append({'codigo': 'texto_alinhado_sem_medida',
+                              'medidas': {'elemento': x['id'], 'motivo': falta or motivo or 'sem_medida'}})
+    return registros
 
 
 def _no_formato(tr, c):
@@ -832,6 +958,10 @@ def _derivacao(ctx, kv, cf, d, lay, caminho, proposta, origem_apagado, d_ref=Non
         if e['id'] in lay['sangria_do_da']:
             # os lados que o DA deixou passar da borda (M7b, D4): o render corta no quadro
             x['sangria_do_da'] = list(lay['sangria_do_da'][e['id']])
+        if e['id'] in (lay.get('alinhamentos') or {}):
+            # 0.12.0: o alinhamento das linhas que o DA escolheu; as camadas (a justificacao, o desvio da ancora e a
+            # caixa medida) saem da medida abaixo. A geometria nao muda: a origem fica a de antes
+            x['alinhamento_do_da'] = {'alinhamento': lay['alinhamentos'][e['id']], 'camadas': []}
         elementos.append(x)
     registros = list(d['registros'])
     # Linhas do DA (0.9.4): a caixa do texto editado e a tinta medida das linhas dele, com o mesmo corpo. O render a
@@ -839,7 +969,9 @@ def _derivacao(ctx, kv, cf, d, lay, caminho, proposta, origem_apagado, d_ref=Non
     # com registro (0.9.6; desdobra.render.derivado.montar)
     from desdobra import limites
     tol = float(limites.valor('derivacao.enquadramento_tolerancia_px'))
-    for eid, (caixa, falta) in sorted(_caixas_editadas(ctx, elementos).items()):
+    por_el, medidas_ed, motivo_ed = _medidas_editadas(ctx, elementos)
+    registros.extend(_alinhamentos_medidos(ctx, elementos, por_el, medidas_ed))
+    for eid, (caixa, falta) in sorted(_caixas_das_medidas(por_el, medidas_ed, motivo_ed).items()):
         x = next(e for e in elementos if e['id'] == eid)
         if caixa is None:
             registros.append({'codigo': 'texto_editado_sem_medida', 'medidas': {'elemento': eid, 'motivo': falta}})

@@ -194,16 +194,48 @@ def ler_larguras(item, larguras):
     return max(com) / item['escala'], max(sem) / item['escala']
 
 
+def _just_da_linha(justificacao, ln):
+    """A justificacao da linha: a mesma para todas (texto), ou a de cada linha ({id da linha: justificacao}, o texto
+    com paragrafos de alinhamentos diferentes, 0.12.0)."""
+    if isinstance(justificacao, dict):
+        justificacao = justificacao.get(ln['id'])
+    return (justificacao or 'LEFT').upper()
+
+
+def bloco_das_linhas(item, larguras, justificacao):
+    """{'esq', 'dir'} do avanco da linha mais larga no espaco de texto (sem o espacamento do ultimo caractere, como o
+    Photoshop), a partir do ponto de ancora de antes, ou None sem medida. A linha fica onde a justificacao dela a poe,
+    como o render a desenha (render.texto.ANCORA: o inicio na esquerda e na JUSTIFY_*, o meio no centro, o fim na
+    direita). E a linha que fica no lugar com o alinhamento do DA (0.12.0, derivacao.quebras.desvio): com todas as
+    linhas na mesma justificacao ela e o bloco inteiro; no texto misto do KV, so ela fica no lugar (a uniao das linhas
+    levaria a mais larga junto). Na mesma largura, a primeira."""
+    from desdobra.derivacao import quebras as mq
+    larga = None
+    for ln in item['linhas']:
+        w = larguras.get(ln['id'])
+        if not isinstance(w, (int, float)):
+            return None
+        avanco = float(w) - float(ln['ls_ultimo_px'])
+        if larga is not None and avanco <= larga[1]:
+            continue
+        larga = (-mq.FRACAO_DA_JUSTIFICACAO.get(_just_da_linha(justificacao, ln), 0.0) * avanco, avanco)
+    if larga is None:
+        return None
+    k = item['escala']
+    return {'esq': larga[0] / k, 'dir': (larga[0] + larga[1]) / k}
+
+
 def tinta_do_bloco(item, larguras, tintas, justificacao):
     """{'esq', 'dir', 'sobe', 'desce'} da tinta do bloco no espaco de texto, ou None sem medida: x a partir do ponto de
     ancora do paragrafo (o inicio da linha na esquerda, o meio no centro, o fim na direita), a subida da primeira linha
-    e a descida da ultima, cada uma a partir da linha de base dela."""
-    just = (justificacao or 'LEFT').upper()
+    e a descida da ultima, cada uma a partir da linha de base dela. justificacao: a do texto, ou {id da linha:
+    justificacao} (0.12.0)."""
     bloco, primeira, ultima = None, None, None
     for ln in item['linhas']:
         w, t = larguras.get(ln['id']), (tintas or {}).get(ln['id'])
         if not isinstance(w, (int, float)) or not isinstance(t, (list, tuple)) or len(t) != 4:  # numero-neutro: os 4 lados
             return None
+        just = _just_da_linha(justificacao, ln)
         avanco = float(w) - float(ln['ls_ultimo_px'])
         desvio = -avanco / 2.0 if just.startswith('CENTER') else (-avanco if just.startswith('RIGHT') else 0.0)  # numero-neutro: o meio
         esq, dir_ = desvio + float(t[0]), desvio + float(t[1])

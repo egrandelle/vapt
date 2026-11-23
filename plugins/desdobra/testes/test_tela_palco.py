@@ -551,17 +551,19 @@ def _tinta_duas_no_doc():
             y + ENTRELINHA_DUAS * ESCALA_DUAS * (len(LINHAS_DUAS) - 1)]
 
 
-def _psd_duas_linhas(destino, ps):
-    """PSD 320 x 160: fundo, o texto de duas linhas (camada de pixels do tamanho da tinta dele) e um quadrado."""
+def _psd_duas_linhas(destino, ps, paragrafos=None, origem=ORIGEM_DUAS, tinta=None):
+    """PSD 320 x 160: fundo, o texto de duas linhas (camada de pixels do tamanho da tinta dele) e um quadrado.
+    paragrafos, origem e tinta (0.12.0): os paragrafos do texto ((comprimento, justificacao do psd-tools), o texto
+    misto), a origem da matriz e a tinta no documento; sem eles, um paragrafo a esquerda em ORIGEM_DUAS."""
     from PIL import Image
     from psd_tools import PSDImage
     p = PSDImage.new('RGB', (320, 160), color=(255, 255, 255))
     p.create_pixel_layer(Image.new('RGBA', (320, 160), (240, 236, 220, 255)), name='fundo-sintetico')
-    x0, y0, x1, y1 = (int(round(v)) for v in _tinta_duas_no_doc())
+    x0, y0, x1, y1 = (int(round(v)) for v in (tinta or _tinta_duas_no_doc()))
     t = p.create_pixel_layer(Image.new('RGBA', (x1 - x0, y1 - y0), (20, 20, 20, 255)), name='duas-linhas',
                              top=y0, left=x0)
     texto = '\r'.join(LINHAS_DUAS)
-    ed = fap.EngineData.frombytes(fap._engine([(texto, 0, CORPO_DUAS, 0)], [ps]).replace(
+    ed = fap.EngineData.frombytes(fap._engine([(texto, 0, CORPO_DUAS, 0)], [ps], paragrafos).replace(
         b'/AutoLeading true', b'/AutoLeading false\n/Leading ' + str(ENTRELINHA_DUAS).encode()))
     bounds = fap.Descriptor(name='', classID=b'bounds', items=[
         (b'Left', fap.Double(0.0)), (b'Top ', fap.Double(-20.0)), (b'Rght', fap.Double(60.0)),
@@ -573,7 +575,7 @@ def _psd_duas_linhas(destino, ps):
         (b'warpStyle', fap.Enumerated(typeID=b'warpStyle', enum=b'warpNone')), (b'warpValue', fap.Double(0.0)),
         (b'warpPerspective', fap.Double(0.0)), (b'warpPerspectiveOther', fap.Double(0.0)),
         (b'warpRotate', fap.Enumerated(typeID=b'Ornt', enum=b'Hrzn'))])
-    tysh = fap.TypeToolObjectSetting(version=1, transform=(ESCALA_DUAS, 0.0, 0.0, ESCALA_DUAS) + ORIGEM_DUAS,
+    tysh = fap.TypeToolObjectSetting(version=1, transform=(ESCALA_DUAS, 0.0, 0.0, ESCALA_DUAS) + tuple(origem),
                                      text_version=50, text_data=td, warp_version=1, warp=warp, left=0, top=0,
                                      right=t.width, bottom=t.height)
     t._record.tagged_blocks[fap.Tag.TYPE_TOOL_OBJECT_SETTING] = fap.TaggedBlock(

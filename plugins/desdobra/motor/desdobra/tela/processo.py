@@ -96,7 +96,7 @@ def _executar(pasta, avisar, ao_abrir, teto, aberto, biblioteca=None):
     from desdobra.chromium import navegador
     from desdobra.derivacao import medida_quebras
     from desdobra.job import nucleo
-    from desdobra.tela import atos, estado, servidor, tarefas
+    from desdobra.tela import atos, estado, preferencias, servidor, tarefas
     try:
         orfaos = navegador.varrer_orfaos()
         # o render que a janela anterior deixou pela metade: o aviso vai para a tela, e a trava do processo morto sai
@@ -129,6 +129,12 @@ def _executar(pasta, avisar, ao_abrir, teto, aberto, biblioteca=None):
         if opcoes:
             # os botoes do passo 1 (modo de dados, linkados e valores de spec), so no servidor que grava
             opcoes['atos'] = atos.atos_do_job(pasta, teto=teto, conteudo=conteudo)
+        # o tema da tela (0.13.0): o arquivo de preferencias do DA na pasta de dados do plugin, fora do job, tambem no
+        # servidor so de leitura (ele aplica o tema guardado, mas nao grava: nao tem POST). Fora do ambiente do plugin
+        # nao ha arquivo, e a chamada fica como antes
+        arq_preferencias = preferencias.arquivo()
+        if arq_preferencias is not None:
+            opcoes = dict(opcoes, preferencias=arq_preferencias)
         with servidor.ServidorTela(conteudo, **opcoes) as srv:
             def conferir_perfil(p):
                 varredura.update(varrer_fechado(p, srv))

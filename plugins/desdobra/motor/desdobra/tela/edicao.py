@@ -68,7 +68,13 @@ As regras abaixo valem nele, e os outros arquivos copiam o layout aprovado nele 
     de novo os membros da familia com ela, como a derivacao vai fazer depois de "Salvar e seguir"; a previa e a
     derivacao gravada usam a mesma medida. A quebra fora de um espaco do texto de agora e recusada (como o rascunho).
     A previa leva os textos que o DA pode quebrar, com as posicoes (textos_da_quebra, o controle da quebra no palco,
-    M7b, C4), e o texto editado sai no palco nas linhas da quebra da familia.
+    M7b, C4), e o texto editado sai no palco nas linhas da quebra da familia;
+  - o alinhamento das linhas do texto (0.12.0, pedido do Duda): alinhar_texto leva o alinhamento (esquerda, centro ou
+    direita) a todas as linhas de um texto, no texto do KV e no editado. A caixa do bloco fica onde estava: a linha
+    mais larga nao anda, e as outras vao a borda esquerda, ao meio ou a borda direita dela. Nenhuma caixa anda (nada
+    vai a mexidos), e o alinhamento vale em toda a familia, como o texto. O alinhamento do KV de novo volta ao KV
+    (derivacao.quebras.alinhamento_efetivo). So no elemento com um texto de ponto so, com a fonte no job; o texto como
+    imagem e o da caixa de texto do Photoshop sao recusados com a frase (Editor._alinhamento).
 So previa, em memoria: nada aqui grava arquivo. As edicoes ficam no rascunho que a pagina grava (desdobra.tela.rascunho),
 e "Confirmar familia" e um ato da janela (desdobra.tela.atos).
 """
@@ -77,7 +83,7 @@ import time
 
 from desdobra import limites
 
-ACOES = ('mover', 'escalar', 'texto', 'apagar', 'alinhar')
+ACOES = ('mover', 'escalar', 'texto', 'apagar', 'alinhar', 'alinhar_texto')
 ACOES_DO_GRUPO = ('mover', 'escalar', 'alinhar')  # M7b, D1 e D2: as acoes que levam a lista do grupo
 # M7b, D2: o alinhamento no quadro do membro. alvo: (eixo, linha da caixa que encosta na mesma linha do quadro)
 ALVOS = {'margem_esquerda': ('x', 'esquerda'), 'centro_horizontal': ('x', 'centro'), 'margem_direita': ('x', 'direita'),
@@ -107,6 +113,11 @@ CASAS_MS = 1  # numero-neutro: casas do tempo gasto
 # tirar a quebra no palco
 # 0.9.1: a camada de texto que vai como imagem, por decisao do DA, nao se edita nem quebra no palco
 TEXTO_COMO_IMAGEM = 'Este texto vai como imagem, por decisão sua. O texto não se edita aqui.'
+# 0.12.0: as recusas do alinhamento das linhas do texto
+TEXTO_EM_CAIXA = ('Este texto está numa caixa de texto do Photoshop. Por enquanto, o alinhamento muda aqui só no texto '
+                  'de ponto.')
+TEXTO_SEM_UM_TEXTO_PARA_ALINHAR = 'Este elemento não tem um texto só para alinhar.'
+TEXTO_ALINHAR_SEM_FONTE = 'A fonte deste texto não está no job, e sem ela a tela não mostra o alinhamento novo.'
 TEXTO_QUEBRA_SEM_MEDIDA = ('A quebra de linha desta família ficou sem medida. Sem a medida, o desdobra não monta as '
                            'versões deste arquivo. Tire a quebra ou fale com a Trezion.')
 
@@ -367,12 +378,14 @@ def aplicar(caixas, edicoes, W, H, quadros=None, borda=(), visivel=None, editado
     editados = set(editados)
     for ed in edicoes:
         eid, acao = ed['elemento'], ed['acao']
-        if acao in ('apagar', 'texto'):
+        if acao in ('apagar', 'texto', 'alinhar_texto'):
+            # 0.12.0: o alinhamento das linhas do texto nao mexe em caixa nenhuma (derivacao.quebras.alinhamento_
+            # editado o le das edicoes)
             if eid not in caixas or eid in apagados:
                 continue
             if acao == 'apagar':
                 apagados.append(eid)
-            else:
+            elif acao == 'texto':
                 textos[eid] = ed['texto']
                 editados.add(eid)
             continue
@@ -675,6 +688,26 @@ def trocar_texto(palco, elemento, texto, quebra=None):
     return palco
 
 
+def alinhar_texto(palco, elemento, alinhamento, justificacoes=None):
+    """As pecas de texto do elemento no palco levam o alinhamento das linhas escolhido pelo DA (0.12.0). A pagina
+    alinha as linhas pelo novo (alinhamento) e poe a linha mais larga onde o KV a poe, como o render: a ancora do bloco
+    no KV pelo alinhamento de antes (alinhamento_kv) e o lugar de cada linha do KV pela justificacao dela
+    (alinhamento_kv_linhas, uma por linha do palco, no texto do KV que nao foi editado; o texto de paragrafos com
+    alinhamentos diferentes). justificacoes: {layer_id: [justificacao de cada linha]} (estado.justificacoes_no_formato).
+    So o elemento alinhado ganha esses campos: o palco do resto fica o mesmo de antes (o hash da familia confirmada nao
+    muda)."""
+    from desdobra.derivacao import quebras as mq
+    for p in palco['pecas']:
+        if p.get('elemento') != elemento or p.get('tipo') != 'texto' or not p.get('linhas'):
+            continue
+        p.setdefault('alinhamento_kv', p.get('alinhamento') or 'esquerda')
+        p['alinhamento'] = alinhamento
+        js = (justificacoes or {}).get(p.get('camada'))
+        if not p.get('texto_editado') and js and len(js) == len(p['linhas']):
+            p['alinhamento_kv_linhas'] = [mq.alinhamento_da_justificacao(j) for j in js]
+    return palco
+
+
 # ------------------------------------------------------------------ a familia
 class Editor:
     """A previa da edicao por familia, para a rota POST /api/familia/previa do servidor da tela.
@@ -870,11 +903,31 @@ class Editor:
             return None, _texto_da_recusa(faltam)
         return texto, None
 
+    def _alinhamento(self, eid):
+        """A recusa do alinhamento das linhas no elemento (0.12.0), ou None quando ele vale: o elemento com um texto de
+        ponto so, que nao vai como imagem, com a fonte no job (a mesma regra da quebra de linha no palco,
+        _textos_da_quebra). Na caixa de texto do Photoshop o render alinha nas bordas da caixa e quebra a linha
+        sozinho, e a derivacao nao veria as linhas que ele desenha."""
+        el = self.kv_por_id[eid]
+        if any((self.base.get(lid) or {}).get('como_imagem') for lid in el['layer_ids']):
+            return TEXTO_COMO_IMAGEM
+        textos = [lid for lid in el['layer_ids'] if (self.base.get(lid) or {}).get('linhas')]
+        if len(textos) != 1:
+            return TEXTO_SEM_UM_TEXTO_PARA_ALINHAR
+        peca = self.base[textos[0]]
+        if (peca.get('_texto') or {}).get('tipo_caixa') == 'paragrafo':
+            return TEXTO_EM_CAIXA
+        face_id = next((t['face'] for ln in peca['linhas'] for t in ln['trechos'] if t['face']), None)
+        if self.faces.get(face_id) is None or peca.get('modo') == 'imagem':
+            return TEXTO_ALINHAR_SEM_FONTE
+        return None
+
     def previa(self, dados, origem='da', antes=None):
         """{'familia', 'versao', 'membros': [{'formato', 'palco', 'falhas', 'decisoes_do_da', 'avisos',
         'validacoes_reprovadas', 'situacao', 'sangria_do_da': {id: [lados]}, 'quadro': {'margem', 'area_segura'}}],
         'apagados',
-        'textos_editados', 'recusas', 'alinhados', 'no_quadro', 'textos_da_quebra', 'tempo_ms'}, ou None quando os
+        'textos_editados', 'alinhamentos_do_da', 'recusas', 'alinhados', 'no_quadro', 'textos_da_quebra', 'tempo_ms'},
+        ou None quando os
         dados nao seguem o formato. no_quadro: os alinhamentos no quadro que valem em cada membro, com o valor da linha
         (M7b, D2). sangria_do_da: os lados em que o DA deixou cada elemento passar da borda do membro (M7b, D4).
         decisoes_do_da: o piso de escala ou de distancia que o elemento mexido pelo DA fura, fora das falhas, com o
@@ -896,6 +949,12 @@ class Editor:
                     recusas.append({'elemento': e['elemento'], 'texto': recusa})
                     continue
                 e = dict(e, texto=texto)
+            elif e['acao'] == 'alinhar_texto':
+                # 0.12.0: a recusa do alinhamento leva a acao (a do texto fica como era, sem ela)
+                recusa = self._alinhamento(e['elemento'])
+                if recusa is not None:
+                    recusas.append({'elemento': e['elemento'], 'acao': 'alinhar_texto', 'texto': recusa})
+                    continue
             aceitas.append(e)
         # a quebra de linha do rascunho diferente da do briefing: os membros partem da derivacao com ela (M7b, C3). O
         # pedido sem o campo e o rascunho sem quebra na familia: a previa nunca volta a quebra do briefing de antes,
@@ -905,6 +964,7 @@ class Editor:
         # o texto editado no palco sai nas linhas da quebra da familia (M7b, C4)
         quebras_por_elemento = {q['elemento']: q for q in quebras}
         membros, apagados_fam, textos_fam, alinhados_fam, no_quadro_fam = [], [], {}, [], []
+        alinhamentos_fam = {}
         # a tinta das linhas do DA do texto editado (0.9.6; decisao 196), a mesma medida do "Salvar e seguir": a
         # caixa do texto encolhe e cresce com as linhas dele no palco e na conferencia
         fids = list(self.familias[gid])
@@ -938,6 +998,12 @@ class Editor:
             palco = estado.palco_da_variante(fid, W, H, {'elementos': els}, self.laudo, self.base)
             for eid, texto in textos.items():
                 trocar_texto(palco, eid, texto, quebras_por_elemento.get(eid))
+            # 0.12.0: o alinhamento das linhas que o DA escolheu, em todo arquivo da familia
+            for eid, valor in sorted((lay.get('alinhamentos') or {}).items()):
+                el = next((x for x in els if x['id'] == eid), {'id': eid})
+                alinhar_texto(palco, eid, valor, {
+                    lid: estado.justificacoes_no_formato(self.base[lid], el)
+                    for lid in self.kv_por_id[eid]['layer_ids'] if (self.base.get(lid) or {}).get('linhas')})
             # o rotulo do texto editado (moldura, alcas e etiqueta) fica na caixa das linhas do DA (0.9.6): encolhe
             # quando o texto perde linhas
             vis = lay.get('caixas_visiveis') or {}
@@ -985,12 +1051,16 @@ class Editor:
                 if k not in apagados_fam:
                     apagados_fam.append(k)
             textos_fam.update(textos)
+            alinhamentos_fam.update(lay.get('alinhamentos') or {})
             alinhados_fam.extend(dict(a, formato=fid) for a in alinhados)
             no_quadro_fam.extend(dict(a, formato=fid) for a in lay['no_quadro'])
         nome = self._nome
         return {'familia': gid, 'versao': versao, 'membros': membros, 'arquivo_de_edicao': ref,
                 'apagados': [{'elemento': k, 'nome': nome(k), 'origem': origem} for k in apagados_fam],
                 'textos_editados': [{'elemento': k, 'nome': nome(k)} for k in textos_fam],
+                # 0.12.0: o alinhamento das linhas que muda o texto (o do KV escolhido de novo nao entra)
+                'alinhamentos_do_da': [{'elemento': k, 'nome': nome(k), 'alinhamento': v}
+                                       for k, v in sorted(alinhamentos_fam.items())],
                 'recusas': recusas, 'alinhados': alinhados_fam, 'no_quadro': no_quadro_fam,
                 'textos_da_quebra': self._textos_da_quebra(aceitas),
                 'tempo_ms': round((time.perf_counter() - inicio) * POR_MS, CASAS_MS)}
@@ -1051,8 +1121,11 @@ class Editor:
                     (camadas[textos[0]].get('texto') or {}).get('tipo_caixa') == 'paragrafo':
                 continue
             editado = mq.texto_editado(edicoes, e['id'])
+            # 0.12.0: o alinhamento do texto no KV, para a pagina marcar o botao dele; None no texto de paragrafos com
+            # alinhamentos diferentes (nenhum botao marcado, e toda escolha leva as linhas ao mesmo alinhamento)
             saida.append(dict(mq.texto_para_quebrar(camadas[textos[0]], editado), elemento=e['id'],
-                              layer_id=textos[0], editado=editado is not None))
+                              layer_id=textos[0], editado=editado is not None,
+                              alinhamento_kv=mq.alinhamento_do_kv(camadas[textos[0]], editado is not None)))
         return saida
 
     def _nome(self, eid):

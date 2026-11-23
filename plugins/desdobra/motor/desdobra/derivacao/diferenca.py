@@ -49,6 +49,8 @@ ORIGENS = {'da': 'da sua edição', 'regra': 'das regras', 'transformacao': 'da 
            'galeria': 'da versão da galeria', 'sugestao_citada': 'da sugestão citada',
            'familia': 'do layout que você aprovou no arquivo de edição'}
 ORIGEM_GERAL = 'de outra origem'
+# 0.12.0: o alinhamento das linhas do texto, como a tela o diz
+ALINHAMENTOS_DO_TEXTO = {'esquerda': 'à esquerda', 'centro': 'ao centro', 'direita': 'à direita'}
 CAMINHOS = {'transform': 'da escala do KV', 'solver': 'das regras', 'mestre_propria': 'da sua mestre',
             'galeria': 'da versão da galeria', 'familia': 'do layout que você aprovou no arquivo de edição',
             'devolvido': 'de lugar nenhum'}
@@ -253,6 +255,13 @@ def _do_elemento(eid, a, b, lado):
         frase = ('Você editou o texto %s.' if ta is None else
                  'O texto %s voltou ao do KV.' if tb is None else 'O texto %s mudou.') % _de(nome)
         saida.append(_item('texto', frase, eid))
+    # 0.12.0: o alinhamento das linhas que o DA escolheu (o desvio medido e conta do desdobra, fica de fora)
+    la = (a.get('alinhamento_do_da') or {}).get('alinhamento')
+    lb = (b.get('alinhamento_do_da') or {}).get('alinhamento')
+    if la != lb:
+        frase = ('O alinhamento do texto %s voltou ao do KV.' % _de(nome) if lb is None else
+                 'Você alinhou o texto %s %s.' % (_de(nome), ALINHAMENTOS_DO_TEXTO.get(lb, lb)))
+        saida.append(_item('alinhamento', frase, eid))
     if not _igual(a.get('origem_geometria'), b.get('origem_geometria')):
         saida.append(_item('origem', 'A caixa %s agora vem %s (antes vinha %s).'
                            % (_de(nome), ORIGENS.get(b.get('origem_geometria'), ORIGEM_GERAL),

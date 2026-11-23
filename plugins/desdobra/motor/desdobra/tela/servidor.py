@@ -65,9 +65,16 @@ Regras (cada uma com teste em testes/test_tela_servidor.py e testes/test_tela_es
     /fontes.css so cita /fonte/<id>, sem local() nem nome de arquivo;
   - toda resposta: no-store (menos o controle positivo /controle, como na conferencia de fontes), nosniff,
     Cross-Origin-Resource-Policy same-origin, Referrer-Policy no-referrer, a CSP estrita e X-Frame-Options DENY;
-  - nada e impresso, e so o rascunho e o que os atos gravam vai ao disco: o token, a sessao e o CSRF ficam so na
-    memoria deste processo e vao so ao Chromium que ele abre (url_entrada e a pagina). O servidor so conta as respostas
-    por rota (contagem).
+  - tema da tela (0.13.0; desdobra.tela.preferencias): com o arquivo de preferencias (parametro preferencias, na pasta
+    de dados do plugin, fora do job), a pagina servida em / leva data-theme="light" ou "dark" no <html>, tirado de
+    preferencias.ATRIBUTO e nunca do texto do arquivo; sem tema guardado, o <html> vai sem data-theme e a tela segue o
+    tema do Windows. POST /preferencias, so no servidor que grava e com as mesmas conferencias da escrita (corpo ate
+    CORPO_MAX_PREFERENCIAS), aceita so {"tema": "light"} ou {"tema": "dark"}, grava atomico sob uma trava propria e
+    responde 204. Sem o arquivo (testes, desenvolvimento) ou com erro do disco, o tema fica so na memoria desta janela,
+    tambem com 204. Nao e decisao do job: nao pede Disparo, nao espera a tarefa longa e nao entra no log do job;
+  - nada e impresso, e so o rascunho, o que os atos gravam e o tema da tela vao ao disco: o token, a sessao e o CSRF
+    ficam so na memoria deste processo e vao so ao Chromium que ele abre (url_entrada e a pagina). O servidor so conta
+    as respostas por rota (contagem).
 Risco residual declarado (o mesmo da desdobra.humano): o token, a sessao e os bytes das fontes ficam em claro na
 memoria do processo de fundo, que roda na conta do DA enquanto a janela esta aberta. Um despejo de memoria desse
 processo (ferramentas do proprio Windows, sem elevacao) os tira dali; o gancho nega os despejos conhecidos pelo
@@ -96,9 +103,14 @@ METODOS = ('GET', 'POST')
 # conferencias da escrita porque leva as edicoes do DA no corpo
 # /api/medicao nao decide nada: e o sinal do cronometro da mestre (desdobra.tela.cronometro; M7b, C5), que grava so
 # medicoes/tela.json, fora do briefing, e passa pelas mesmas conferencias da escrita
+# /preferencias nao e decisao do job: e o tema claro ou escuro da tela (desdobra.tela.preferencias; 0.13.0), gravado
+# na pasta de dados do plugin, fora do job, e passa pelas mesmas conferencias da escrita, com um teto de corpo menor
 ESCRITAS = {'/api/rascunho': 'rascunho', '/api/ato/pedir': 'ato_pedir', '/api/ato/confirmar': 'ato_confirmar',
             '/api/ato/cancelar': 'ato_cancelar', '/api/familia/previa': 'familia_previa',
-            '/api/tarefa/cancelar': 'tarefa_cancelar', '/api/medicao': 'medicao'}
+            '/api/tarefa/cancelar': 'tarefa_cancelar', '/api/medicao': 'medicao', '/preferencias': 'preferencias'}
+# o corpo do POST /preferencias e so {"tema": "light"} ou {"tema": "dark"}: o teto dele fica bem abaixo do das outras
+# escritas (tela.corpo_max_bytes)
+CORPO_MAX_PREFERENCIAS = 64  # numero-neutro: bytes, folga sobre os 17 de {"tema": "light"}
 # escritas recusadas enquanto uma tarefa longa roda (a edicao fica bloqueada; M7b, B1): a previa disputaria o fio do
 # HiGHS com o render (decisoes-v1.md, 172), e todo ato pega a trava do job, que fica com a tarefa
 BLOQUEADAS_NA_TAREFA = ('familia_previa', 'ato_pedir', 'ato_confirmar')
@@ -126,6 +138,10 @@ ID_FONTE = re.compile(r'^(?:f\d{2}|[0-9a-f]{64})$')
 ID_ASSET = re.compile(r'^a\d{3,4}$')
 ID_PREVIA = re.compile(r'^[a-z0-9][a-z0-9_-]*$')  # o id do formato do briefing (briefing-1.json, formatos.id)
 _TOKEN = re.compile(r'^[0-9a-f]+$')
+# a primeira tag <html ...> da pagina, onde entra o data-theme do tema guardado (0.13.0)
+_TAG_HTML = re.compile(rb'<html(\s[^>]*)?>', re.IGNORECASE)
+# a meta do tela.html que diz ao Chromium os dois esquemas; com tema guardado, ela passa a dizer so o dele
+META_ESQUEMA = b'<meta name="color-scheme" content="light dark">'
 # as rotas de imagem do servidor que grava (M7b, B3): /render/<formato> (o master) e /final/<formato> (o arquivo final
 # que o portao gerou para a aprovacao). So estes dois tipos saem, e o conteudo e conferido pelos primeiros bytes
 ROTAS_DE_IMAGEM = ('render', 'final')
@@ -278,9 +294,11 @@ class ServidorTela:
     (humano.abrir_sessao_tela), e o job precisa ter laudo.
     modo_teste: o modo de teste da tela (proposta do M7, 159c), so para os testes com job sintetico.
     atos: {nome: Ato} dos botoes que pedem confirmacao na janela.
-    relogio: o relogio do cronometro da mestre (desdobra.tela.cronometro; padrao time.time, o falso nos testes)."""
+    relogio: o relogio do cronometro da mestre (desdobra.tela.cronometro; padrao time.time, o falso nos testes).
+    preferencias: o caminho do arquivo de preferencias do DA (desdobra.tela.preferencias.arquivo(), na pasta de dados
+    do plugin), ou None: o tema escolhido fica so na memoria da janela. O servidor nunca acha esse caminho sozinho."""
 
-    def __init__(self, conteudo, pasta=None, modo_teste=False, atos=None, relogio=None):
+    def __init__(self, conteudo, pasta=None, modo_teste=False, atos=None, relogio=None, preferencias=None):
         from desdobra import humano, limites
         from desdobra.briefing import modelo
         from desdobra.tela import estatico, rascunho
@@ -375,6 +393,13 @@ class ServidorTela:
         self._trava = threading.Lock()
         self._trava_escrita = threading.Lock()
         self._trava_previa = threading.Lock()
+        # o tema da tela (0.13.0): o arquivo de preferencias do DA, fora do job, e o tema desta janela ('claro',
+        # 'escuro' ou None). A trava propria: o temporario da gravacao atomica tem o nome do pid, e dois POST
+        # seguidos, em fios diferentes deste processo, abririam o mesmo temporario
+        from desdobra.tela import preferencias as mod_preferencias
+        self._arq_preferencias = Path(preferencias) if preferencias is not None else None
+        self.tema = mod_preferencias.ler(self._arq_preferencias)
+        self._trava_tema = threading.Lock()
         self._srv = None
         self._fio = None
 
@@ -423,7 +448,7 @@ class ServidorTela:
         """(chave da contagem, (corpo, tipo) ou None quando so a entrada) ou None quando fora da tabela."""
         partes = caminho.split('/')
         if caminho == '/':
-            return 'pagina', self.estaticos['/']
+            return 'pagina', self._pagina  # com o tema da janela, montada a cada pedido, so depois do cookie
         if caminho in self.estaticos:
             return 'estatico', self.estaticos[caminho]
         if caminho == '/controle':
@@ -557,6 +582,46 @@ class ServidorTela:
                     set(dados) <= set(edicao.CAMPOS + edicao.CAMPOS_OPCIONAIS))
         return False
 
+    def _pagina(self):
+        """A pagina da tela (com a meta do CSRF ja posta) e, quando a janela tem tema, data-theme no <html>. O valor sai
+        sempre de preferencias.ATRIBUTO, nunca do texto do arquivo; sem tema, a pagina vai como esta e segue o tema do
+        Windows (prefers-color-scheme)."""
+        from desdobra.tela import preferencias
+        pagina, tipo = self.estaticos['/']
+        valor = preferencias.ATRIBUTO.get(self.tema)
+        if valor is None:
+            return pagina, tipo
+        marca = (' data-theme="%s"' % valor).encode('ascii')
+
+        def com_tema(m):
+            atributos = m.group(1) or b''
+            return m.group(0) if b'data-theme' in atributos.lower() else b'<html' + atributos + marca + b'>'
+        pagina = _TAG_HTML.sub(com_tema, pagina, count=1)
+        # a meta do esquema de cores segue o tema guardado: o Chromium pinta o fundo certo antes de ler o tela.css
+        pagina = pagina.replace(META_ESQUEMA, b'<meta name="color-scheme" content="%s">' % valor.encode('ascii'), 1)
+        return pagina, tipo
+
+    def _escolher_tema(self, dados):
+        """POST /preferencias (0.13.0): so {"tema": "light"} ou {"tema": "dark"}. O tema vale na hora para esta janela
+        e, com o arquivo de preferencias, e gravado atomico sob a trava do tema (a ultima gravacao vence entre janelas).
+        Erro do disco nao chega ao DA: o tema fica so na memoria da janela. Fora da trava de escrita, sem Disparo e sem
+        evento no job: nao e decisao do job."""
+        from desdobra import contratos
+        from desdobra.tela import preferencias
+        if not isinstance(dados, dict) or set(dados) != {'tema'} or not isinstance(dados['tema'], str):
+            return None
+        tema = preferencias.TEMA_DO_ATRIBUTO.get(dados['tema'])
+        if tema is None:
+            return None
+        with self._trava_tema:
+            self.tema = tema
+            if self._arq_preferencias is not None:
+                try:
+                    preferencias.gravar(self._arq_preferencias, tema)
+                except (OSError, contratos.ErroContrato):
+                    pass  # o tema nunca atrapalha o DA: vale nesta janela e a proxima segue o ultimo gravado
+        return 204, None  # numero-neutro: codigo HTTP
+
     def _estado_servido(self):
         if self.escreve:
             with self._trava_escrita:
@@ -681,6 +746,8 @@ class ServidorTela:
             return self._cancelar_tarefa(dados)
         if chave == 'medicao':
             return self._sinal_do_cronometro(dados)
+        if chave == 'preferencias':
+            return self._escolher_tema(dados)
         with self._trava_escrita:
             if chave == 'rascunho':
                 return self._gravar_rascunho(dados)
@@ -1004,7 +1071,8 @@ class ServidorTela:
                 if csrf is None or not _iguais(csrf, dono.csrf):
                     return self._negar(403, 'csrf_recusado')  # numero-neutro: codigo HTTP
                 tamanho = self._tamanho()
-                if tamanho is None or tamanho < 1 or tamanho > dono.corpo_max:
+                teto = CORPO_MAX_PREFERENCIAS if chave == 'preferencias' else dono.corpo_max
+                if tamanho is None or tamanho < 1 or tamanho > teto:
                     return self._negar(403, 'corpo_recusado')  # numero-neutro: codigo HTTP
                 corpo = self.rfile.read(tamanho)
                 if len(corpo) != tamanho:

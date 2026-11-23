@@ -82,7 +82,7 @@ def test_previa_leva_os_textos_que_o_da_pode_quebrar(job, modelo):
     r = conteudo['editar']({'familia': gm, 'versao': None, 'edicoes': []})
     textos = {t['elemento']: t for t in r['textos_da_quebra']}
     assert textos[el] == {'elemento': el, 'layer_id': lid, 'texto': APOIO, 'gravadas': [], 'espacos': [3],
-                          'editado': False}
+                          'editado': False, 'alinhamento_kv': 'esquerda'}
     # o titulo e um texto de uma linha so, sem espaco: entra, sem onde quebrar
     titulo = tsv._titulo(conteudo, gm)
     assert textos[titulo]['espacos'] == [] and textos[titulo]['gravadas'] == []
@@ -91,7 +91,7 @@ def test_previa_leva_os_textos_que_o_da_pode_quebrar(job, modelo):
     r = conteudo['editar']({'familia': gm, 'versao': None, 'edicoes': ed})
     textos = {t['elemento']: t for t in r['textos_da_quebra']}
     assert textos[el] == {'elemento': el, 'layer_id': lid, 'texto': 'VOX AH\nVOX', 'gravadas': [6], 'espacos': [3],
-                          'editado': True}
+                          'editado': True, 'alinhamento_kv': 'esquerda'}
     assert titulo not in textos
 
 

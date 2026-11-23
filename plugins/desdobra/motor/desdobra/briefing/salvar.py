@@ -226,7 +226,10 @@ def pendencias(pasta, conteudo, origem=None, detalhes=None):
             if r is None:
                 saida.append({'codigo': 'edicao_invalida', 'familia': gid})
             elif r['recusas']:
-                saida.append({'codigo': 'texto_sem_caractere', 'familia': gid})
+                # 0.12.0: o alinhamento recusado (a recusa leva a acao) tem a frase propria; a do texto vence
+                so_alinhar = all(x.get('acao') == 'alinhar_texto' for x in r['recusas'])
+                saida.append({'codigo': 'alinhamento_recusado' if so_alinhar else 'texto_sem_caractere',
+                              'familia': gid})
             elif layouts is not None and edicao.hash_dos_layouts(r) != layouts:
                 # os arquivos que mudaram vao junto: a tela diz quais foram (revisao da 0.10.0)
                 agora = edicao.hash_dos_layouts(r)

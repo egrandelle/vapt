@@ -186,6 +186,18 @@
     base: 'Encostou na base' };
   const FRASE_REFERENCIA = { margem: ', pela margem de cada arquivo desta família.',
     area_segura: ', pela área segura de cada arquivo desta família.' };
+  /* 0.12.0: o alinhamento das linhas do texto (os tres botoes depois de Quebrar linha) e como a tela o diz */
+  const ALINHAR_TEXTO = { 'ed-tx-esquerda': 'esquerda', 'ed-tx-centro': 'centro', 'ed-tx-direita': 'direita' };
+  const ROTULO_ALINHAMENTO = { esquerda: 'à esquerda', centro: 'ao centro', direita: 'à direita' };
+  const ALINHAR_TEXTO_TITULO = { esquerda: 'Alinhar o texto à esquerda', centro: 'Alinhar o texto ao centro',
+    direita: 'Alinhar o texto à direita' };
+  const ALINHAR_SO_UM = 'Para alinhar o texto, escolha um elemento só.';
+  const ALINHAR_SEM_TEXTO = 'Este elemento não tem texto para alinhar.';
+  const ALINHAR_COMO_IMAGEM = 'Texto como imagem: o alinhamento não muda aqui.';
+  const ALINHAR_EM_CAIXA = 'Este texto está numa caixa de texto do Photoshop. Por enquanto, o alinhamento muda aqui ' +
+    'só no texto de ponto.';
+  const ALINHAR_VARIOS_TEXTOS = 'Este elemento tem mais de um texto. O alinhamento muda aqui só no elemento com um texto.';
+  const ALINHAR_SEM_FONTE = 'A fonte deste texto não está no job. Sem ela, a tela não mostra o alinhamento.';
   const RETANGULO_MIN_PX = 3; // retangulo menor que isto, em px da tela, e so um clique
   /* M7b, C3: a quebra de linha mudada pede a previa (e a medida no desdobra) so depois de 300 ms sem clique */
   const ESPERA_QUEBRA_MS = 300;
@@ -346,7 +358,7 @@
     const selo = document.getElementById('selo');
     selo.textContent = situacao === 'erro' && rascunho.tentativas >= REPETIR_RASCUNHO_MS.length ?
       TEXTO_RASCUNHO.erro_parado : TEXTO_RASCUNHO[situacao];
-    selo.title = selo.textContent; // 0.9.2 (B6): abaixo de 1280 px o selo e um ponto, e a frase fica no title
+    selo.title = selo.textContent; // 0.9.2 (B6): na janela estreita (desde a 0.13.0, abaixo de 1100 px) o selo e um ponto, e a frase fica no title
     selo.dataset.estado = situacao;
     // "Confirmar família" segue o rascunho gravado: desliga no erro e volta quando ele grava
     if ((antes === 'erro') !== (situacao === 'erro') && typeof atualizarBotaoFamilia === 'function' && vista.familia) {
@@ -838,6 +850,37 @@
       pedirAto(b.dataset.ato, dados, undefined, b);
     });
   }
+  /* 0.13.0 (P2): Enter aciona o "Salvar e seguir" pelo mesmo caminho do clique (o clique do botao, que vai a
+     ligarAtos). So quando o Enter nao tem outro dono: nenhuma janela ou painel aberto (tambem o editor de texto, o
+     controle da quebra e o texto escrito no palco, mesmo com o foco solto), o foco fora de campo, botao, aba, link e do
+     palco, sem tecla junto, e o botao ligado, visivel e sem outro ato conferindo. No botao em foco vale o Enter do
+     proprio botao. Revisao da 0.13.0: a tecla aparece quando o Enter vale, e o Enter vale como o clique (a tarefa em
+     curso no passo 5 nao muda o botao, entao tambem nao muda o Enter; o pedido e a janela de confirmacao seguem iguais
+     aos do clique) */
+  const DONOS_DO_ENTER = 'input, textarea, select, button, a[href], summary, [contenteditable], [role=button], ' +
+    '[role=tab], [role=dialog], dialog, .area-palco, .barra-edicao, .editor-texto, .editor-quebra, .lista-faltam';
+  function enterTemDono(alvo) {
+    if (!alvo || alvo === document.body || alvo === document.documentElement) return false;
+    if (alvo.isContentEditable) return true;
+    if (alvo.closest && alvo.closest(DONOS_DO_ENTER)) return true;
+    return alvo.tabIndex >= 0;
+  }
+  function ligarEnterDoSalvar() {
+    if (!escrita) return;
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Enter' || ev.defaultPrevented || ev.repeat || ev.isComposing || ev.keyCode === 229) return;
+      if (ev.shiftKey || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+      if (document.querySelector('dialog[open]')) return;
+      if (!document.getElementById('ed-ajuda-painel').hidden || !document.getElementById('lista-faltam').hidden) return;
+      if (!document.getElementById('editor-texto').hidden || controleAberto() || ed.noPalco) return;
+      if (enterTemDono(ev.target) || enterTemDono(document.activeElement)) return;
+      const b = document.getElementById('salvar-seguir');
+      if (!b || b.disabled || b.hidden || b.getAttribute('aria-busy') === 'true' || !b.getClientRects().length) return;
+      if (document.querySelector('button[aria-busy="true"]')) return;
+      ev.preventDefault();
+      b.click();
+    });
+  }
 
   function semSublinhado(v) { return String(v).replace(/_/g, ' '); }
   function nomeFuncao(f) { return f ? (FUNCOES[f] || semSublinhado(f)) : 'sem função'; }
@@ -894,6 +937,7 @@
       document.getElementById('passo-' + p).hidden = p !== id;
     });
     document.getElementById('passo-atual').textContent = 'Passo ' + PASSOS[id] + ' de ' + Object.keys(PASSOS).length;
+    document.getElementById('passos-trilho').dataset.n = String(PASSOS[id]); // os tracos do progresso no rodape
     document.getElementById('confirmar-familia').hidden = id !== 'pecas';
     if (id === 'funcoes') desenharKv();
     if (id === 'design') desenharKvDesign();
@@ -1791,6 +1835,17 @@
       limpar(lugar);
     }
   }
+  /* 0.13.0 (P5): o nivel do que vai ao Claude em cada modo, as tres barras do mockup 01 (a legenda "Enviado ao
+     Claude" fica no titulo do bloco). Tres barras ligadas no a, duas no b, uma no c */
+  const NIVEL_DO_MODO = { a: [3, 'Envia textos e miniaturas'], b: [2, 'Envia só textos'], c: [1, 'Envia só contagens e medidas'] };
+  function nivelDoModo(v) {
+    const n = NIVEL_DO_MODO[v] || [0, ''];
+    const nivel = el('span', null, 'nivel');
+    nivel.setAttribute('role', 'img');
+    nivel.setAttribute('aria-label', n[1]);
+    for (let i = 0; i < 3; i++) nivel.appendChild(el('span', null, i < n[0] ? 'nivel-on' : 'nivel-off'));
+    return nivel;
+  }
   /* o modo de dados (decisao 170): nada marcado ate o DA escolher; so os modos dentro do teto aparecem */
   function montarModo(m) {
     const md = document.getElementById('lido-modo');
@@ -1810,6 +1865,7 @@
       corpo.appendChild(el('span', (MODOS[v] || ['Modo'])[0], 'modo-nome'));
       corpo.appendChild(el('span', (MODOS[v] || ['', ''])[1], 'modo-texto'));
       b.appendChild(corpo);
+      b.appendChild(nivelDoModo(v));
       grade.appendChild(b);
     });
     md.appendChild(grade);
@@ -2131,6 +2187,11 @@
     const o = (p2idx.opcoes.funcoes || []).find(function (x) { return x.id === f; });
     return o ? o.geometria : true;
   }
+  /* a classe da funcao (base, texto, marca, global, fora, indeterminado), para o ponto de cor na lista e nos botoes */
+  function classeDe(f) {
+    const o = ((p2idx.opcoes && p2idx.opcoes.funcoes) || []).find(function (x) { return x.id === f; });
+    return o ? o.classe : '';
+  }
   function maiuscula(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
   /* a heranca do motor (briefing/modelo.py resolver): a camada coberta no KV nao herda da pasta; as outras pegam a
      escolha mais proxima, da propria camada para cima */
@@ -2411,6 +2472,9 @@
       b.querySelector('.funcao').textContent = descricaoDoNo(n);
       b.classList.toggle('falta', falta(n));
       b.classList.toggle('propria', !!p2.funcoes[b.dataset.camada]);
+      const resolvida = resolver(n);
+      const classe = resolvida ? classeDe(resolvida.funcao) : '';
+      if (classe) b.dataset.classe = classe; else delete b.dataset.classe;
       // M7c, S4: a sugestao do Claude ao lado, so enquanto o DA nao escolheu a funcao desta camada ou pasta
       const s = sugestaoDe(b.dataset.camada);
       const marca = b.querySelector('.sugestao-arvore');
@@ -2594,6 +2658,7 @@
       const fs = (p2idx.opcoes.funcoes || []).filter(function (f) { return f.classe === c[0]; });
       if (!fs.length) return;
       const sec = el('div', null, 'classe-funcao');
+      sec.dataset.classe = c[0];
       sec.appendChild(el('h3', c[1], 'subtitulo'));
       const grade = el('div', null, 'opcoes-funcao');
       grade.setAttribute('role', 'group');
@@ -3576,10 +3641,15 @@
     });
     const etiquetas = [];
     if (!mini) {
-      [[x0, y0, m.mundo[2], 0], [x0, m.altura, m.mundo[2], m.mundo[3]], [x0, 0, 0, m.altura],
-        [m.largura, 0, m.mundo[2], m.altura]].forEach(function (c) {
-        if (c[2] > c[0] && c[3] > c[1]) { const f = el('div', null, 'fora'); pos(f, c); mundo.appendChild(f); }
+      const lados = [];
+      [[x0, y0, m.mundo[2], 0, 'cima'], [x0, m.altura, m.mundo[2], m.mundo[3], 'baixo'], [x0, 0, 0, m.altura, 'esquerda'],
+        [m.largura, 0, m.mundo[2], m.altura, 'direita']].forEach(function (c) {
+        if (c[2] > c[0] && c[3] > c[1]) { const f = el('div', null, 'fora'); pos(f, c); mundo.appendChild(f); lados.push(c[4]); }
       });
+      // 0.13.0 (P1): o tracejado da sangria, so quando a peca passa do formato. Revisao da 0.13.0: so nos lados em que
+      // a peca passa (data-sangria), nunca colado ao fio do formato
+      caixa.classList.toggle('com-sangria', lados.length > 0);
+      if (lados.length) caixa.dataset.sangria = lados.join(' '); else delete caixa.dataset.sangria;
       const moldura = el('div', null, 'moldura');
       pos(moldura, quadro);
       mundo.appendChild(moldura);
@@ -3605,6 +3675,9 @@
         if (e.raiz !== null && e.raiz !== undefined) r.dataset.raiz = String(e.raiz);
         const et = el('span', etiquetaElemento(e), 'etiqueta');
         et.title = rotuloElemento(e);
+        // 0.13.0 (P5): o ponto da cor da classe da funcao, como na lista das camadas
+        const classe = classeDe(e.funcao);
+        if (classe) et.dataset.classe = classe;
         /* 0.9.1: o elemento com texto como imagem por decisao do DA leva o selo na etiqueta */
         if (m.pecas.some(function (p) { return p.elemento === e.id && p.como_imagem; })) {
           et.appendChild(el('span', 'Texto como imagem', 'selo-texto-imagem'));
@@ -3709,6 +3782,22 @@
      volta quando o DA escolhe o elemento). Assim o palco nunca mostra texto encavalado */
   function separarEtiquetas(lista) {
     const postas = [];
+    /* revisao da 0.13.0: a etiqueta que sairia do palco conta como encavalada. O limite e a area visivel do palco
+       somada a caixa da escala (no zoom o mundo passa do palco e rola); assim o nome nunca fica cortado na borda nem
+       abre rolagem de lado em Ajustar */
+    const escala = lista.length ? lista[0].closest('.escala') : null;
+    const area = escala ? escala.parentElement : null;
+    let limite = null;
+    if (area) {
+      const ra = area.getBoundingClientRect(), re = escala.getBoundingClientRect();
+      const l = ra.left + area.clientLeft, t = ra.top + area.clientTop;
+      limite = { left: Math.min(l, re.left), top: Math.min(t, re.top),
+        right: Math.max(l + area.clientWidth, re.right), bottom: Math.max(t + area.clientHeight, re.bottom) };
+    }
+    function sai(c) {
+      return !!limite && (c.left < limite.left - 1 || c.right > limite.right + 1 || c.top < limite.top - 1 ||
+        c.bottom > limite.bottom + 1);
+    }
     function prioridade(et) {
       const r = et.closest('.rotulo');
       return r && (r.classList.contains('selecionado') || r.classList.contains('destaque') ||
@@ -3726,7 +3815,7 @@
       .forEach(function (et) {
         et.dataset.lado = et.classList.contains('pela-direita') ? '1' : '';
         let c = et.getBoundingClientRect();
-        if (bate(c) && !prioridade(et)) {
+        if ((bate(c) || sai(c)) && !prioridade(et)) {
           // primeiro o outro lado da caixa, depois uma ou duas linhas acima; so entao sai da vista
           const base = et.style.transform;
           const tentativas = [['lado', 0], ['', 1], ['lado', 1], ['', 2], ['lado', 2]];
@@ -3734,7 +3823,7 @@
             et.classList.toggle('pela-direita', t[0] === 'lado' ? !et.dataset.lado : !!et.dataset.lado);
             et.style.transform = base + (t[1] ? ' translateY(-' + (t[1] * 100) + '%)' : '');
             c = et.getBoundingClientRect();
-            return !bate(c);
+            return !bate(c) && !sai(c);
           });
           if (!achou) {
             et.style.transform = base;
@@ -3780,6 +3869,9 @@
       t.style.top = (alvo[1] - p.recorte[1]) + 'px';
       t.style.width = Math.max(0, alvo[2] - alvo[0]) + 'px';
       t.style.textAlign = { esquerda: 'left', centro: 'center', direita: 'right' }[p.alinhamento] || 'left';
+      /* 0.12.0: com o alinhamento do DA, o bloco fica da largura da linha mais longa (nenhuma linha passa da caixa,
+         o que no CSS a levaria ao inicio) e cada linha alinha nele; medirTexto deixa o bloco no lugar do KV */
+      if (p.alinhamento_kv) t.style.width = 'max-content';
       if (p.texto_editado) {
         t.classList.add('editado');
         /* Linhas do DA (0.9.4): o texto editado nunca quebra sozinho. O bloco fica da largura da linha mais longa,
@@ -3809,6 +3901,39 @@
     dentro(v, [cx0, cy0, cx1, cy1]);
     return v;
   }
+  /* 0.12.0: o desvio em x do texto com o alinhamento do DA, como o render o desenha (render.derivado.
+     alinhar_na_entrada): a ancora do texto fica onde o KV a pos e a linha mais larga nao anda; as outras vao a borda
+     esquerda, ao meio ou a borda direita dela. A pagina so tem a caixa de tinta do KV (t.largura, a partir de t.x):
+     com as linhas de agora postas como o KV as poe (cada linha pela justificacao dela no KV, alinhamento_kv_linhas no
+     texto de paragrafos com alinhamentos diferentes, senao alinhamento_kv), a tinta delas cai nessa caixa pela ancora
+     do KV, como medirTexto faz sem o alinhamento; dai sai a ancora, e a linha mais larga comeca nela onde o KV a
+     comeca. O avanco da linha nao conta o espacamento depois do ultimo caractere, como no desdobra
+     (fontes.medicao.bloco_das_linhas). null sem linha medida */
+  const FRACAO_DO_ALINHAMENTO = { esquerda: 0, centro: 0.5, direita: 1 };
+  const MESMA_LARGURA_PX = 0.01; // linhas com avancos mais perto que isto sao da mesma largura: vale a primeira
+  function desvioDoAlinhado(t, porLinha) {
+    const doKv = t.peca.alinhamento_kv_linhas || [];
+    function fracao(n) {
+      const f = FRACAO_DO_ALINHAMENTO[doKv[n] || t.peca.alinhamento_kv];
+      return f === undefined ? 0 : f;
+    }
+    let esq = null, dir = null, larga = null;
+    porLinha.forEach(function (ln, n) {
+      if (ln.ini === null) return;
+      const avanco = Math.max(0, ln.fim - ln.ini - ln.ls);
+      const inicioNoKv = -fracao(n) * avanco; // o inicio da linha no KV, a partir da ancora
+      if (ln.esq !== null) {
+        esq = esq === null ? inicioNoKv + ln.esq - ln.ini : Math.min(esq, inicioNoKv + ln.esq - ln.ini);
+        dir = dir === null ? inicioNoKv + ln.dir - ln.ini : Math.max(dir, inicioNoKv + ln.dir - ln.ini);
+      }
+      if (!larga || avanco > larga.avanco + MESMA_LARGURA_PX) larga = { avanco: avanco, ini: ln.ini, noKv: inicioNoKv };
+    });
+    if (esq === null || !larga) return null;
+    let ancora = -esq; // a ancora do texto, a partir da borda esquerda da caixa de tinta do KV
+    if (t.peca.alinhamento_kv === 'centro') ancora = t.largura / 2 - (esq + dir) / 2;
+    else if (t.peca.alinhamento_kv === 'direita') ancora = t.largura - dir;
+    return ancora + larga.noKv - larga.ini;
+  }
   /* A tinta do texto medida no proprio Chromium: o marco de largura zero da a linha de base de cada linha, e o
      canvas, com a mesma face carregada, da a caixa de tinta de cada trecho (actualBoundingBox). A distancia entre as
      linhas de base e a entrelinha do PSD, como no render (render/texto.py: y += entrelinha da linha): a caixa de linha
@@ -3823,12 +3948,15 @@
       return linha.querySelector('.marco').getBoundingClientRect().bottom - base.top;
     });
     let yBase = bases.length ? bases[0] : 0;
+    const porLinha = []; // 0.12.0: o inicio, o fim e a tinta em x de cada linha, para o alinhamento do DA
     linhas.forEach(function (linha, n) {
       if (n > 0) {
         const e = parseFloat(linha.dataset.entrelinha);
         yBase += e > 0 ? e : bases[n] - bases[n - 1];
       }
       linha.style.top = (yBase - bases[n]) + 'px';
+      const ln = { ini: null, fim: null, ls: 0, esq: null, dir: null };
+      porLinha.push(ln);
       linha.querySelectorAll('.trecho').forEach(function (s) {
         const r = s.getBoundingClientRect();
         const cs = getComputedStyle(s);
@@ -3836,9 +3964,16 @@
         regua.letterSpacing = cs.letterSpacing === 'normal' ? '0px' : cs.letterSpacing;
         const mm = regua.measureText(s.textContent);
         const x = r.left - base.left;
+        if (s.textContent) {
+          if (ln.ini === null) ln.ini = x;
+          ln.fim = r.right - base.left;
+          ln.ls = cs.letterSpacing === 'normal' ? 0 : (parseFloat(cs.letterSpacing) || 0);
+        }
         const c = [x - mm.actualBoundingBoxLeft, yBase - mm.actualBoundingBoxAscent, x + mm.actualBoundingBoxRight,
           yBase + mm.actualBoundingBoxDescent];
         if (c[2] - c[0] <= 0 || c[3] - c[1] <= 0) return;
+        ln.esq = ln.esq === null ? c[0] : Math.min(ln.esq, c[0]);
+        ln.dir = ln.dir === null ? c[2] : Math.max(ln.dir, c[2]);
         tinta = tinta ? [Math.min(tinta[0], c[0]), Math.min(tinta[1], c[1]), Math.max(tinta[2], c[2]),
           Math.max(tinta[3], c[3])] : c;
       });
@@ -3846,8 +3981,13 @@
     if (!tinta) { t.no.dataset.tinta = ''; return; }
     const w = tinta[2] - tinta[0];
     let dx = -tinta[0];
-    if (t.peca.alinhamento === 'centro') dx = (t.largura - w) / 2 - tinta[0];
-    else if (t.peca.alinhamento === 'direita') dx = t.largura - tinta[2];
+    /* 0.12.0: com o alinhamento do DA, a linha mais larga fica onde o KV a pos, como no render; so as outras linhas
+       seguem o alinhamento escolhido */
+    const alinhado = t.peca.alinhamento_kv ? desvioDoAlinhado(t, porLinha) : null;
+    const ancoraX = t.peca.alinhamento_kv || t.peca.alinhamento;
+    if (alinhado !== null) dx = alinhado;
+    else if (ancoraX === 'centro') dx = (t.largura - w) / 2 - tinta[0];
+    else if (ancoraX === 'direita') dx = t.largura - tinta[2];
     let dy = -tinta[1];
     const ancora = t.peca.texto_editado && t.peca.ancora_kv;
     const primeiro = t.no.querySelector('.trecho');
@@ -3964,11 +4104,20 @@
     if (ed.esperaQuebra) pedirPreviaDaQuebra();
   }, true);
   function tirarRecusadas(recusas) {
-    const ids = new Set(recusas.map(function (x) { return x.elemento; }));
+    /* 0.12.0: a recusa do alinhamento do texto leva a acao; a do texto vem sem ela */
+    const chave = function (acao, id) { return (acao || 'texto') + ' ' + id; };
+    const recusadas = new Set(recusas.map(function (x) { return chave(x.acao, x.elemento); }));
     const f = familiaAtual();
-    f.edicoes = f.edicoes.filter(function (e) { return !(e.acao === 'texto' && ids.has(e.elemento)); });
-    ids.forEach(tirarQuebra);
+    f.edicoes = f.edicoes.filter(function (e) { return !recusadas.has(chave(e.acao, e.elemento)); });
+    const deTexto = recusas.filter(function (x) { return (x.acao || 'texto') === 'texto'; });
+    deTexto.forEach(function (x) { tirarQuebra(x.elemento); });
     mudouRascunho();
+    if (!deTexto.length) {
+      mensagem(recusas[0].texto, true);
+      return;
+    }
+    recusas = deTexto;
+    const ids = new Set(recusas.map(function (x) { return x.elemento; }));
     if (ed.noPalco && ids.has(ed.noPalco.id)) {
       // 0.9.4: o texto escrito no palco volta ao campo, com o texto do DA e o motivo (montarCampoNoPalco)
       ed.noPalco.erro = recusas[0].texto;
@@ -4481,6 +4630,10 @@
     if (juntar && ult && ult.acao === 'mover' && e.acao === 'mover' && grupoDe(ult) === grupoDe(e)) {
       ult.dx = fracao(ult.dx + e.dx);
       ult.dy = fracao(ult.dy + e.dy);
+    } else if (juntar && ult && ult.acao === 'alinhar_texto' && e.acao === 'alinhar_texto' &&
+               ult.elemento === e.elemento) {
+      // 0.12.0: os cliques seguidos no alinhamento do mesmo texto sao uma edicao so (Desfazer volta ao de antes deles)
+      ult.alinhamento = e.alinhamento;
     } else {
       f.edicoes.push(e);
       contarNoCronometro('edicoes'); // a seta que junta com a anterior e a mesma edicao
@@ -4525,7 +4678,8 @@
       const e = edicoes[i];
       const deles = membrosDa(e);
       if (!deles.some(function (k) { return lista.indexOf(k) >= 0; })) continue;
-      if (e.acao === 'texto') continue; // o texto novo nao muda o lugar
+      // o texto novo e o alinhamento das linhas (0.12.0) nao mudam o lugar
+      if (e.acao === 'texto' || e.acao === 'alinhar_texto') continue;
       if (e.acao !== 'escalar' || deles.join(' ') !== chave) return null;
       return [e.fx === undefined ? 0.5 : e.fx, e.fy === undefined ? 0.5 : e.fy];
     }
@@ -4712,6 +4866,76 @@
     ed.alinhou = { elemento: e.elemento, alvo: alvo, referencia: e.referencia };
     return novaEdicao(e, false);
   }
+  /* 0.12.0: o alinhamento das linhas do texto. O do KV vem da previa (textos_da_quebra, a mesma conta do desdobra:
+     null no texto de paragrafos com alinhamentos diferentes, sem botao marcado), senao do palco (alinhamento_kv na
+     peca alinhada, senao o alinhamento dela); o de agora e o da ultima edicao de alinhamento do texto, que vale antes
+     da previa voltar */
+  function alinhamentoKv(id) {
+    const t = textoDaQuebra(id);
+    if (t && Object.prototype.hasOwnProperty.call(t, 'alinhamento_kv')) return t.alinhamento_kv || null;
+    const p = pecasDeTexto(id)[0];
+    return p ? (p.alinhamento_kv || p.alinhamento || 'esquerda') : null;
+  }
+  function alinhamentoEditado(lista, id) {
+    let v = null;
+    lista.forEach(function (e) {
+      if (e.elemento !== id) return;
+      if (e.acao === 'apagar') v = null;
+      else if (e.acao === 'alinhar_texto') v = e.alinhamento;
+    });
+    return v;
+  }
+  function alinhamentoAtual(id) { return alinhamentoEditado(edicoesDa(), id) || alinhamentoKv(id); }
+  /* por que o alinhamento do texto fica desligado para o escolhido, ou '' quando ele vale (a regra do desdobra:
+     um texto de ponto so, que nao vai como imagem, com a fonte no job) */
+  function motivoSemAlinhar(ids, e) {
+    if (ids.length > 1) return ALINHAR_SO_UM;
+    if (!e) return ALINHAR_SEM_TEXTO;
+    if (pecasComoImagem(e.id).length) return ALINHAR_COMO_IMAGEM;
+    const ps = pecasDeTexto(e.id);
+    if (!ps.length) return ALINHAR_SEM_TEXTO;
+    if (ps.length > 1) return ALINHAR_VARIOS_TEXTOS;
+    if (ps[0].modo === 'imagem' || (ps[0].faltando && ps[0].faltando.length)) return ALINHAR_SEM_FONTE;
+    // o controle da quebra so lista o texto de ponto: sem ele, o texto esta numa caixa de texto do Photoshop
+    if (ed.previa && !textoDaQuebra(e.id)) return ALINHAR_EM_CAIXA;
+    return '';
+  }
+  /* o alinhamento das linhas de um texto em todos os arquivos da familia. O clique no alinhamento de agora nao grava
+     nada. Os cliques seguidos no mesmo texto ficam numa edicao so; voltar ao alinhamento de antes dela tira a edicao
+     (o do KV volta ao KV) */
+  function alinharTexto(id, valor) {
+    /* o clique que nao pede previa desliga o foco pedido (ed.focar), como escalarNoLugar: senao a proxima previa,
+       de outro controle, tiraria o foco do campo em que o DA esta */
+    if (!id || !ROTULO_ALINHAMENTO[valor]) { ed.focar = false; return null; }
+    if (!noArquivoDeEdicao()) { ed.focar = false; mensagem(NAO_EDITA_AQUI, true); return null; }
+    if (ed.noPalco) aplicarTextoNoPalco();
+    const kv = alinhamentoKv(id);
+    if (valor === alinhamentoAtual(id)) {
+      ed.focar = false;
+      mensagem('O texto já está alinhado ' + ROTULO_ALINHAMENTO[valor] + '.');
+      return null;
+    }
+    const frase = valor === kv ? 'O texto voltou ao alinhamento do KV.' :
+      'O texto ficou alinhado ' + ROTULO_ALINHAMENTO[valor] + ' em todos os arquivos desta família.';
+    const f = familiaAtual();
+    const ult = f.edicoes[f.edicoes.length - 1];
+    let feito;
+    if (ult && ult.acao === 'alinhar_texto' && ult.elemento === id) {
+      const antes = alinhamentoEditado(f.edicoes.slice(0, -1), id) || kv;
+      if (valor === antes) {
+        feito = desfazer();
+        if (!feito) ed.focar = false;
+        mensagem(frase);
+        return feito;
+      }
+      feito = novaEdicao({ elemento: id, acao: 'alinhar_texto', alinhamento: valor }, true);
+    } else {
+      feito = novaEdicao({ elemento: id, acao: 'alinhar_texto', alinhamento: valor }, false);
+    }
+    if (feito) mensagem(frase);
+    else ed.focar = false;
+    return feito;
+  }
   /* depois da previa: a linha do quadro onde o bloco encostou fica no palco, e a tela diz o que aconteceu */
   function mostrarNoQuadro(area, r, pedido) {
     const g = mundos.get(area);
@@ -4871,6 +5095,15 @@
     const comoImagem = !!(e && pecasComoImagem(e.id).length);
     ['ed-texto', 'ed-quebra'].forEach(function (i) {
       document.getElementById(i).title = comoImagem ? 'Texto como imagem: o texto e a quebra não se mexem aqui.' : '';
+    });
+    // 0.12.0: o alinhamento das linhas vale para um texto de ponto so; o botao do alinhamento de agora fica marcado
+    const semAlinhar = motivoSemAlinhar(ids, e);
+    const alinhamento = semAlinhar ? null : alinhamentoAtual(e.id);
+    Object.keys(ALINHAR_TEXTO).forEach(function (i) {
+      const b = document.getElementById(i);
+      b.disabled = !!semAlinhar;
+      b.title = semAlinhar && ids.length ? semAlinhar : ALINHAR_TEXTO_TITULO[ALINHAR_TEXTO[i]];
+      b.setAttribute('aria-pressed', alinhamento === ALINHAR_TEXTO[i] ? 'true' : 'false');
     });
     document.getElementById('ed-desfazer').disabled = !edicoesDa().length;
     const varios = document.getElementById('ed-varios');
@@ -5770,6 +6003,13 @@
       abrirAjuda(false);
       document.getElementById('ed-ajuda').focus();
     }, true);
+    // 0.12.0: o alinhamento das linhas do texto escolhido, um clique
+    Object.keys(ALINHAR_TEXTO).forEach(function (i) {
+      document.getElementById(i).addEventListener('click', function () {
+        ed.focar = true;
+        alinharTexto(ed.selecionado, ALINHAR_TEXTO[i]);
+      });
+    });
     document.getElementById('ed-texto').addEventListener('click', abrirEditorTexto);
     document.getElementById('ed-texto-cancelar').addEventListener('click', function () {
       fecharEditorTexto();
@@ -6539,9 +6779,43 @@
     });
   }
 
+  /* ---------------------------------------------------------------- tema da moldura
+     Claro ou escuro, so na moldura: as cores da peca nunca mudam. O servidor escreve data-theme no <html> quando o DA
+     ja escolheu; sem ele, a tela segue o tema do Windows. O clique troca na hora e manda a escolha ao desdobra, que
+     lembra na proxima abertura (POST /preferencias). Na janela so para ver, ou se o desdobra nao gravar, a troca vale
+     so nesta janela. O tema nunca mexe no rascunho */
+  const TEMA_DO_SISTEMA = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  function temaAtual() {
+    const t = raiz.getAttribute('data-theme');
+    if (t === 'light' || t === 'dark') return t;
+    return TEMA_DO_SISTEMA && TEMA_DO_SISTEMA.matches ? 'dark' : 'light';
+  }
+  function marcarTema() {
+    const t = temaAtual();
+    document.querySelectorAll('#tema [data-tema]').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.dataset.tema === t ? 'true' : 'false');
+    });
+  }
+  function ligarTema() {
+    document.querySelectorAll('#tema [data-tema]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        const t = b.dataset.tema;
+        if (raiz.getAttribute('data-theme') === t) return;
+        raiz.setAttribute('data-theme', t);
+        marcarTema();
+        if (escrita) enviar('/preferencias', { tema: t }).catch(function () { /* a troca fica nesta janela */ });
+      });
+    });
+    // sem escolha do DA, o botao acompanha o Windows quando ele troca de tema com a tela aberta
+    if (TEMA_DO_SISTEMA && TEMA_DO_SISTEMA.addEventListener) TEMA_DO_SISTEMA.addEventListener('change', marcarTema);
+    marcarTema();
+  }
+
   /* ---------------------------------------------------------------- partida */
+  ligarTema();
   ligarControles();
   ligarAtos();
+  ligarEnterDoSalvar();
   ligarDigitados();
   ligarFiltroDaArvore();
   ligarEdicao();

@@ -176,11 +176,60 @@ def _tolerancia_tinta(caixa):
                float(limites.valor('render.tolerancia_tinta_texto')) * lado)
 
 
+def _camada_alinhada(el, layer_id):
+    """A camada do alinhamento do DA (0.12.0) do texto layer_id no elemento da derivacao, ou None."""
+    return next((c for c in (el.get('alinhamento_do_da') or {}).get('camadas') or [] if c.get('layer_id') == layer_id),
+                None)
+
+
+def alinhar_na_entrada(entrada, camada):
+    """A entrada de texto do contrato com o alinhamento das linhas escolhido pelo DA (0.12.0): todos os paragrafos na
+    justificacao nova e a origem da matriz (ja no formato) andando o desvio no eixo x do texto. No texto de ponto a
+    ancora de toda linha e a origem da matriz: a linha mais larga fica no lugar, e as outras vao a borda esquerda, ao
+    meio ou a borda direita dela (derivacao.quebras.camada_alinhada faz a mesma conta na medida). A pagina do texto
+    (render.texto.montar_svg) nao muda."""
+    from desdobra.derivacao import quebras as mq
+    novo = json.loads(json.dumps(entrada))
+    t = novo['texto']
+    j, d = camada['justificacao'], float(camada['desvio'])
+    pars = t.get('paragrafos') or []
+    if pars:
+        t['paragrafos'] = [dict(p, justificacao=j) for p in pars]
+    else:
+        t['paragrafos'] = [{'inicio': 0, 'fim': len(mq._conteudo({'texto': t})) + 1, 'justificacao': j}]
+    m = [float(v) for v in t['matriz']]
+    m[4] += m[0] * d  # numero-neutro: tx anda xx vezes o desvio
+    m[5] += m[1] * d  # numero-neutro: ty anda xy vezes o desvio
+    t['matriz'] = m
+    novo['alinhamento_do_da'] = {'justificacao': j, 'desvio': d}
+    return novo
+
+
+def _com_alinhamento(entrada, el, layer_id, registros):
+    """A entrada com o alinhamento do DA do elemento (0.12.0), com o registro; sem o desvio medido, a entrada fica
+    como o KV a desenha, e o registro diz que o alinhamento ficou sem medida."""
+    alinhado = el.get('alinhamento_do_da') or {}
+    camada = _camada_alinhada(el, layer_id)
+    if not alinhado:
+        return entrada
+    if camada is None or camada.get('desvio') is None:
+        registros.append({'codigo': 'texto_alinhado_sem_medida', 'layer_id': layer_id,
+                          'medidas': {'elemento': el['id'], 'alinhamento': alinhado.get('alinhamento')}})
+        return entrada
+    registros.append({'codigo': 'texto_alinhado_pelo_da', 'layer_id': layer_id,
+                      'medidas': {'elemento': el['id'], 'alinhamento': alinhado.get('alinhamento')}})
+    return alinhar_na_entrada(entrada, camada)
+
+
 def caixa_validada_do_texto(el, layer_id, caixa_doc):
     """A caixa que a derivacao validou para o texto layer_id do elemento, no formato: a medida da quebra por familia,
     a caixa do DA na mestre propria (elemento de um texto so), ou caixa_doc (a tinta da camada no KV) transformada. A
     quebra da familia da tela no texto editado (M7b, C2) nao tem caixa medida: fica a tinta da camada."""
     tr = el['transformacao']
+    alinhada = _camada_alinhada(el, layer_id)
+    if alinhada is not None and alinhada.get('caixa_doc') is not None:
+        # 0.12.0: o texto do KV com o alinhamento do DA: a tinta medida com a justificacao nova
+        return _caixa(tr, alinhada['caixa_doc'])
     fam = _item_da_familia(el, layer_id)
     if fam is not None and fam.get('caixa_doc') is not None:
         return _caixa(tr, fam['caixa_doc'])
@@ -392,6 +441,7 @@ def montar(pasta_job, formato):
             if el.get('texto_editado') is not None:
                 novo = texto_editado_na_entrada(novo, el['texto_editado'])
                 novo.update(quebras_do_texto_editado(el, e['layer_id']))
+                novo = _com_alinhamento(novo, el, e['layer_id'], registros)
                 if faces_do_job is None:
                     faces_do_job = mc.faces_do_job(pasta, contratos.ler(pasta / 'estado.json', 'estado/1'))
                 for ch in caracteres_fora_da_face(novo, faces_do_job):
@@ -416,6 +466,7 @@ def montar(pasta_job, formato):
                                   'medidas': {'elemento': el['id']}})
             else:
                 novo.update(quebras_da_entrada(el, e))
+                novo = _com_alinhamento(novo, el, e['layer_id'], registros)
                 # a caixa que a derivacao validou para este texto, no formato: a medida da quebra por familia, a caixa
                 # do DA na mestre propria (elemento de um texto so), ou a tinta da camada no KV transformada
                 cv = caixa_validada_do_texto(el, e['layer_id'], ct.get('caixa_tinta') or e['regiao'])

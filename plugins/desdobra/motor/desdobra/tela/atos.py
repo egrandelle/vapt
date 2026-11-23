@@ -555,6 +555,9 @@ MOTIVOS_DO_SALVAR = {
                         'edições e confirme a família de novo.'),
     'texto_sem_caractere': ('Um texto editado numa família usa uma letra que a fonte do job não tem. Nas Famílias, '
                             'troque a letra e confirme a família de novo.'),
+    # 0.12.0: o alinhamento das linhas num texto que a tela nao alinha (o texto como imagem, por exemplo)
+    'alinhamento_recusado': ('Um texto de uma família tem um alinhamento que não vale para ele. Nas Famílias, escolha o '
+                             'alinhamento de novo e confirme a família.'),
     # decisao 199 (5): o layout de um arquivo saiu diferente do que o DA viu na confirmacao
     'layout_diferente_do_confirmado': ('O layout de um arquivo de uma família mudou depois da sua confirmação. Nas '
                                        'Famílias, confira os arquivos e confirme a família de novo.'),
@@ -564,7 +567,8 @@ MOTIVOS_DO_SALVAR = {
 ORDEM_DO_SALVAR = ('rascunho_de_outro_laudo', 'sem_rascunho', 'modo_dados_sem_escolha', 'sem_formatos',
                    'formato_sem_medida', 'rotacao_sem_escolha', 'briefing_com_problema', 'padrao_marca_desatualizado',
                    'formato_com_spec_por_confirmar', 'familia_sem_confirmacao', 'versao_que_a_familia_nao_tem',
-                   'edicao_invalida', 'texto_sem_caractere', 'layout_diferente_do_confirmado', 'briefing_invalido')
+                   'edicao_invalida', 'texto_sem_caractere', 'alinhamento_recusado', 'layout_diferente_do_confirmado',
+                   'briefing_invalido')
 
 
 def motivo_sem_familias(conteudo):

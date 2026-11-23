@@ -338,3 +338,86 @@ def test_confirmacao_da_tela_de_antes_da_previa_igual_ao_salvar_cai(tmp_path):
     pend = sorted(x['familia'] for x in salvar.pendencias(job, conteudo)
                   if x.get('codigo') == 'familia_sem_confirmacao')
     assert pend == sorted(conteudo['familias']), pend
+
+
+# ------------------------------------------------------------------ 0.12.0: o alinhamento das linhas do texto
+@pytest.mark.parametrize('com_texto', [False, True])
+def test_alinhamento_do_texto_na_previa_e_o_do_salvar(tmp_path, com_texto):
+    """O alinhamento das linhas que o DA escolhe no palco (0.12.0) vale em todo arquivo da familia: a previa e o
+    "Salvar e seguir" dao as mesmas caixas e as mesmas falhas, a derivacao grava o alinhamento com o desvio medido, e o
+    render desenha o texto com a justificacao nova. No texto do KV e no texto editado pelo DA."""
+    from desdobra.derivacao import medida_quebras
+    from desdobra.render import derivado as rd
+    medida_quebras.limpar_cache()
+    try:
+        j = kv.criar_job(tmp_path, 'a')
+        conteudo = te.montar(j['job'])
+        gid = _familia_de(conteudo, 'p2048')
+        titulo = 'el%d' % j['ids']['titulo']
+        edicoes = [{'elemento': titulo, 'acao': 'texto', 'texto': 'HOX\nVOX AH'}] if com_texto else []
+        edicoes.append({'elemento': titulo, 'acao': 'alinhar_texto', 'alinhamento': 'direita'})
+        esc = _escolhas(conteudo, gid)
+        esc[gid]['edicoes'] = edicoes
+        r = conteudo['editar']({'familia': gid, 'versao': None, 'edicoes': edicoes, 'quebras': []},
+                               'fixture_de_teste')
+        assert r['recusas'] == [] and [a['alinhamento'] for a in r['alinhamentos_do_da']] == ['direita']
+        membros = {m['formato']: m for m in r['membros']}
+        ds = _salvar(j, conteudo, esc)
+        for fid in conteudo['familias'][gid]['formatos']:
+            m, d = membros[fid], ds[fid]
+            _confere_igual(m, d)
+            [peca] = [p for p in m['palco']['pecas'] if p['elemento'] == titulo and p['tipo'] == 'texto']
+            assert peca['alinhamento'] == 'direita' and peca['alinhamento_kv'] == 'esquerda'
+            x = next(e for e in d['elementos'] if e['id'] == titulo)
+            [camada] = x['alinhamento_do_da']['camadas']
+            assert x['alinhamento_do_da']['alinhamento'] == 'direita' and camada['justificacao'] == 'RIGHT'
+            assert camada['layer_id'] == j['ids']['titulo'] and camada['desvio'] > 0
+            assert ('caixa_doc' in camada) is (not com_texto)
+            contrato, bloqueios, _c = rd.montar(j['job'], fid)
+            assert bloqueios == [], bloqueios
+            e = next(x for x in contrato['entradas'] if x['tipo'] == 'texto' and x['layer_id'] == j['ids']['titulo'])
+            assert {p['justificacao'] for p in e['texto']['paragrafos']} == {'RIGHT'}
+            assert e['alinhamento_do_da']['desvio'] == pytest.approx(camada['desvio'])
+            assert any(g['codigo'] == 'texto_alinhado_pelo_da' for g in contrato['registros'])
+            contratos.validar(contrato, 'composicao/1')
+        # os outros elementos e as outras familias nao levam alinhamento
+        for fid, d in ds.items():
+            assert all('alinhamento_do_da' not in e for e in d['elementos'] if e['id'] != titulo or
+                       fid not in conteudo['familias'][gid]['formatos'])
+        # o job aberto de novo: o rascunho e o briefing guardam a edicao, e a previa gravada mostra o mesmo palco
+        import json
+
+        from desdobra.briefing import modelo as mb
+        from desdobra.tela import edicao
+        from desdobra.tela import rascunho as tr
+        f = json.loads((j['job'] / tr.ARQUIVO).read_text(encoding='utf-8'))['familias'][gid]
+        assert f['edicoes'] == edicoes and f['confirmada']
+        comp = next(c for c in contratos.ler(j['job'] / mb.ARQUIVO, 'briefing/1')['composicoes']
+                    if c['familia'] == gid)
+        assert comp['edicoes'] == edicoes
+        de_novo = te.montar(j['job'])
+        r2 = edicao.previa_gravada(de_novo['editar'], gid, f)
+        assert edicao.hash_dos_layouts(r2) == edicao.hash_dos_layouts(r) == f['confirmacao']['layouts']
+    finally:
+        medida_quebras.limpar_cache()
+
+
+def test_alinhamento_do_kv_de_novo_deixa_o_palco_igual_ao_sem_edicao(tmp_path):
+    """Escolher o alinhamento do KV de novo volta ao KV (0.12.0): o palco de cada arquivo e o mesmo da familia sem
+    edicao (o hash da confirmacao nao muda), e o alinhamento recusado no elemento sem texto vem com a frase."""
+    from desdobra.tela import edicao
+    j = kv.criar_job(tmp_path, 'a')
+    conteudo = te.montar(j['job'])
+    gid = _familia_de(conteudo, 'p2048')
+    titulo = 'el%d' % j['ids']['titulo']
+    sem = conteudo['editar']({'familia': gid, 'versao': None, 'edicoes': [], 'quebras': []})
+    kv_de_novo = conteudo['editar']({'familia': gid, 'versao': None, 'quebras': [], 'edicoes': [
+        {'elemento': titulo, 'acao': 'alinhar_texto', 'alinhamento': 'direita'},
+        {'elemento': titulo, 'acao': 'alinhar_texto', 'alinhamento': 'esquerda'}]})
+    assert edicao.hash_dos_layouts(kv_de_novo) == edicao.hash_dos_layouts(sem)
+    assert kv_de_novo['alinhamentos_do_da'] == []
+    icone = 'el%d' % j['ids']['icone1']
+    r = conteudo['editar']({'familia': gid, 'versao': None, 'quebras': [], 'edicoes': [
+        {'elemento': icone, 'acao': 'alinhar_texto', 'alinhamento': 'centro'}]})
+    assert r['recusas'] == [{'elemento': icone, 'acao': 'alinhar_texto', 'texto': edicao.TEXTO_SEM_UM_TEXTO_PARA_ALINHAR}]
+    assert edicao.hash_dos_layouts(r) == edicao.hash_dos_layouts(sem)

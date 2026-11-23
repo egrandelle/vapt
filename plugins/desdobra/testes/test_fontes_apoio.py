@@ -90,9 +90,16 @@ def _pstr(t):
     return b'(' + b + b')'
 
 
-def _engine(trechos, fontes):
-    """trechos: [(texto, indice_da_fonte, corpo, tracking)]; fontes: nomes PostScript do FontSet."""
+def _engine(trechos, fontes, paragrafos=None):
+    """trechos: [(texto, indice_da_fonte, corpo, tracking)]; fontes: nomes PostScript do FontSet. paragrafos (0.12.0):
+    [(comprimento, justificacao)] de cada paragrafo, com a justificacao do psd-tools (0 a esquerda, 1 a direita, 2 ao
+    centro); sem eles, um paragrafo so, a esquerda."""
     texto = ''.join(t for t, *_ in trechos) + '\r'
+    if paragrafos is None:
+        paragrafos = [(len(texto), 0)]
+    pares = b''.join(b'<<\n/ParagraphSheet\n<<\n/DefaultStyleSheet 0\n/Properties\n<<\n/Justification '
+                     + str(int(j)).encode() + b'\n>>\n>>\n>>\n' for _n, j in paragrafos)
+    comprimentos_par = b' '.join(str(int(n)).encode() for n, _j in paragrafos)
     runs, comprimentos = b'', []
     for i, (t, fonte_i, corpo, tracking) in enumerate(trechos):
         comprimentos.append(str(len(t) + (1 if i == len(trechos) - 1 else 0)).encode())
@@ -102,8 +109,7 @@ def _engine(trechos, fontes):
                  b'/Values [ 1.0 0.1 0.2 0.3 ]\n>>\n>>\n>>\n>>\n')
     fontset = b''.join(b'<<\n/Name ' + _pstr(f) + b'\n/Script 0\n/FontType 1\n/Synthetic 0\n>>\n' for f in fontes)
     return (b'\n\n<<\n/EngineDict\n<<\n/Editor\n<<\n/Text ' + _pstr(texto) + b'\n>>\n'
-            b'/ParagraphRun\n<<\n/RunArray [\n<<\n/ParagraphSheet\n<<\n/DefaultStyleSheet 0\n/Properties\n<<\n'
-            b'/Justification 0\n>>\n>>\n>>\n]\n/RunLengthArray [ ' + str(len(texto)).encode() + b' ]\n>>\n'
+            b'/ParagraphRun\n<<\n/RunArray [\n' + pares + b']\n/RunLengthArray [ ' + comprimentos_par + b' ]\n>>\n'
             b'/StyleRun\n<<\n/RunArray [\n' + runs + b']\n/RunLengthArray [ ' + b' '.join(comprimentos) + b' ]\n>>\n'
             b'/Rendered\n<<\n/Shapes\n<<\n/Children [\n<<\n/ShapeType 0\n/Cookie\n<<\n/Photoshop\n<<\n/ShapeType 0\n'
             b'/PointBase [ 0.0 0.0 ]\n>>\n>>\n>>\n]\n>>\n>>\n'

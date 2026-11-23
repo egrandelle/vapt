@@ -2,6 +2,37 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.13.0 (23/11/2026): a tela ganha o visual novo, com tema claro e escuro
+
+Pedido do Duda: levar para a tela o visual que ele desenhou (pasta design-telas), com superfície clara e escura e um botão para escolher. Tudo foi conferido em arquivos sintéticos.
+
+- A tela inteira segue o visual novo: topo com as abas dos passos, rodapé com a barra de progresso e o "Salvar e seguir" em azul, cartões, chips de função com a cor do grupo e a mesa pontilhada atrás da peça. Os passos 3 e 5, os diálogos e a barra de edição seguem as mesmas cores e formas.
+- No canto direito do topo, o sol e a lua trocam entre o tema claro e o escuro.
+- Na primeira vez, a tela segue o tema do Windows. Depois do seu clique, ela lembra a escolha nas próximas aberturas, em qualquer job. A escolha fica guardada na pasta do plugin, fora do job, e continua depois de uma atualização.
+- A peça não muda com o tema: o papel continua branco e o texto sem cor própria continua escuro nos dois temas.
+- A parte da peça que passa do formato aparece numa sangria lilás, com um tracejado só nos lados em que ela passa. No "Ver limpo" a sangria some.
+- A tecla Enter aparece ao lado do "Salvar e seguir" e faz o mesmo que o clique. Ela só vale quando o botão está ligado e nada mais está usando o Enter: um campo de escrever, o texto aberto no palco, o editor de texto ou de quebra, uma janela aberta ou a lista do que falta. Quando não vale, a tecla some.
+- A frase "Suas escolhas ficam salvas no rascunho" foi do topo para o rodapé, ao lado do passo. Em janelas estreitas ela vira um ponto colorido, e o erro do rascunho continua com a frase inteira.
+- A busca de camadas ganhou a lupa. No passo 1, cada modo de dados mostra em barras quanto vai ao Claude.
+- No palco, cada etiqueta tem um ponto com a cor do grupo da função. A etiqueta que não cabe no palco fica escondida em vez de sair da vista.
+- O palco do passo 4 ganhou um quadro de cantos arredondados. O "Ajustar" calcula a escala pelo tamanho novo.
+- As medidas da barra de edição e da galeria continuam as mesmas.
+
+## 0.12.0 (21/11/2026): você escolhe o alinhamento do texto
+
+Pedido do Duda: passar um texto que veio centralizado no KV para alinhado à esquerda ou à direita. Tudo foi conferido em arquivos sintéticos.
+
+- Com um texto escolhido no palco, três botões depois de "Quebrar linha" alinham as linhas dele à esquerda, ao centro ou à direita. O botão do alinhamento de agora fica marcado.
+- A caixa do texto fica onde estava. A linha mais longa não anda, e as outras vão para a borda esquerda dela, para o meio ou para a borda direita.
+- Vale para o texto do KV e para o texto que você editou. O alinhamento vai para todos os arquivos da família, como as outras edições, e o render desenha o texto assim.
+- Desfazer volta ao alinhamento de antes. Os cliques seguidos no alinhamento do mesmo texto contam como uma edição só.
+- Escolher de novo o alinhamento do KV volta o texto ao KV, sem edição nenhuma.
+- Quando os parágrafos do texto têm alinhamentos diferentes no PSD, nenhum botão fica marcado. Qualquer escolha leva todas as linhas ao mesmo alinhamento, e a linha mais longa continua no lugar.
+- O texto numa caixa de texto do Photoshop, o texto que vai como imagem e o elemento com mais de um texto ficam com o alinhamento do KV por enquanto. O botão diz por quê.
+- Os seis botões de "Alinhar pela" ficam só com o desenho numa faixa estreita de largura da barra de edição: quando eles cabiam com os nomes ao lado dos botões do elemento antes desta versão e agora não cabem mais. É o caso da tela de 2048 px com os arquivos da família ao lado. Assim a barra continua com duas linhas e o palco não perde altura. O nome de cada botão aparece ao parar o mouse sobre ele. Nas janelas comuns (1280, 1366, 1600 e 1920 px, por exemplo), os nomes ficam como antes.
+- Na janela de 1024 px, os botões do elemento ficam um pouco mais juntos, e o Apagar continua na mesma linha deles.
+- As famílias que você confirmou antes continuam confirmadas.
+
 ## 0.11.0 (19/11/2026): as versões chegam mais perto do que você faria
 
 Correção do teste com o cartaz vertical de 19/11. As versões de cada formato saíam com os blocos do KV só escalados, pequenos demais, e a pessoa da foto cobria o texto. O DA tinha de montar cada formato do zero. Tudo foi conferido num KV sintético com a geometria do cartaz e com o layout que o DA deixou em cada formato.

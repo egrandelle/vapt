@@ -421,7 +421,16 @@
             "escalar",
             "texto",
             "apagar",
-            "alinhar"
+            "alinhar",
+            "alinhar_texto"
+          ]
+        },
+        "alinhamento": {
+          "description": "0.12.0: o alinhamento das linhas do texto escolhido pelo DA (todas as linhas do elemento; a linha mais larga fica no lugar). So em alinhar_texto.",
+          "enum": [
+            "esquerda",
+            "centro",
+            "direita"
           ]
         },
         "dx": {
@@ -487,7 +496,8 @@
               "acao": {
                 "enum": [
                   "texto",
-                  "apagar"
+                  "apagar",
+                  "alinhar_texto"
                 ]
               }
             }
@@ -496,6 +506,27 @@
             "not": {
               "required": [
                 "elementos"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "acao": {
+                "const": "alinhar_texto"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "alinhamento"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "alinhamento"
               ]
             }
           }

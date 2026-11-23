@@ -26,6 +26,12 @@ Devolve {chave: {'largura_texto', 'largura_texto_mestre', 'linhas'}} ou, quando 
 
 O texto editado pelo DA (Linhas do DA, 0.9.4) passa pela mesma pagina e pelo mesmo cache em medir_editados: a tinta
 das linhas do DA, com o mesmo corpo, da a caixa do texto editado (derivacao.quebras.caixa_do_editado).
+
+O alinhamento das linhas escolhido pelo DA (0.12.0) passa pela mesma pagina: a medida nao depende da justificacao, e
+dela saem o desvio da ancora (a linha mais larga fica no lugar; fontes.medicao.bloco_das_linhas e
+derivacao.quebras.desvio) e a tinta com a justificacao nova. No texto editado, medir_editados recebe a justificacao no
+pedido; no texto do KV, medir_alinhados mede com as quebras que o render aplica. A justificacao entra na chave do
+cache e na chave da saida: a mesma linha em outro alinhamento e outra medida.
 """
 import copy
 import hashlib
@@ -229,8 +235,11 @@ def medir_editados(pasta, laudo, estado, pedidos):
     camadas = mb.camadas_do_laudo(laudo)
     saida, ordem, textos = {}, [], []
     faces, servidos, servidas = _servidos(pasta, estado)
-    for lid, linhas in pedidos:
-        ch = mq.chave_editado(lid, linhas)
+    for pedido in pedidos:
+        lid, linhas = pedido[0], pedido[1]
+        # 0.12.0: o pedido pode levar a justificacao do alinhamento do DA (LEFT, CENTER ou RIGHT)
+        nova = pedido[2] if len(pedido) > 2 else None  # numero-neutro: o terceiro campo do pedido
+        ch = mq.chave_editado(lid, linhas, nova)
         if ch in saida or any(o[0] == ch for o in ordem):
             continue
         c = camadas.get(lid)
@@ -238,18 +247,18 @@ def medir_editados(pasta, laudo, estado, pedidos):
         if sint is None:
             saida[ch] = {'erro': 'camada_sem_texto'}
             continue
-        no_cache = chave_da_medida(sint, (), (), servidas, espaco='editado')
+        no_cache = chave_da_medida(sint, (), (), servidas, espaco='editado' if nova is None else 'editado:' + nova)
         guardada = _guardada(no_cache)
         if guardada is not None:
             saida[ch] = guardada
             continue
         textos.append(sint)
-        ordem.append((ch, sint, no_cache))
+        ordem.append((ch, sint, no_cache, nova))
     if not ordem:
         return saida
     pares, plano, larguras, tintas, motivo = _na_pagina(textos, faces, servidos, estado)
     por_ps = {ps: f for ps, f in pares.items() if f is not None}
-    for k, (ch, sint, no_cache) in enumerate(ordem):
+    for k, (ch, sint, no_cache, nova) in enumerate(ordem):
         if motivo:
             saida[ch] = {'erro': motivo}
             continue
@@ -257,13 +266,87 @@ def medir_editados(pasta, laudo, estado, pedidos):
         if pares.get(r0.get('fonte_ps')) is None:
             saida[ch] = {'erro': 'face_ausente'}
             continue
+        item = plano['camadas'][k]
         par = (sint['texto'].get('paragrafos') or [{}])[0]
-        tinta = medicao.tinta_do_bloco(plano['camadas'][k], larguras, tintas, par.get('justificacao'))
-        caixa = mq.caixa_do_editado(sint, tinta, por_ps)
+        d = None
+        if nova is None:
+            tinta = medicao.tinta_do_bloco(item, larguras, tintas, par.get('justificacao'))
+            caixa = mq.caixa_do_editado(sint, tinta, por_ps)
+        else:
+            # o alinhamento do DA (0.12.0): a mesma pagina (a medida nao depende da justificacao), a ancora anda o
+            # desvio para a linha mais larga ficar no lugar, e a tinta sai pela justificacao nova
+            bloco = medicao.bloco_das_linhas(item, larguras, par.get('justificacao'))
+            d = mq.desvio(bloco, nova) if bloco is not None else None
+            tinta = medicao.tinta_do_bloco(item, larguras, tintas, nova) if d is not None else None
+            caixa = mq.caixa_do_editado(mq.camada_alinhada(sint, nova, d), tinta, por_ps) if d is not None else None
         if caixa is None:
             saida[ch] = {'erro': 'sem_medida_do_chromium'}
             continue
         saida[ch] = {'caixa_doc': [round(v, 4) for v in caixa],  # numero-neutro: casas do px
-                     'linhas': len(plano['camadas'][k]['linhas'])}
+                     'linhas': len(item['linhas'])}
+        if nova is not None:
+            saida[ch].update(justificacao=nova, desvio=round(d, 4))  # numero-neutro: casas do px
+        _guardar(no_cache, saida[ch])
+    return saida
+
+
+def medir_alinhados(pasta, laudo, estado, pedidos):
+    """O texto do KV com o alinhamento das linhas escolhido pelo DA (0.12.0). pedidos: [(layer_id, manter, inseridas,
+    justificacao)], com as quebras que o render aplica no formato (as da familia ou as da mestre propria; todas as
+    gravadas e nenhuma inserida no texto sem quebra). A mesma pagina e o mesmo cache de medir: o texto com as linhas
+    como o render as desenha. O desvio (no espaco de texto) e o quanto a ancora anda para a linha mais larga ficar no
+    lugar (derivacao.quebras.desvio), e caixa_doc e a tinta com a justificacao nova, como a caixa da quebra
+    (derivacao.quebras.caixa_medida).
+    Devolve {chave_alinhado: {'justificacao', 'desvio', 'caixa_doc'}} ou {chave_alinhado: {'erro': motivo}}."""
+    camadas = mb.camadas_do_laudo(laudo)
+    saida, ordem, textos = {}, [], []
+    faces, servidos, servidas = _servidos(pasta, estado)
+    for lid, manter, inseridas, nova in pedidos:
+        ch = mq.chave_alinhado(lid, manter, inseridas, nova)
+        if ch in saida or any(o[0] == ch for o in ordem):
+            continue
+        c = camadas.get(lid)
+        if c is None or c.get('tipo') != 'texto' or not (c.get('geometria') or {}).get('caixa_tinta'):
+            saida[ch] = {'erro': 'camada_sem_texto'}
+            continue
+        if mq.conferir_da_familia(c, manter, inseridas) is not None:
+            saida[ch] = {'erro': 'quebra_aprovada_invalida'}
+            continue
+        no_cache = chave_da_medida(c, manter, inseridas, servidas, espaco='alinhado:' + nova)
+        guardada = _guardada(no_cache)
+        if guardada is not None:
+            saida[ch] = guardada
+            continue
+        cam = mq.com_juntadas(c, manter, inseridas)
+        textos.extend([c, cam])
+        ordem.append((ch, lid, manter, inseridas, nova, cam, no_cache))
+    if not ordem:
+        return saida
+    pares, plano, larguras, tintas, motivo = _na_pagina(textos, faces, servidos, estado)
+    for k, (ch, lid, manter, inseridas, nova, cam, no_cache) in enumerate(ordem):
+        if motivo:
+            saida[ch] = {'erro': motivo}
+            continue
+        c = camadas[lid]
+        if any(pares.get(r.get('fonte_ps')) is None for r in c['texto'].get('runs') or [] if r.get('fonte_ps')):
+            saida[ch] = {'erro': 'face_ausente'}
+            continue
+        mestre, juntado = plano['camadas'][2 * k], plano['camadas'][2 * k + 1]  # numero-neutro: duas camadas por pedido
+        _cm, sm = medicao.ler_larguras(mestre, larguras)
+        _cj, sj = medicao.ler_larguras(juntado, larguras)
+        tm = medicao.tinta_do_bloco(mestre, larguras, tintas, mq.justificacoes_das_linhas(c, mestre))
+        bloco = medicao.bloco_das_linhas(juntado, larguras, mq.justificacoes_das_linhas(cam, juntado))
+        tj = medicao.tinta_do_bloco(juntado, larguras, tintas, nova)
+        if not sm or not sj or tm is None or tj is None or bloco is None:
+            saida[ch] = {'erro': 'sem_medida_do_chromium'}
+            continue
+        d = mq.desvio(bloco, nova)
+        # a tinta nova a partir da ancora de antes: a ancora andou o desvio
+        tj = dict(tj, esq=tj['esq'] + d, dir=tj['dir'] + d)
+        caixa = mq.caixa_medida(c, c['geometria']['caixa_tinta'], manter,
+                                {'tinta_mestre': tm, 'tinta': tj, 'largura_texto': sj, 'largura_texto_mestre': sm},
+                                inseridas)
+        saida[ch] = {'justificacao': nova, 'desvio': round(d, 4),  # numero-neutro: casas do px
+                     'caixa_doc': [round(float(v), 4) for v in caixa]}  # numero-neutro: casas do px
         _guardar(no_cache, saida[ch])
     return saida

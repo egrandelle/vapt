@@ -273,6 +273,38 @@ def test_barra_em_duas_linhas_e_resumo_do_grupo_inteiro(job_escala, conteudo_esc
             assert b['grupo'] == b['alinhar'], b
 
 
+JS_LINHA_DO_ELEMENTO = """() => {
+  // o meio de cada filho (o divisor e mais baixo que os botoes)
+  const tops = Array.from(document.querySelector('.barra-grupo').children)
+    .filter(n => getComputedStyle(n).display !== 'none').map(n => {
+      const r = n.getBoundingClientRect(); return Math.round((r.top + r.bottom) / 2); });
+  const nomes = Array.from(document.querySelectorAll('.botao-alinhar .rotulo-botao'))
+    .map(n => n.getBoundingClientRect().width);
+  return {tops: tops, nomes: nomes, barra: document.querySelector('.barra-edicao').getBoundingClientRect().height};
+}"""
+BARRA_DE_DUAS_LINHAS_PX = 149  # numero-neutro: a barra de 0.11.0 nessas janelas (botoes do elemento, Alinhar pela, nome)
+
+
+@pytest.mark.parametrize('janela', [(1024, 768), (1600, 900), (1920, 1080)], ids=['1024x768', '1600x900', '1920x1080'])
+def test_alinhamento_do_texto_nao_tira_os_nomes_nem_desce_o_apagar(job_escala, conteudo_escala, janela):  # noqa: F811
+    # 0.12.0 (revisao): os tres botoes do alinhamento do texto cabem na linha dos botoes do elemento a 1024 px (o
+    # Apagar nao desce sozinho), e os seis botoes de Alinhar pela so perdem o nome na faixa estreita da tela de 2048 px
+    # com a faixa dos arquivos (test_barra_em_duas_linhas_e_resumo_do_grupo_inteiro); nas janelas comuns os nomes
+    # ficam, como em 0.11.0
+    import test_tela_palco as tp
+    job, grupo = job_escala['job'], job_escala['grupo']
+    with _tela(conteudo_escala, job, *janela) as (_srv, pg, _gid):
+        x, y = tgr._ponto(pg, grupo[0])
+        pg.mouse.click(x, y)
+        tp._esperar(pg, '() => document.querySelector(".barra-edicao.sem-escolha") ? "" : "1"')
+        b = pg.evaluate(JS_LINHA_DO_ELEMENTO)
+        assert max(b['tops']) - min(b['tops']) <= 1, b  # numero-neutro: px, uma linha so
+        if janela[0] == 1024:  # numero-neutro: a janela menor
+            assert b['barra'] == pytest.approx(BARRA_DE_DUAS_LINHAS_PX, abs=1), b
+        else:
+            assert len(b['nomes']) == 6 and min(b['nomes']) > 10, b  # numero-neutro: os seis nomes a vista
+
+
 # ------------------------------------------------------------------ o rascunho que nao gravou
 @pytest.mark.skipif(sys.platform != 'win32', reason='so o Windows recusa trocar o arquivo aberto')
 def test_rascunho_que_nao_gravou_tenta_de_novo_e_segura_a_familia(job_escala, conteudo_escala):  # noqa: F811

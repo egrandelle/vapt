@@ -67,7 +67,11 @@ PREFIXO_PERFIL = 'dsd-'
 # M7a1: o Chromium com janela da tela
 # a janela abre maximizada: o palco usa a tela inteira do DA (decisoes-v1.md, 157: o palco legivel no 2048x720)
 ARGUMENTOS_JANELA = ARGUMENTOS + ('--no-proxy-server', '--disable-breakpad', '--start-maximized')
-OPCOES_JANELA = {'headless': False, 'no_viewport': True, 'accept_downloads': False, 'service_workers': 'block'}
+# color_scheme 'null' (0.13.0): sem a opcao, o Playwright emula o tema claro; com 'null' (que o Playwright 1.59 manda
+# ao driver como 'no-override'), a janela segue o tema do Windows, e a tela abre clara ou escura como o sistema na
+# primeira vez, antes de o DA escolher o tema. So a janela: o headless da medida e do render fica como estava
+OPCOES_JANELA = {'headless': False, 'no_viewport': True, 'accept_downloads': False, 'service_workers': 'block',
+                 'color_scheme': 'null'}
 PREFIXO_PERFIL_TELA = 'dsd-tela-'
 PREFIXO_NASCIMENTO = 'dsd-nasce-'
 NOME_DONO = 'dsd-dono.json'

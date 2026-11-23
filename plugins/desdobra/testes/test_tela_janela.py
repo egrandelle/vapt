@@ -165,8 +165,9 @@ def test_argumentos_da_janela():
         assert a in navegador.ARGUMENTOS_JANELA
     assert any(a.startswith('--host-resolver-rules=') for a in navegador.ARGUMENTOS_JANELA)
     assert not any(a.startswith('http') for a in navegador.ARGUMENTOS_JANELA)
+    # 0.13.0: a janela segue o tema do Windows ('null' vira 'no-override' no Playwright; sem a opcao, ele emula claro)
     assert navegador.OPCOES_JANELA == {'headless': False, 'no_viewport': True, 'accept_downloads': False,
-                                       'service_workers': 'block'}
+                                       'service_workers': 'block', 'color_scheme': 'null'}
 
 
 # ------------------------------------------------------------------ Chromium com janela de verdade (processo filho)

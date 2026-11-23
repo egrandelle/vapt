@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <meta name="dsd-csrf" content="">
 <link rel="icon" href="/icone.svg" type="image/svg+xml">
 <title>desdobra: briefing</title>
@@ -15,9 +16,9 @@
 <body>
 <header class="topo">
   <div class="marca">
-    <svg class="marca-simbolo" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
-      <rect x="1.5" y="1.5" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
-      <rect x="7.5" y="7.5" width="11" height="11" rx="2" fill="currentColor"></rect>
+    <svg class="marca-simbolo" viewBox="0 0 22 22" width="22" height="22" aria-hidden="true" focusable="false">
+      <rect x="1" y="1" width="13" height="13" rx="3.5" fill="currentColor"></rect>
+      <rect class="marca-frente" x="8" y="8" width="13" height="13" rx="3.5" stroke="currentColor" stroke-width="1.6"></rect>
     </svg>
     <span class="marca-nome">desdobra</span>
     <span class="marca-contexto">Briefing</span>
@@ -30,8 +31,15 @@
     <button type="button" role="tab" data-passo="formatos">Render e aprovação</button>
   </nav>
   <div class="topo-direita">
-    <p id="selo" class="selo-leitura" role="status" aria-live="polite" title="Só para ver, nada é gravado">Só para ver, nada é gravado</p>
     <button type="button" id="faltam" class="faltam" aria-expanded="false" aria-controls="lista-faltam">Faltam 0</button>
+    <div id="tema" class="tema" role="group" aria-label="Tema">
+      <button type="button" id="tema-claro" data-tema="light" aria-pressed="false" aria-label="Tema claro" title="Tema claro">
+        <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="2.6" fill="currentColor"></circle><path d="M7 1v1.6M7 11.4V13M1 7h1.6M11.4 7H13M2.8 2.8l1.1 1.1M10.1 10.1l1.1 1.1M2.8 11.2l1.1-1.1M10.1 3.9l1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path></svg>
+      </button>
+      <button type="button" id="tema-escuro" data-tema="dark" aria-pressed="false" aria-label="Tema escuro" title="Tema escuro">
+        <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><path d="M11.8 8.6A5.2 5.2 0 015.4 2.2a5.2 5.2 0 106.4 6.4z" fill="currentColor"></path></svg>
+      </button>
+    </div>
   </div>
 </header>
 <section id="lista-faltam" class="lista-faltam" aria-label="O que falta" hidden>
@@ -53,7 +61,9 @@
         </header>
         <div id="faixa-lido" class="faixa-lido" role="status" aria-live="polite" hidden></div>
         <section id="bloco-bloqueios" class="bloco" aria-labelledby="t-bloqueios" hidden><h2 id="t-bloqueios">Bloqueios</h2><div id="lido-bloqueios"></div></section>
-        <section class="bloco" aria-labelledby="t-modo"><h2 id="t-modo">Modo de dados</h2><div id="lido-modo"></div></section>
+        <section class="bloco" aria-labelledby="t-modo">
+          <div class="bloco-cabeca"><h2 id="t-modo">Modo de dados</h2><p id="enviado-legenda" class="enviado-legenda"><span class="nivel nivel-legenda" aria-hidden="true"><span></span><span></span><span></span></span>Enviado ao Claude</p></div>
+          <div id="lido-modo"></div></section>
         <section id="bloco-marca" class="bloco" aria-labelledby="t-marca"><h2 id="t-marca">Marca do job <span class="opcional">opcional</span></h2><div id="lido-marca"></div></section>
         <section id="bloco-quadros" class="bloco" aria-labelledby="t-quadros" hidden><h2 id="t-quadros">Prancheta da peça</h2><p class="nota bloco-nota">O PSD tem mais de uma prancheta. Escolha de qual delas a peça sai; as outras ficam de fora.</p><div id="lido-quadros" class="quadros" role="group" aria-labelledby="t-quadros"></div></section>
         <section class="bloco" aria-labelledby="t-linkados"><h2 id="t-linkados">Arquivos linkados</h2><div id="lido-linkados"></div></section>
@@ -87,7 +97,10 @@
     <div class="coluna-arvore">
       <div class="arvore-ferramentas" role="search" aria-label="Procurar nas camadas">
         <label for="arvore-busca" class="visualmente-oculto">Procurar camada</label>
-        <input type="search" id="arvore-busca" class="arvore-busca" placeholder="Procurar camada" autocomplete="off" spellcheck="false">
+        <span class="busca-caixa">
+          <svg class="busca-lupa" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><circle cx="6" cy="6" r="4.3" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path d="M9.3 9.3L12.5 12.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>
+          <input type="search" id="arvore-busca" class="arvore-busca" placeholder="Procurar camada" autocomplete="off" spellcheck="false">
+        </span>
         <div class="arvore-filtro">
           <button type="button" id="arvore-so-falta" class="botao-vista" aria-pressed="false">Só as sem função</button>
           <span id="arvore-conta" class="arvore-conta" aria-live="polite"></span>
@@ -170,6 +183,7 @@
                 <li>Para mexer em vários juntos, segure Shift e clique em cada um. O botão Escolher vários faz o mesmo.</li>
                 <li>Você também pode arrastar um retângulo em volta dos elementos. Comece o arraste num espaço livre do palco.</li>
                 <li>Para encostar na margem ou centralizar, use os botões de Alinhar.</li>
+                <li>Para alinhar as linhas de um texto à esquerda, ao centro ou à direita, use os três botões depois de Quebrar linha. A linha mais longa fica no lugar.</li>
                 <li>Pelo teclado, as setas movem, + e - mudam o tamanho, F2 abre o texto escolhido e Delete apaga.</li>
                 <li>Ctrl+Z ou Desfazer volta a última edição. Esc tira a escolha.</li>
                 <li>Você edita este arquivo. Os outros arquivos da família seguem o layout dele.</li>
@@ -192,6 +206,11 @@
               </div>
               <button type="button" id="ed-texto" class="botao-vista" disabled>Editar texto</button>
               <button type="button" id="ed-quebra" class="botao-vista" aria-pressed="false" aria-controls="editor-quebra" disabled>Quebrar linha</button>
+              <div id="ed-alinhar-texto" class="segmentado alinhar-texto" role="group" aria-label="Alinhamento do texto">
+                <button type="button" id="ed-tx-esquerda" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto à esquerda" title="Alinhar o texto à esquerda" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M2.5 7h7M2.5 10h11M2.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+                <button type="button" id="ed-tx-centro" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto ao centro" title="Alinhar o texto ao centro" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M4.5 7h7M2.5 10h11M4.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+                <button type="button" id="ed-tx-direita" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto à direita" title="Alinhar o texto à direita" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M6.5 7h7M2.5 10h11M6.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+              </div>
               <span class="controles-divisor so-com-escolha" aria-hidden="true"></span>
               <button type="button" id="ed-apagar" class="botao-vista botao-apagar" disabled>Apagar</button>
             </div>
@@ -300,7 +319,10 @@
 </main>
 <footer class="acoes" aria-label="Ações do briefing">
   <div class="acoes-esquerda">
+    <span id="passos-trilho" class="passos-trilho" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>
     <p id="passo-atual" class="passo-atual"></p>
+    <span class="acoes-divisor" aria-hidden="true"></span>
+    <p id="selo" class="selo-leitura" role="status" aria-live="polite" title="Só para ver, nada é gravado">Só para ver, nada é gravado</p>
     <p id="salvo" class="salvo" role="status" tabindex="-1" hidden></p>
   </div>
   <p id="aviso-acoes" class="aviso-acoes" role="alert" hidden></p>
@@ -308,7 +330,8 @@
     <p id="dica-acoes" class="dica-acoes" aria-live="polite"></p>
     <button type="button" id="dica-ir" class="ir dica-ir" hidden>Ir até lá</button>
     <button type="button" id="confirmar-familia" class="botao" disabled>Confirmar família</button>
-    <button type="button" id="salvar-seguir" class="botao botao-primario" disabled aria-describedby="dica-acoes">Salvar e seguir</button>
+    <kbd id="tecla-salvar" class="tecla" aria-hidden="true">Enter</kbd>
+    <button type="button" id="salvar-seguir" class="botao botao-primario" disabled aria-describedby="dica-acoes" aria-keyshortcuts="Enter">Salvar e seguir</button>
   </div>
 </footer>
 <dialog id="confirmacao" class="confirmacao" aria-labelledby="confirmacao-titulo" aria-describedby="confirmacao-texto">

@@ -112,6 +112,124 @@ def texto_editado(edicoes, elemento):
     return None if texto is None else normalizar_editado(texto)
 
 
+# ------------------------------------------------------------------ o alinhamento do texto escolhido pelo DA (0.12.0)
+ALINHAMENTO_PARA_JUSTIFICACAO = {'esquerda': 'LEFT', 'centro': 'CENTER', 'direita': 'RIGHT'}
+JUSTIFICACAO_PARA_ALINHAMENTO = {j: a for a, j in ALINHAMENTO_PARA_JUSTIFICACAO.items()}
+# a fracao do avanco da linha que fica a esquerda da ancora: o inicio, o meio e o fim da linha (render.texto.ANCORA;
+# a justificacao JUSTIFY_* o render desenha pelo inicio)
+FRACAO_DA_JUSTIFICACAO = {'LEFT': 0.0, 'CENTER': 0.5, 'RIGHT': 1.0}  # numero-neutro: inicio, meio e fim da linha
+
+
+def alinhamento_da_justificacao(justificacao):
+    """O alinhamento como a tela o diz (esquerda, centro ou direita) da justificacao do paragrafo, pelo mesmo mapa do
+    palco (desdobra.tela.estado.ALINHAMENTOS): a justificacao JUSTIFY_* e a que falta ficam a esquerda, como o render
+    as desenha."""
+    return JUSTIFICACAO_PARA_ALINHAMENTO.get(str(justificacao or 'LEFT').upper(), 'esquerda')
+
+
+def alinhamento_editado(edicoes, elemento):
+    """O alinhamento das linhas escolhido pelo DA no elemento (0.12.0): o da ultima edicao alinhar_texto; o elemento
+    apagado nao tem alinhamento. None sem edicao de alinhamento."""
+    if elemento is None:
+        return None
+    valor = None
+    for ed in edicoes or ():
+        if ed.get('elemento') != elemento:
+            continue
+        if ed.get('acao') == 'apagar':
+            return None
+        if ed.get('acao') == 'alinhar_texto' and ed.get('alinhamento') in ALINHAMENTO_PARA_JUSTIFICACAO:
+            valor = ed['alinhamento']
+    return valor
+
+
+def alinhamento_do_kv(camada, editado=False):
+    """O alinhamento do texto no KV: o das linhas com texto, como o render as desenha (render.texto.linhas_da_camada),
+    ou None quando os paragrafos do KV tem alinhamentos diferentes (o texto misto: nenhum alinhamento e o do KV, e
+    qualquer escolha do DA leva todas as linhas a ela). Sem linha com texto, o do primeiro paragrafo. No texto editado
+    pelo DA, o do paragrafo do primeiro trecho com tinta, que o render leva ao texto novo inteiro
+    (render.derivado.texto_editado_na_entrada)."""
+    from desdobra.render import texto as rt
+    t = (camada or {}).get('texto') or {}
+    if editado:
+        _r0, par = _trecho_e_paragrafo(camada)
+        return alinhamento_da_justificacao((par or {}).get('justificacao'))
+    vistos = set()
+    try:
+        linhas = rt.linhas_da_camada(t)
+    except (KeyError, TypeError, ValueError):
+        linhas = []
+    for ln in linhas:
+        if ''.join(parte for parte, _r in ln['pedacos']).strip():
+            vistos.add(alinhamento_da_justificacao(ln.get('just')))
+    if len(vistos) > 1:
+        return None
+    if vistos:
+        return vistos.pop()
+    pars = t.get('paragrafos') or []
+    return alinhamento_da_justificacao(pars[0].get('justificacao') if pars else t.get('justificacao'))
+
+
+def alinhamento_efetivo(edicoes, elemento, camada):
+    """O alinhamento que o DA escolheu e que muda o texto (esquerda, centro ou direita), ou None: sem edicao, ou com o
+    alinhamento do KV (escolher o do KV de novo volta ao KV, sem nada no formato). No texto misto do KV (paragrafos
+    com alinhamentos diferentes) toda escolha muda o texto: ela leva todas as linhas ao mesmo alinhamento."""
+    valor = alinhamento_editado(edicoes, elemento)
+    if valor is None:
+        return None
+    return None if valor == alinhamento_do_kv(camada, texto_editado(edicoes, elemento) is not None) else valor
+
+
+def justificacoes_das_linhas(camada, item):
+    """{id da linha na pagina de medida: justificacao} de cada linha medida da camada (fontes.medicao.montar: a linha
+    j da camada k tem o id l{k}_{j}, contada como o render conta, render.texto.linhas_da_camada)."""
+    from desdobra.render import texto as rt
+    linhas = rt.linhas_da_camada((camada or {}).get('texto') or {})
+    saida = {}
+    for ln in item['linhas']:
+        j = int(ln['id'].rsplit('_', 1)[1])
+        saida[ln['id']] = linhas[j]['just'] if j < len(linhas) else 'LEFT'
+    return saida
+
+
+def desvio(bloco, justificacao):
+    """O quanto a ancora do texto anda (espaco de texto) para a linha mais larga ficar no lugar com a justificacao
+    nova: bloco {'esq', 'dir'} e o avanco da linha mais larga a partir da ancora de antes, com a justificacao dela no
+    KV (fontes.medicao.bloco_das_linhas). Na esquerda a ancora vai ao inicio dessa linha, no centro ao meio, na direita
+    ao fim. Com a justificacao nova igual em todas as linhas, a mais larga e o bloco inteiro: as outras vao a borda
+    esquerda, ao meio ou a borda direita dela, tambem no texto misto do KV."""
+    g = FRACAO_DA_JUSTIFICACAO.get(str(justificacao or 'LEFT').upper(), 0.0)
+    return float(bloco['esq']) + g * (float(bloco['dir']) - float(bloco['esq']))
+
+
+def camada_alinhada(camada, justificacao, desvio_texto):
+    """Copia da camada de texto com todos os paragrafos na justificacao nova e a origem da matriz andando desvio_texto
+    no eixo x do texto (a mesma conta do render, render.derivado.alinhar_na_entrada). So no texto de ponto: nele a
+    ancora de toda linha e a origem da matriz."""
+    import copy
+    c = copy.deepcopy(camada)
+    t = c.setdefault('texto', {})
+    pars = t.get('paragrafos') or []
+    if pars:
+        t['paragrafos'] = [dict(p, justificacao=justificacao) for p in pars]
+    else:
+        t['paragrafos'] = [{'inicio': 0, 'fim': len(_conteudo(c)) + 1, 'justificacao': justificacao}]
+    t['justificacao'] = justificacao
+    m = t.get('matriz')
+    if isinstance(m, (list, tuple)) and len(m) >= 6:  # numero-neutro: os seis termos da matriz
+        m = [float(v) for v in m]
+        m[4] += m[0] * float(desvio_texto)  # numero-neutro: tx anda xx vezes o desvio
+        m[5] += m[1] * float(desvio_texto)  # numero-neutro: ty anda xy vezes o desvio
+        t['matriz'] = m
+    return c
+
+
+def chave_alinhado(layer_id, manter, inseridas, justificacao):
+    """A chave da medida do texto do KV com o alinhamento do DA (0.12.0), separada das chaves de chave()."""
+    return 'al:%d:%s:%s:%s' % (int(layer_id), ','.join(str(int(x)) for x in sorted(manter)),
+                               ','.join(str(int(x)) for x in sorted(inseridas or ())), str(justificacao))
+
+
 def da_familia_no_formato(briefing, layer_ids, formato_id):
     """[(layer_id, entrada)] das quebras da familia da tela que valem nos textos layer_ids no formato."""
     saida = []
@@ -323,11 +441,14 @@ def linhas_editadas(texto, item=None):
     return normalizar_editado(texto).split('\n')
 
 
-def chave_editado(layer_id, linhas):
-    """A chave da medida do texto editado (as linhas do DA na camada), separada das chaves de chave()."""
+def chave_editado(layer_id, linhas, justificacao=None):
+    """A chave da medida do texto editado (as linhas do DA na camada), separada das chaves de chave(). Com o
+    alinhamento do DA (0.12.0), a justificacao nova entra na chave: as mesmas linhas em outro alinhamento sao outra
+    medida."""
     import hashlib
     sha = hashlib.sha256('\n'.join(linhas).encode('utf-8')).hexdigest()
-    return 'ed:%d:%s' % (int(layer_id), sha)
+    base = 'ed:%d:%s' % (int(layer_id), sha)
+    return base if justificacao is None else '%s:%s' % (base, justificacao)
 
 
 def _trecho_e_paragrafo(camada):
