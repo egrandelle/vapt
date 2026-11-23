@@ -2,6 +2,14 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.14.1 (23/11/2026): a trava do Claude erra menos
+
+A trava que impede o Claude de fazer o que só o DA faz recusava, por engano, alguns comandos comuns. Ela continua recusando tudo o que recusava de verdade.
+
+- Uma palavra que é também nome de pasta, num texto do Claude, não é mais tratada como pedido de abrir a pasta.
+- Uma busca feita depois de entrar em outra pasta é conferida na pasta certa.
+- Rodar os testes com a saída de erro junto da saída normal não conta mais como gravar arquivo.
+
 ## 0.14.0 (23/11/2026): o desdobra passa a se chamar Vapt
 
 Pedido do Duda: já existe uma solução parecida com o nome antigo, então o produto passa a se chamar Vapt.
