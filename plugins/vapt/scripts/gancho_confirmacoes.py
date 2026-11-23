@@ -82,6 +82,11 @@ script gravado antes nem resolve caminho montado por partes ou nome de modulo pa
 desvio feito de proposito (docs/m1-interfaces.md, M6). O motor confere o console de novo (vapt.humano) so no
 comando; um arquivo do DA escrito a mao nao tem prova de quem gravou (confirmado_por e dado sem segredo). Os riscos
 residuais (esse e o de um processo do mesmo usuario, fora do Claude, que escreve teclas num console) ficam declarados.
+
+Revisao de 23/11/2026 (falsos positivos vistos no uso): a palavra solta de um texto livre numa ferramenta mcp__ so
+conta como caminho com barra, unidade, til, curinga ou extensao negada (o valor inteiro de um campo segue contando
+quando existe); a leitura pelo terminal acompanha o cd literal feito antes no mesmo comando (_segmentos_com_pasta); e
+as redirecoes que nao gravam arquivo (2>&1, > $null, > /dev/null, > NUL) nao contam como escrita (_escreve).
 """
 import glob
 import json
@@ -292,6 +297,14 @@ AMBIENTE_ZERADO = re.compile(r'\benv\s+(?:-\w*i\b|--ignore-environment)|environ\
 ESCRITA = re.compile(r'(>|\btee\b|Set-Content|Out-File|Add-Content|\bcp\b|\bmv\b|copy|move|New-Item|\bsed\s+-i|'
                      r'write_text|write_bytes|open\s*\(|os\s*\.\s*(replace|rename|link|symlink)|shutil\s*\.|'
                      r'Rename-Item|\bren\b|\brename\b|Move-Item|Copy-Item|--saida)', re.IGNORECASE)
+# revisao de 23/11/2026: a redirecao que nao grava arquivo (2>&1, >&2, > $null, > /dev/null, > NUL) nao conta como
+# escrita. Sem isso, "pytest ... 2>&1" com uma palavra como briefing no -k era negado como escrita numa pasta do DA
+REDIRECAO_SEM_ARQUIVO = re.compile(r'[\d*]?>>?\s*(?:&\s*\d+|\$null|/dev/null|nul)(?![\w.:\\/-])', re.IGNORECASE)
+
+
+def _escreve(comando):
+    """O casamento de ESCRITA no comando, sem as redirecoes que nao gravam arquivo."""
+    return ESCRITA.search(REDIRECAO_SEM_ARQUIVO.sub(' ', comando))
 
 
 # ------------------------------------------------------------------ leitura do job (M7c, P1; arquitetura 7.4 e 7.6)
@@ -846,7 +859,9 @@ def decidir_caminho(caminho, cwd, busca=None, recursiva=False):
     return 'deny'
 
 
-def _parece_caminho(texto, cwd):
+def _parece_caminho(texto, cwd, pela_existencia=True):
+    """True se o texto pode ser caminho: tem barra, curinga, letra de unidade, til ou extensao negada, ou (com
+    pela_existencia) existe relativo ao cwd."""
     t = texto.strip()
     if not t or t[0] in '-$%' or re.search(r'[\'"<>|\n]', t) or len(t) > 1000:
         return False
@@ -856,6 +871,8 @@ def _parece_caminho(texto, cwd):
         return False
     if re.search(r'[\\/*?]', t) or re.match(r'^[A-Za-z]:', t) or EXTENSAO_NEGADA.search(t) or t.startswith('~'):
         return True
+    if not pela_existencia:
+        return False
     try:
         return os.path.exists(os.path.join(cwd or os.getcwd(), t))
     except (OSError, ValueError):
@@ -946,30 +963,66 @@ def decidir_leitura_por_comando(comando, cwd):
                    VERBO_DE_ENVIO.search(comando))
     recursiva = bool(BUSCA_RECURSIVA.search(comando) or COPIA_EM_ARVORE.search(comando))
     pasta_citada = False
-    for c in candidatos(comando):
-        if not _parece_caminho(c, cwd):
-            continue
-        alvo = _absoluto(c, cwd)
-        base = _sem_curinga(alvo)
-        com_curinga = base != alvo
-        real = _real(base)
-        if do_motor:
-            if _negado_pelo_nome(alvo) or _negado_pelo_nome(real):
-                return 'deny'
-            continue
-        e_pasta = os.path.isdir(real)
-        pasta_citada = pasta_citada or e_pasta
-        no_job = pasta_do_job(real) is not None
-        if not (leitura or no_job):
-            # sem verbo de leitura e fora de um job: so o arquivo que existe (git diff -- "*.psd" segue)
-            if com_curinga or not os.path.lexists(alvo):
+    pasta_da_busca = None
+    for segmento, pasta in _segmentos_com_pasta(comando, cwd):
+        if pasta_da_busca is None and BUSCA_RECURSIVA.search(segmento):
+            pasta_da_busca = pasta
+        for c in candidatos(segmento):
+            if not _parece_caminho(c, pasta):
                 continue
-        busca = 'conteudo' if (e_pasta or com_curinga) and (no_job or recursiva) else None
-        if decidir_caminho(c, cwd, busca=busca, recursiva=recursiva) == 'deny':
-            return 'deny'
+            alvo = _absoluto(c, pasta)
+            base = _sem_curinga(alvo)
+            com_curinga = base != alvo
+            real = _real(base)
+            if do_motor:
+                if _negado_pelo_nome(alvo) or _negado_pelo_nome(real):
+                    return 'deny'
+                continue
+            e_pasta = os.path.isdir(real)
+            pasta_citada = pasta_citada or e_pasta
+            no_job = pasta_do_job(real) is not None
+            if not (leitura or no_job):
+                # sem verbo de leitura e fora de um job: so o arquivo que existe (git diff -- "*.psd" segue)
+                if com_curinga or not os.path.lexists(alvo):
+                    continue
+            busca = 'conteudo' if (e_pasta or com_curinga) and (no_job or recursiva) else None
+            if decidir_caminho(c, pasta, busca=busca, recursiva=recursiva) == 'deny':
+                return 'deny'
     if not do_motor and recursiva and not pasta_citada and BUSCA_RECURSIVA.search(comando):
-        return decidir_caminho(cwd or os.getcwd(), cwd, busca='conteudo', recursiva=True)
+        raiz = pasta_da_busca or cwd or os.getcwd()
+        return decidir_caminho(raiz, raiz, busca='conteudo', recursiva=True)
     return None
+
+
+def _segmentos_com_pasta(comando, cwd):
+    """Cada comando encadeado com a pasta em que ele roda (revisao de 23/11/2026): o cd literal feito antes no mesmo
+    comando (cd, chdir, pushd, Set-Location, sl, Push-Location) muda a pasta dos caminhos relativos dos comandos
+    seguintes. O alvo do cd e conferido como caminho no proprio segmento, pela pasta de antes. O cd que o gancho nao
+    acompanha (variavel, curinga, chaves, cd -, popd, cd sem argumento) volta a pasta do evento, a conferencia de antes
+    desta revisao. Sem isso, "cd <repo> && grep -r x ." era conferido contra o cwd do evento."""
+    pasta = cwd
+    saida = []
+    for segmento in _segmentos(comando):
+        saida.append((segmento, pasta))
+        cruas = PALAVRA_DO_SHELL.findall(SO_A_REDIRECAO.sub(' ', segmento))
+        palavras = [_desaspar(p) for p in cruas]
+        i, verbo = _verbo(palavras)
+        if i is None:
+            continue
+        if verbo in VERBOS_QUE_DESFAZEM_PASTA:
+            pasta = cwd
+            continue
+        if verbo not in VERBOS_DE_PASTA + ('push-location',):
+            continue
+        livres = [c for a, c in zip(palavras[i + 1:], cruas[i + 1:]) if not _opcao(a)]
+        if not livres or PASTA_MONTADA.search(livres[0]) or _desaspar(livres[0]) == '-':
+            pasta = cwd
+            continue
+        try:
+            pasta = _absoluto(_desaspar(livres[0]), pasta)
+        except (OSError, ValueError):
+            pasta = cwd
+    return saida
 
 
 def decidir_leitura(ferramenta, entrada, cwd):
@@ -1018,11 +1071,14 @@ def decidir_envio(entrada, cwd):
         bases.append(_absoluto(root, cwd))
     conferidos = 0
     for s in _textos(entrada):
-        for c in [s] + candidatos(s):
+        # revisao de 23/11/2026: o valor inteiro de um campo conta como caminho quando existe ({"folder": "testes"});
+        # a palavra solta tirada de um texto livre so com barra, unidade, til, curinga ou extensao negada. Sem isso, o
+        # texto "rodar os testes" numa ferramenta do app era negado porque havia uma pasta testes/ com jobs no cwd
+        for c, inteiro in [(s, True)] + [(p, False) for p in candidatos(s)]:
             for base in bases:
                 if conferidos >= LIMITE_DE_CANDIDATOS:
                     return None
-                if not _parece_caminho(c, base):
+                if not _parece_caminho(c, base, pela_existencia=inteiro):
                     continue
                 conferidos += 1
                 busca = 'conteudo' if os.path.isdir(_real(_sem_curinga(_absoluto(c, base)))) else None
@@ -1092,7 +1148,7 @@ def decidir_marca_por_comando(comando, cwd):
     for c in (comando, normalizar(comando)):
         if CODIGO_DA_MARCA.search(c):
             return 'deny'
-        escreve = ESCRITA.search(c) or ESCRITA_EM_MARCAS.search(c)
+        escreve = _escreve(c) or ESCRITA_EM_MARCAS.search(c)
         escreve_algum = escreve_algum or bool(escreve)
         if escreve and (SEGMENTO_MARCAS.search(c) or cwd_em_marcas or re.search(r'perfil-marca\.json\b', c, re.I)):
             return 'deny'
@@ -1186,7 +1242,7 @@ def decidir_pasta_do_da_por_comando(comando, cwd):
     """'deny' quando um comando grava com o cwd do evento dentro de uma pasta do DA, ou cita uma pasta do DA (o caminho
     resolvido pelo cwd) junto com uma escrita. A palavra solta (cd briefing, cp x briefing) conta so com uma escrita
     forte ou uma troca de pasta, para o texto comum (echo o briefing > notas.txt) seguir."""
-    if not (ESCRITA.search(comando) or ESCRITA_FORTE.search(comando)):
+    if not (_escreve(comando) or ESCRITA_FORTE.search(comando)):
         return None
     if cwd and (_na_pasta_do_da(cwd) or _na_pasta_do_da(_real(cwd))):
         return 'deny'
@@ -1221,10 +1277,10 @@ def _ato_do_da_montado(comando):
 
 def _decidir_comando(bruto):
     """As regras dos atos do DA e da tela num comando da Bash ou da PowerShell."""
-    if PARTE_DO_DA.search(bruto) and ESCRITA.search(bruto):
+    if PARTE_DO_DA.search(bruto) and _escreve(bruto):
         return 'deny'
     for comando in (bruto, normalizar(bruto)):
-        if 'vapt' in comando and CONSTANTE_DE_CAMINHO.search(comando) and ESCRITA.search(comando):
+        if 'vapt' in comando and CONSTANTE_DE_CAMINHO.search(comando) and _escreve(comando):
             return 'deny'
         if SUBCOMANDO.search(comando) or SUBCOMANDO_EM_VARIAVEL.search(comando):
             return 'deny'
@@ -1232,7 +1288,7 @@ def _decidir_comando(bruto):
             return 'deny'
         if 'vapt' in comando and _ato_do_da_montado(comando):
             return 'deny'
-        if ARQUIVOS_DO_DA.search(comando) and ESCRITA.search(comando):
+        if ARQUIVOS_DO_DA.search(comando) and _escreve(comando):
             return 'deny'
         if ROTA_DA_TELA.search(comando) or PERFIL_DA_TELA.search(comando) or CODIGO_DA_TELA.search(comando):
             return 'deny'
