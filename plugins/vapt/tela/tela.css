@@ -1,0 +1,2579 @@
+/* Tela de briefing do Vapt, direcao A (Vidro). Moldura neutra (cinzas da Apple, um azul de acento) para nunca
+   disputar com as cores do cliente; a peca no palco e a protagonista. Fonte da moldura: a do sistema; as fontes do job
+   so no palco.
+   O tema: claro ou escuro. O servidor escreve data-theme no <html> quando o DA ja escolheu; sem ele, a tela segue o
+   tema do Windows. Cada cor da moldura leva o par claro e escuro (light-dark) e o color-scheme decide qual vale. As
+   cores da peca nunca mudam com o tema: o papel atras dela (--papel) e o desenho por cima dela ficam fixos */
+:root {
+  color-scheme: light dark;
+  /* superficies */
+  --bg: light-dark(#f2f2f4, #161618);
+  --panel: light-dark(#f8f8fa, #1c1c1e);
+  --card: light-dark(#ffffff, #2c2c2e);
+  --bar: light-dark(rgba(255, 255, 255, 0.84), rgba(28, 28, 30, 0.84));
+  --stroke: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1));
+  --stroke-forte: light-dark(rgba(0, 0, 0, 0.16), rgba(255, 255, 255, 0.18)); /* derivado: o fio forte dos botoes */
+  --borda-campo: var(--m-on); /* derivado: a borda do campo de escrever e o circulo vazio de escolha, com 3:1 */
+  --sep: light-dark(rgba(0, 0, 0, 0.09), rgba(255, 255, 255, 0.1));
+  --text: light-dark(#1d1d1f, #f5f5f7);
+  --text2: light-dark(#66666b, #a1a1a6);
+  --text3: light-dark(#3a3a3c, #d1d1d6);
+  --track: light-dark(#e5e5ea, #2c2c2e);
+  --track-cartao: light-dark(#e5e5ea, #3a3a3c); /* derivado: o trilho dentro de um cartao; no escuro o --track tem a cor do cartao */
+  --seg: light-dark(#ffffff, #636366);
+  --seg-sh: 0 1px 3px light-dark(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.4)), 0 0 0 0.5px light-dark(rgba(0, 0, 0, 0.06), transparent);
+  --chip: light-dark(#ededf0, #3a3a3c);
+  --hover: light-dark(rgba(0, 0, 0, 0.04), rgba(255, 255, 255, 0.06));
+  --float: light-dark(rgba(255, 255, 255, 0.94), rgba(44, 44, 46, 0.94));
+  --ring: light-dark(#c7c7cc, #636366);
+  --m-on: light-dark(#8e8e93, #a1a1a6);
+  --m-off: light-dark(#d1d1d6, #48484a);
+  /* o acento: o azul. --accent nos fios, no foco e no progresso; --acao no que e cheio de azul (o botao primario, o
+     visto escolhido, a camada escolhida), o mesmo nos dois temas, com o texto branco */
+  --accent: light-dark(#0071e3, #0a84ff);
+  --accent-stroke: light-dark(rgba(0, 113, 227, 0.3), rgba(10, 132, 255, 0.45));
+  --link: light-dark(#0066cc, #4da3ff);
+  --tip-bg: light-dark(#e8f1fd, rgba(10, 132, 255, 0.2));
+  --acao: #0071e3;
+  --acao-hover: #0068d1; /* mais escuro que o azul, para o branco seguir legivel no hover */
+  --on-acao: #ffffff;
+  --on-acao-fundo: rgba(255, 255, 255, 0.2);
+  /* estados (semanticos, nunca destaque) */
+  --ok: light-dark(#1e7b34, #4cd964);
+  --ok-bg: light-dark(#e4f5e9, rgba(48, 209, 88, 0.16));
+  --ok-fill: light-dark(#34c759, #30d158);
+  --on-ok: light-dark(#ffffff, #06210e);
+  --ok-visto: light-dark(#248a3d, #30d158); /* derivado: o fundo do visto, com o branco por cima acima de 3:1 */
+  --ok-stroke: light-dark(rgba(30, 123, 52, 0.22), rgba(48, 209, 88, 0.35));
+  --warn: light-dark(#b25000, #ffb057);
+  --warn-bg: light-dark(#fff4df, rgba(255, 159, 10, 0.14));
+  --warn-stroke: light-dark(rgba(178, 80, 0, 0.18), rgba(255, 159, 10, 0.3));
+  --badge-bg: light-dark(#fff1d6, rgba(255, 159, 10, 0.18));
+  --badge: light-dark(#8a4b00, #ffb957);
+  --badge-dot: light-dark(#c77700, #ff9f0a);
+  --bad: light-dark(#b3261e, #ff8a82);
+  --bad-bg: light-dark(#ffe9e7, rgba(255, 69, 58, 0.18));
+  --bad-stroke: light-dark(rgba(179, 38, 30, 0.2), rgba(255, 69, 58, 0.35));
+  --on-bad: light-dark(#ffffff, #2a0906);
+  --perigo: light-dark(#b3261e, #c9342b); /* o fundo do botao que tira algo do job, com o texto branco */
+  /* as cores de cada classe de funcao (imagem, texto, marca, a peca inteira) */
+  --c-img: light-dark(#0a7a5f, #5ed1b4);
+  --c-txt: light-dark(#b25000, #ffb057);
+  --c-brand: light-dark(#7a3fd1, #c58bff);
+  --c-all: light-dark(#5b5b62, #a1a1a6);
+  /* a mesa do palco */
+  --stage: light-dark(#e8e8ed, #0f0f11);
+  --dot: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.1));
+  --paper: 0 10px 36px light-dark(rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.5)), 0 0 0 0.5px light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.12));
+  --paper-p: 0 1px 3px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.6)), 0 0 0 0.5px light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.12));
+  --papel: #ffffff; /* o papel atras das partes transparentes da peca: fixo, a peca nunca muda com o tema */
+  --veu: light-dark(rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.55));
+  --fora: light-dark(rgba(232, 232, 237, 0.8), rgba(15, 15, 17, 0.9)); /* no escuro mais forte: le como mesa, nunca como painel */
+  /* 0.13.0 (P1): a sangria do mockup 03, o tom azulado e o tracejado em volta da parte da peca fora do formato */
+  --bleed: light-dark(rgba(120, 120, 230, 0.26), rgba(120, 120, 255, 0.2));
+  --bleed-stroke: light-dark(rgba(60, 60, 200, 0.55), rgba(150, 150, 255, 0.6));
+  --hachura: rgba(24, 24, 27, 0.22); /* fixa: a hachura fica sobre a peca, que nunca muda com o tema */
+  --anel-foco: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  /* tipografia: a do sistema na moldura; as fontes do job so no palco */
+  --fonte: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fonte-titulo: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --t-12: 12px; /* meta, contagens, selos */
+  --t-13: 13px; /* barras de ferramenta, listas densas */
+  --t-14: 14px; /* corpo dos passos de leitura */
+  --t-16: 16px; /* titulos de bloco e de janela */
+  --t-15: 15px; /* nome das linhas de escolha e da marca */
+  --t-17: 17px; /* titulos de bloco */
+  --t-20: 20px; /* numeros de resumo */
+  --t-22: 22px; /* titulo do detalhe */
+  --t-24: 24px;
+  --t-34: 34px; /* titulo do passo */
+  --altura-linha: 1.5;
+  /* espacos, escala de 4 */
+  --e-1: 4px; --e-2: 8px; --e-3: 12px; --e-4: 16px; --e-5: 24px; --e-6: 32px;
+  /* raios */
+  --raio-s: 4px;
+  --raio-p: 8px;
+  --raio: 12px;
+  --raio-g: 14px;
+  /* o cartao e um anel de 1 px; a sombra so no que abre por cima */
+  --sombra-1: 0 0 0 1px var(--stroke);
+  --sombra: 0 0 0 1px var(--stroke), 0 8px 24px light-dark(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.5));
+  --sombra-pop: 0 0 0 1px var(--stroke), 0 16px 40px -8px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.6));
+  /* movimento: so transform e opacidade */
+  --curva: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-rapido: 120ms;
+  --t-medio: 200ms;
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+html { background: var(--bg); }
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font: var(--t-13)/1.45 var(--fonte);
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+/* a troca de tema sem salto nas superficies grandes; nunca no palco */
+body, .topo, .acoes, .coluna-arvore, .detalhe, .trilho, .galeria, .design-lista, .formato-detalhe {
+  transition: background-color var(--t-medio) var(--curva), color var(--t-medio) var(--curva);
+}
+button, input, textarea { font: inherit; color: inherit; }
+h1, h2, h3, p { margin: 0; }
+h1, h2 { font-family: var(--fonte-titulo); font-optical-sizing: auto; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 0.9.2 (B5): no botao escuro (aba, chip ou opcao escolhida) o anel escuro sumia; ali o anel e do acento */
+.botao-primario:focus-visible, .botao-acento:focus-visible, .opcao[aria-pressed="true"]:focus-visible,
+.botao-vista[aria-pressed="true"]:focus-visible, .passos button[aria-selected="true"]:focus-visible,
+.arvore button[aria-current="true"]:focus-visible { outline: none; box-shadow: var(--anel-foco); }
+.visualmente-oculto {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.nota { color: var(--text2); max-width: 72ch; }
+::placeholder { color: var(--text2); }
+.aviso { color: var(--bad); }
+.numero, .medida, .mini-medidas, .ficha-medida { font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- topo */
+.topo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  height: 60px;
+  padding: 0 24px;
+  background: var(--bar);
+  border-bottom: 1px solid var(--sep);
+  flex: none;
+}
+.marca { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* o logo do Vapt (0.14.0, docs/marca/vapt.svg): o "v" fica no azul da marca nos dois temas; o "apt" segue a cor do texto */
+.marca-logo { height: 22px; width: auto; aspect-ratio: 1580 / 562; flex: none; color: var(--text); }
+.marca-logo .marca-v { fill: #017afa; }
+.marca-logo .marca-apt { fill: currentColor; }
+@media (forced-colors: active) { .marca-logo .marca-v, .marca-logo .marca-apt { fill: CanvasText; } }
+.marca-contexto { color: var(--text2); padding-left: 10px; border-left: 1px solid var(--sep); line-height: 16px; white-space: nowrap; }
+/* as abas dos passos: um trilho com o escolhido em relevo; o numero vira o visto verde no passo feito */
+.passos {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--track);
+  border-radius: 11px;
+  counter-reset: passo;
+}
+.passos button {
+  counter-increment: passo;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 14px 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.2s var(--curva), color 0.2s var(--curva), box-shadow 0.2s var(--curva);
+}
+.passos button::before {
+  content: counter(passo);
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--m-on);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text2);
+  transition: inherit;
+}
+.passos button:hover { background: var(--hover); color: var(--text); }
+.passos button[aria-selected="true"] {
+  background: var(--seg);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--seg-sh);
+}
+.passos button[aria-selected="true"]::before { border-color: var(--text2); color: var(--text); }
+/* 0.9.2 (M9): a aba diz o que ja esta feito (o visto verde no lugar do numero) e o que falta (o numero no ambar) */
+.passos button { position: relative; }
+.passos button[data-estado="feito"]::before {
+  content: "\2713"; border-color: var(--ok-visto); background: var(--ok-visto); color: var(--on-ok); font-weight: 700;
+}
+.passos button[data-estado="falta"]::before { border-color: var(--badge-dot); background: var(--badge-bg); color: var(--badge); }
+.topo-direita { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-width: 0; }
+/* 0.13.0 (P3): a frase do rascunho mora no rodape, depois do passo, como no mockup: uma linha no tom do passo, com a
+   frase inteira no title quando a janela aperta */
+.selo-leitura {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 48ch;
+  color: var(--text2);
+  font-size: var(--t-13);
+  line-height: 1.35;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* o rascunho que nao grava e as escolhas de outra leitura tem frase mais longa: em ate duas linhas, que cabem no
+   rodape baixo (46 px) */
+.selo-leitura[data-estado="erro"], .selo-leitura[data-estado="outro_laudo"] {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; max-width: 380px;
+  font-size: 12px; white-space: normal; text-overflow: clip;
+}
+/* Faltam N: a pilula com o ponto ambar; com nada faltando, o anel verde */
+.faltam {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 12px 0 8px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--badge-bg);
+  box-shadow: 0 0 0 1px var(--warn-stroke);
+  color: var(--badge);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: none;
+  transition: transform 0.15s var(--curva), background-color 0.2s var(--curva);
+}
+.faltam::before { content: ""; flex: none; width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--badge-dot); background: var(--badge-dot); }
+.faltam.zero { background: var(--card); box-shadow: 0 0 0 1px var(--stroke); color: var(--text); }
+.faltam.zero::before { border-color: var(--ok-visto); background: transparent; }
+.faltam:active { transform: scale(0.98); }
+/* o tema da moldura: o sol e a lua, o escolhido em relevo */
+.tema { display: flex; gap: 2px; padding: 2px; background: var(--track); border-radius: 9px; flex: none; }
+.tema button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: background-color 0.2s var(--curva), color 0.2s var(--curva), box-shadow 0.2s var(--curva);
+}
+.tema button:hover { color: var(--text); }
+.tema button[aria-pressed="true"] { background: var(--seg); box-shadow: var(--seg-sh); color: var(--text); }
+.tema svg { width: 14px; height: 14px; }
+/* a janela estreita: o simbolo fica, o nome sai, e as abas apertam, para o topo caber inteiro */
+@media (max-width: 1180px) {
+  .topo { grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; padding: 0 16px; }
+  .passos { justify-self: center; }
+  .marca-contexto { display: none; }
+}
+
+/* ---------------------------------------------------------------- lista do que falta */
+.lista-faltam {
+  position: absolute;
+  right: 24px;
+  top: 66px;
+  z-index: 20;
+  width: 420px;
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  background: var(--card);
+  border: 0;
+  border-radius: var(--raio-g);
+  box-shadow: var(--sombra);
+  animation: surgir 0.22s var(--curva);
+}
+.lista-faltam-topo { padding: 14px 16px 10px; border-bottom: 1px solid var(--sep); }
+.lista-faltam-topo h2 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.lista-faltam ol { list-style: none; margin: 0; padding: 4px 0; counter-reset: falta; }
+.lista-faltam li {
+  counter-increment: falta;
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 2px 8px;
+  align-items: start;
+  padding: 10px 16px;
+}
+.lista-faltam li + li { border-top: 1px solid var(--sep); }
+.lista-faltam li::before { content: counter(falta); color: var(--text2); font-variant-numeric: tabular-nums; }
+/* 0.9.2 (M6): o primeiro item de cada passo leva o nome do passo em cima, para a lista se ler por partes */
+.lista-faltam li.abre-grupo { padding-top: 14px; }
+.lista-faltam .grupo-item {
+  grid-column: 1 / -1; grid-row: 1; margin-bottom: 4px; color: var(--text2); font-size: var(--t-12); font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.lista-faltam li.abre-grupo::before { grid-row: 2; grid-column: 1; }
+.lista-faltam li.abre-grupo .texto-item { grid-row: 2; }
+.lista-faltam li.abre-grupo .detalhe-item { grid-row: 3; }
+.lista-faltam li.abre-grupo .ir { grid-row: 2 / span 2; }
+.lista-faltam .texto-item { grid-column: 2; }
+.lista-faltam .detalhe-item { grid-column: 2; color: var(--text2); font-size: 12px; overflow-wrap: anywhere; }
+.lista-faltam .ir { grid-column: 3; grid-row: 1 / span 2; }
+.lista-faltam li.vazio { grid-template-columns: 1fr; color: var(--text2); }
+.lista-faltam li.vazio::before { content: none; }
+
+/* ---------------------------------------------------------------- botoes */
+/* os botoes em pilula: o secundario branco com o anel, o primario cheio de azul */
+.botao, .ir, .botao-vista {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--stroke-forte);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s var(--curva), border-color 0.2s var(--curva), transform 0.15s var(--curva);
+}
+.botao { padding: 0 14px; font-weight: 500; }
+.botao:hover:not(:disabled), .ir:hover, .botao-vista:hover { border-color: var(--text2); }
+.botao:active:not(:disabled), .ir:active, .botao-vista:active { transform: scale(0.98); }
+.ir { height: 26px; padding: 0 10px; font-size: 12px; font-weight: 500; background: var(--chip); border-color: transparent; }
+.botao-primario { background: var(--acao); border-color: var(--acao); color: var(--on-acao); font-weight: 600; }
+.botao-primario:hover:not(:disabled) { background: var(--acao-hover); border-color: var(--acao-hover); }
+/* 0.9.2 (A5): o botao desligado com cor propria, sem a transparencia que deixava o texto em 2,6:1 */
+.botao:disabled { cursor: not-allowed; color: var(--text2); background: var(--chip); border-color: transparent; }
+.botao-primario:disabled, .botao-acento:disabled { color: var(--text2); background: var(--chip); border-color: var(--chip); }
+
+/* ---------------------------------------------------------------- estrutura dos passos */
+main { flex: 1; min-height: 0; display: flex; }
+.passo { flex: 1; min-height: 0; min-width: 0; display: flex; animation: entrar 0.18s var(--curva); }
+.acoes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 68px;
+  padding: 0 24px;
+  background: var(--bar);
+  border-top: 1px solid var(--sep);
+}
+@media (min-width: 1440px) { .acoes { padding: 0 40px; } }
+.passo-atual { color: var(--text2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.acoes-esquerda { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* o progresso dos cinco passos: os tracos ate o passo da tela em azul */
+.passos-trilho { display: flex; gap: 4px; flex: none; }
+.passos-trilho span { width: 18px; height: 4px; border-radius: 2px; background: var(--m-off); transition: background-color 0.2s var(--curva); }
+.passos-trilho[data-n="1"] span:nth-child(-n+1), .passos-trilho[data-n="2"] span:nth-child(-n+2),
+.passos-trilho[data-n="3"] span:nth-child(-n+3), .passos-trilho[data-n="4"] span:nth-child(-n+4),
+.passos-trilho[data-n="5"] span { background: var(--accent); }
+.acoes-esquerda > .salvo { padding-left: 12px; border-left: 1px solid var(--sep); }
+/* 0.13.0 (P3): o fio entre o passo e a frase do rascunho, como no mockup */
+.acoes-divisor { flex: none; width: 1px; height: 14px; background: var(--sep); }
+/* o briefing salvo: uma faixa calma ao lado do passo, com o ponto do acento, nunca um alerta */
+.salvo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  max-width: 72ch;
+  color: var(--text2);
+  font-size: 12px;
+  animation: entrar 0.32s var(--curva);
+}
+.salvo::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--tip-bg);
+}
+.salvo[hidden] { display: none; }
+.acoes-direita { display: flex; align-items: center; gap: 10px; min-width: 0; }
+@media (min-width: 1440px) { .acoes-direita { gap: 14px; } }
+/* 0.9.2 (A6): o motivo do botao desligado fica junto dele, em tinta, com o ponto do acento e o "Ir até lá" ao lado */
+.dica-acoes {
+  display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-right: 4px;
+  color: var(--text2); font-size: var(--t-13); text-align: right;
+}
+.dica-acoes:empty { display: none; }
+.dica-acoes.bloqueia { color: var(--text); }
+.dica-acoes.bloqueia::before {
+  content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--badge-dot);
+  box-shadow: 0 0 0 3px var(--badge-bg); transform: translateY(-1px);
+}
+.dica-acoes.pronta { color: var(--ok); font-weight: 500; }
+/* o "Confirmar família" e o "Salvar e seguir" do rodape, maiores, em pilula */
+#confirmar-familia { height: 34px; padding: 0 16px; }
+#salvar-seguir { height: 36px; padding: 0 20px; font-size: var(--t-14); }
+/* 0.13.0 (P2): a tecla Enter ao lado do "Salvar e seguir", como no mockup. Ela so aparece quando o Enter aciona o
+   botao: desligado ou conferindo, a tecla sai */
+.tecla {
+  flex: none; padding: 2px 6px; border-radius: 5px; background: var(--card); box-shadow: 0 0 0 1px var(--stroke);
+  color: var(--text2); font: 11px/1.35 var(--fonte); white-space: nowrap;
+}
+.acoes-direita:has(#salvar-seguir:disabled) .tecla, .acoes-direita:has(#salvar-seguir[aria-busy="true"]) .tecla,
+.acoes-direita:has(#salvar-seguir[hidden]) .tecla { display: none; }
+/* revisao da 0.13.0: a tecla segue a regra do Enter (ligarEnterDoSalvar). Com uma janela, um painel, o editor de texto,
+   o controle da quebra ou o texto no palco abertos, o Enter e deles, e a tecla sai */
+:root:has(dialog[open], #lista-faltam:not([hidden]), #ed-ajuda-painel:not([hidden]), #editor-texto:not([hidden]),
+  #editor-quebra:not([hidden]), #palco .texto-no-palco) .tecla { display: none; }
+.dica-ir { flex: none; }
+/* revisao 0.9.3: a frase do motivo cabe em duas linhas no rodape; a frase inteira fica no title e na espera */
+.dica-acoes { line-height: 1.35; max-height: calc(2 * 1.35em); overflow: hidden; max-width: 64ch; }
+/* revisao 0.9.3: a recusa do clique ou a escolha que nao foi salva, logo acima do "Salvar e seguir", com o motivo que
+   o Vapt deu. Fica por cima do conteudo, sem mudar a altura do rodape */
+.acoes { position: relative; }
+.aviso-acoes {
+  position: absolute; right: 24px; bottom: calc(100% + 8px); z-index: 30;
+  max-width: min(560px, calc(100vw - 32px)); margin: 0; padding: 10px 14px 10px 38px;
+  color: var(--text); background: var(--card); font-size: var(--t-13); line-height: 1.4;
+  border: 0; border-radius: var(--raio);
+  box-shadow: 0 0 0 1px var(--bad-stroke), var(--sombra-pop); white-space: normal; overflow-wrap: anywhere;
+  animation: entrar 0.18s var(--curva);
+}
+.aviso-acoes::before {
+  content: "!"; position: absolute; left: 12px; top: 10px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--bad); color: var(--on-bad); font-size: 11px; font-weight: 700; line-height: 16px;
+  text-align: center;
+}
+.aviso-acoes[hidden] { display: none; }
+.botao.trabalhando { cursor: progress; }
+/* revisao 0.9.3: o motivo do servidor no alto do Design system e os cartoes das funcoes dele */
+.aviso-design {
+  margin: 0 0 16px; padding: 12px 14px; color: var(--text); background: var(--warn-bg);
+  border: 0; border-radius: var(--raio); box-shadow: 0 0 0 1px var(--warn-stroke);
+  font-size: var(--t-13); line-height: 1.45;
+}
+.aviso-design[hidden] { display: none; }
+.funcao-ds.em-conflito { box-shadow: 0 0 0 2px var(--warn); }
+
+/* ---------------------------------------------------------------- passo 1 */
+.passo-lido { overflow: auto; }
+.lido-grade {
+  display: grid;
+  grid-template-columns: minmax(0, 720px) minmax(0, 352px);
+  justify-content: center;
+  gap: 48px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 40px 40px;
+  align-content: start;
+}
+/* 0.9.2 (M1): os passos de leitura (1, Design system e 5) em 14 px; barras de ferramenta e o palco seguem em 13 */
+.passo-lido, .design-lista, .painel-coluna, .formato-detalhe { font-size: var(--t-14); line-height: var(--altura-linha); }
+.cabeca-passo { margin-bottom: var(--e-5); }
+.sobretitulo { color: var(--text2); font-size: var(--t-12); font-weight: 600; letter-spacing: 0.02em; margin-bottom: var(--e-1); }
+.cabeca-passo h1 { font-size: var(--t-34); font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; margin-bottom: var(--e-2); }
+/* cada bloco do passo 1: o titulo, a nota e o cartao; o espaco separa os blocos, sem fio */
+.bloco { padding: 0 0 36px; }
+.bloco h2, .lido-fontes h2 { font-size: var(--t-17); font-weight: 600; color: var(--text); letter-spacing: -0.01em; margin-bottom: var(--e-3); }
+.bloco h2 + .nota, .bloco h2 + div > .nota:first-child { margin-top: -8px; }
+.bloco ul { list-style: none; margin: 0; padding: 0; }
+.bloco li { padding: 4px 0; overflow-wrap: anywhere; }
+.bloco li.aviso { color: var(--bad); }
+.bloco li.aviso::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 8px; vertical-align: 1px; }
+.vazio-calmo { color: var(--text2); }
+.numeros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--sep); border: 0; box-shadow: 0 0 0 1px var(--stroke); border-radius: var(--raio-g); overflow: hidden; margin-bottom: 12px; }
+.numero-bloco { background: var(--card); padding: 10px 12px; }
+.numero-bloco .numero { display: block; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.numero-bloco .rotulo-numero { color: var(--text2); font-size: 12px; }
+.numero-bloco.aviso .numero { color: var(--bad); }
+.pares { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; }
+.pares dt { color: var(--text2); }
+.pares dd { margin: 0; }
+.lido-fontes { align-self: start; position: sticky; top: 0; padding-top: 60px; }
+
+/* 0.9.2 (A4): a faixa do topo do passo 1. Diz o que trava o job (bloqueio, no tom de aviso) e o que falta para as
+   familias (formato, no tom do acento), cada linha com o botao que leva ao lugar onde ela se resolve */
+.faixa-lido { display: grid; gap: var(--e-2); margin: 0 0 var(--e-5); }
+.faixa-linha {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--e-1) var(--e-4);
+  padding: var(--e-3) var(--e-4); border: 0; box-shadow: 0 0 0 1px var(--warn-stroke);
+  border-radius: var(--raio); background: var(--warn-bg); animation: surgir 0.24s var(--curva) both;
+}
+.faixa-linha.bloqueio { box-shadow: 0 0 0 1px var(--bad-stroke); background: var(--bad-bg); }
+.faixa-textos { display: grid; gap: 2px; min-width: 0; }
+.faixa-titulo { font-weight: 600; color: var(--text); }
+.faixa-texto { color: var(--text3); font-size: var(--t-13); max-width: 72ch; overflow-wrap: anywhere; }
+.faixa-linha .botao { flex: none; }
+@media (max-width: 1100px) {
+  .faixa-linha { grid-template-columns: minmax(0, 1fr); }
+  .faixa-linha .botao { justify-self: start; }
+}
+/* o lugar para onde o "Resolver aqui" leva fica marcado por um instante */
+.chegou-aqui { animation: chegou 1.4s var(--curva); border-radius: var(--raio); }
+@keyframes chegou { 0%, 40% { box-shadow: 0 0 0 3px var(--accent-stroke); } 100% { box-shadow: 0 0 0 3px transparent; } }
+/* revisao do 0.9.2: sem movimento, a marca fica parada pelo mesmo instante (o JS tira a classe) */
+@media (prefers-reduced-motion: reduce) {
+  .chegou-aqui { outline: 3px solid var(--accent-stroke); outline-offset: 2px; }
+}
+
+/* passo 1 com decisao (M7a, fatia 2): o modo de dados em linhas de escolha, sem nada marcado ate o clique; linkados e
+   valores de spec como fichas com o botao a direita; o que ainda nao tem botao, como bloqueio em texto simples */
+.modo-nota { margin-bottom: 10px; max-width: 62ch; }
+.modos {
+  display: grid; gap: 0; margin-bottom: 10px; overflow: hidden;
+  background: var(--card); border-radius: var(--raio-g); box-shadow: 0 0 0 1px var(--stroke);
+}
+.modo {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px;
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+  padding: 15px 20px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+  transition: background-color 0.2s var(--curva);
+}
+.modo + .modo::before { content: ""; position: absolute; left: 20px; right: 0; top: 0; height: 1px; background: var(--sep); }
+.modo:hover:not(:disabled) { background: var(--hover); }
+.modo:disabled { cursor: default; }
+.modo-marca {
+  order: 2;
+  display: grid; place-items: center;
+  width: 22px; height: 22px; margin-top: 0;
+  border: 1.5px solid var(--borda-campo);
+  border-radius: 50%;
+  background: transparent;
+  transition: border-color 0.2s var(--curva), background-color 0.2s var(--curva);
+}
+.modo-corpo { display: grid; gap: 3px; min-width: 0; }
+.modo-nome { font-weight: 600; font-size: var(--t-15); }
+.modo-texto { color: var(--text2); font-size: var(--t-13); line-height: 1.45; max-width: 62ch; }
+/* 0.13.0 (P5): o nivel do que vai ao Claude, entre o texto e o circulo de cada modo (mockup 01). As barras ligadas no
+   cinza; na linha escolhida, no azul. A legenda "Enviado ao Claude" fica no titulo do bloco */
+.modo[data-modo] { grid-template-columns: minmax(0, 1fr) auto 22px; }
+.nivel { order: 1; display: flex; align-items: flex-end; gap: 2px; height: 14px; margin-top: 4px; }
+.nivel > span { width: 4px; border-radius: 1px; background: var(--m-off); }
+.nivel > span:nth-child(1) { height: 6px; }
+.nivel > span:nth-child(2) { height: 10px; }
+.nivel > span:nth-child(3) { height: 14px; }
+.nivel > .nivel-on { background: var(--m-on); }
+.modo[aria-pressed="true"] .nivel-on { background: var(--accent); }
+.bloco-cabeca { display: flex; justify-content: space-between; align-items: baseline; gap: var(--e-3); margin-bottom: var(--e-3); }
+.bloco-cabeca h2 { margin-bottom: 0; }
+.bloco-cabeca + div > .nota:first-child { margin-top: -8px; }
+.enviado-legenda { display: flex; align-items: flex-end; gap: 7px; flex: none; padding-right: 20px; color: var(--text2); font-size: var(--t-12); }
+.nivel-legenda { order: 0; height: 12px; margin: 0 0 2px; }
+.nivel-legenda > span { width: 3px; background: var(--m-on); }
+.nivel-legenda > span:nth-child(1) { height: 5px; }
+.nivel-legenda > span:nth-child(2) { height: 8px; }
+.nivel-legenda > span:nth-child(3) { height: 12px; }
+.modo[aria-pressed="true"] .modo-marca { border-color: var(--acao); background: var(--acao); }
+.modo[aria-pressed="true"] .modo-marca::after {
+  content: ""; width: 5px; height: 10px; margin-top: -2px;
+  border: solid var(--on-acao); border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+
+/* M7c, M3: a marca do job, no mesmo desenho do modo de dados (linhas de escolha, nenhuma marcada ate o clique). A
+   lista da biblioteca rola sozinha quando passa de umas oito marcas; "Sem marca" fica sempre a vista, separada; a
+   "Marca nova" e um campo com o rotulo em cima e o botao ao lado */
+.opcional { margin-left: 6px; font-weight: 400; font-size: var(--t-15); color: var(--text2); }
+.marcas { max-height: 384px; overflow-y: auto; overscroll-behavior: contain; margin-bottom: 10px; }
+.marca-linha { padding: 13px 20px; align-items: center; }
+.marca-linha .modo-marca { margin-top: 0; }
+.marca-linha .modo-nome { overflow-wrap: anywhere; }
+.marca-sem { margin-bottom: 12px; }
+/* M7c, S4: o anel de foco da linha de escolha fica por dentro da borda. Por fora, a lista das marcas (que rola)
+   cortava o anel e sobrava so uma linha escura embaixo da marca escolhida */
+.modo:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* M7c, S4 (decisao 190, Q4): a frase que o DA escreve ao Claude, com o pedido destacado como algo para digitar */
+.pedir-sugestoes { color: var(--text3); line-height: 1.5; max-width: 62ch; }
+.pedir-sugestoes .pedido {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 10px;
+  border: 0;
+  border-radius: 7px;
+  box-shadow: 0 0 0 1px var(--stroke);
+  background: var(--chip);
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.modo-pedido {
+  margin: 4px 0 12px; padding: 11px 16px; max-width: none; background: var(--card); border-radius: var(--raio);
+  box-shadow: 0 0 0 1px var(--stroke); animation: surgir 0.25s var(--curva) both;
+}
+.passo-pedido { margin-top: 12px; font-size: 13px; }
+.marca-nova { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--sep); max-width: 62ch; }
+.marca-nova label { font-weight: 600; }
+.marca-nova-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.marca-nova input {
+  font: inherit;
+  color: inherit;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--borda-campo);
+  border-radius: var(--raio-p);
+  background: var(--card);
+  transition: border-color 0.2s var(--curva);
+}
+.marca-nova input:hover:not(:disabled) { border-color: var(--text2); }
+.marca-nova input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.marca-nova input[aria-invalid="true"] { border-color: var(--bad); }
+.marca-nova .botao { height: 32px; }
+.marca-nova .ajuda { font-size: 12px; }
+.marca-escolhida-fora { margin-bottom: 10px; }
+/* 0.9.2 (M7): a explicacao longa fica dentro de "Como configurar", uma linha a vista */
+.saiba-mais { margin: 0 0 var(--e-3); }
+.saiba-mais summary {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--link); font-size: var(--t-13);
+  font-weight: 500; list-style: none; border-radius: var(--raio-s); min-height: 24px; /* revisao do 0.9.2: alvo de 24 px */
+}
+.saiba-mais summary::-webkit-details-marker { display: none; }
+/* a seta ">" do mockup, que gira para baixo quando abre */
+.saiba-mais summary::before {
+  content: ""; flex: none; width: 6px; height: 6px; margin: 0 2px 0 1px; border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform var(--t-rapido) var(--curva);
+}
+.saiba-mais[open] summary::before { transform: rotate(45deg); }
+.saiba-mais summary:hover { color: var(--accent); }
+.saiba-mais .nota { margin-top: 6px; }
+/* 0.9.2 (A2): o fim do Design system, com o caminho para as familias */
+.design-fim { display: grid; gap: var(--e-2); justify-items: start; margin-top: var(--e-4); padding-top: var(--e-4); border-top: 1px solid var(--sep); }
+
+/* 0.9.2: formatos digitados, sem folha de spec (passo 1, Valores de spec) */
+.digitados { margin: var(--e-1) 0 var(--e-4); padding: var(--e-4) 18px; border: 0; border-radius: var(--raio-g); background: var(--card); box-shadow: 0 0 0 1px var(--stroke); }
+.digitados .subtitulo { font-size: var(--t-14); }
+.digitados .nota { margin-bottom: var(--e-3); }
+.digitados-rotulo { display: block; font-size: var(--t-13); font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.digitados-ajuda { margin-top: 6px; color: var(--text2); font-size: var(--t-12); }
+/* sem formato nenhum, o bloco e o primeiro passo do job: a borda do acento chama o olho para ele */
+.digitados.em-destaque { box-shadow: 0 0 0 2px var(--accent); }
+/* com a folha trazendo os formatos, o bloco fica discreto: so para acrescentar o que a folha nao tem */
+.digitados.secundario { background: var(--panel); }
+/* o botao desce para baixo do campo quando a coluna fica estreita */
+.digitados-linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.digitados-campo {
+  flex: 1 1 220px;
+  font: inherit;
+  color: inherit;
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 10px;
+  resize: none;
+  overflow-y: auto;
+  border: 1px solid var(--borda-campo);
+  border-radius: var(--raio-p);
+  background: var(--card);
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.2s var(--curva);
+}
+.digitados-campo:hover:not(:disabled) { border-color: var(--text2); }
+.digitados-campo:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.digitados-campo[aria-invalid="true"] { border-color: var(--bad); }
+.digitados-linha .botao { height: 36px; max-width: 100%; }
+.digitados-previa { margin-top: 6px; color: var(--ok); font-weight: 500; font-variant-numeric: tabular-nums; }
+.digitados-previa:empty { display: none; }
+.digitados-erro { margin-top: 6px; color: var(--bad); overflow-wrap: anywhere; }
+.digitados-erro:empty { display: none; }
+.digitados-titulo-lista { margin: 14px 0 4px; font-size: 12px; font-weight: 600; }
+.digitados-lista { list-style: none; margin: 0; padding: 0; }
+.digitados-item { padding: 8px 0; border-bottom: 1px solid var(--sep); }
+.digitados-item:last-child { border-bottom: 0; }
+.digitados-item-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.digitados-item-topo .botao { margin-left: auto; }
+.digitados-medida { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 92px; }
+.digitados-item.coberto .digitados-medida { color: var(--text2); text-decoration: line-through; }
+.digitados-item .nota { margin: 4px 0 0; }
+.selo-digitado-coberto {
+  display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: var(--t-12); font-weight: 600; line-height: 18px;
+  background: var(--badge-bg); border: 1px solid transparent; color: var(--badge); white-space: nowrap;
+}
+
+.decisao { padding: 12px 0; border-bottom: 1px solid var(--sep); }
+.decisao:last-child { border-bottom: 0; }
+.decisao-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+.decisao-nome { font-weight: 600; overflow-wrap: anywhere; }
+.decisao-estado { color: var(--text2); text-align: right; overflow-wrap: anywhere; }
+.decisao.feita .decisao-estado { color: var(--ok); }
+.decisao-nota { margin-bottom: 6px; }
+.opcoes-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.bloco .opcoes-lista li { padding: 0; }
+.opcao-linha { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 12px; background: var(--card); border: 0; box-shadow: 0 0 0 1px var(--stroke); border-radius: var(--raio); }
+.opcao-info { display: grid; gap: 1px; min-width: 0; }
+.opcao-nome { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.opcao-detalhe { color: var(--text2); font-size: 12px; overflow-wrap: anywhere; }
+.opcao-em-uso { color: var(--ok); font-weight: 600; flex: none; }
+.opcao-linha .botao { flex: none; height: 28px; padding: 0 12px; font-size: 12px; }
+.pendentes:not(:empty) { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--sep); }
+/* 0.9.6: os valores de spec em lote. Um cartao por formato, com a caixa de marcar no topo e a lista dos valores; a
+   barra fica presa no alto do bloco enquanto o DA rola a lista */
+.spec-escolha { margin-bottom: 14px; }
+.spec-grupo-titulo { font-size: 12px; font-weight: 600; color: var(--text2); margin: 0 0 2px; }
+.spec-lote { display: grid; gap: 8px; }
+.spec-lote-barra {
+  position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px;
+  padding: 8px 0; background: var(--bg);
+}
+.spec-lote-barra .botao { min-height: 32px; }
+.spec-cartao {
+  border: 1px solid var(--stroke); border-radius: var(--raio); background: var(--card); overflow: hidden;
+  transition: border-color 0.18s var(--curva), background-color 0.18s var(--curva);
+  animation: entrar 0.28s var(--curva) both;
+}
+.spec-cartao.marcado { border-color: var(--accent-stroke); background: var(--card); box-shadow: 0 0 0 1px var(--accent-stroke); }
+.spec-cartao-topo {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer;
+  border-bottom: 1px solid var(--sep);
+}
+.spec-cartao-nome { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.spec-cartao-conta { margin-left: auto; color: var(--text2); font-size: 12px; white-space: nowrap; }
+.spec-valores { list-style: none; margin: 0; padding: 4px 0; display: grid; }
+.bloco .spec-valores li { padding: 0; }
+.spec-valor-rotulo { display: flex; align-items: flex-start; gap: 10px; padding: 6px 12px 6px 46px; cursor: pointer; }
+.spec-valor-rotulo:hover { background: var(--hover); }
+.spec-valor-marca { width: 16px; height: 16px; margin: 2px 0 0; flex: none; accent-color: var(--acao); cursor: pointer; }
+.spec-valor-linha { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.spec-valor-campo { color: var(--text2); font-size: 12px; }
+.spec-lista-janela { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 13px; overflow-wrap: anywhere; }
+.spec-vazio { margin: 0; }
+#confirmacao-extra:has(.spec-lista-janela) { max-height: 50vh; overflow-y: auto; }
+@media (max-width: 640px) {
+  .spec-valor-rotulo { padding-left: 12px; }
+  .spec-lote-barra { justify-content: stretch; }
+  .spec-lote-barra .botao { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) { .spec-cartao { animation: none; transition: none; } }
+/* 0.9.6: o giro em lote, acima dos cartoes de giro: o botao e a nota do que fica um por um */
+.giro-lote { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 10px; }
+.giro-lote .botao { min-height: 32px; }
+.giro-lote .nota { margin: 0; }
+@media (max-width: 640px) { .giro-lote .botao { flex: 1 1 auto; } }
+.subtitulo { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.bloco .paradas { display: grid; gap: 8px; }
+.bloco .parada { display: grid; gap: 2px; padding: 12px 14px; background: var(--bad-bg); border-radius: var(--raio); box-shadow: 0 0 0 1px var(--bad-stroke); }
+/* 0.9.2 (A4): cada bloqueio com o botao que leva ao lugar onde ele se resolve, ou a frase de que nao se resolve aqui */
+.bloco .parada .ir { justify-self: start; margin-top: 6px; }
+.parada-sem-acao { color: var(--text2); font-size: var(--t-12); margin-top: 2px; }
+
+/* passo 1, revisao do M7a: a prancheta da peca e o giro de cada formato, escolhas do DA sem nada marcado */
+.bloco-nota { margin-bottom: 10px; max-width: 62ch; }
+.quadros { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 10px; }
+.quadro {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s var(--curva), background-color 0.15s var(--curva), transform 0.12s var(--curva);
+}
+.quadro:hover:not(:disabled) .quadro-previa { box-shadow: 0 0 0 1px var(--text2); }
+.quadro:active:not(:disabled) { transform: scale(0.99); }
+.quadro:disabled { cursor: default; }
+.quadro[aria-pressed="true"] .quadro-previa { box-shadow: 0 0 0 2px var(--accent); }
+.quadro-previa {
+  display: flex; align-items: center; justify-content: center; height: 104px; background: var(--stage);
+  border-radius: 10px; box-shadow: 0 0 0 1px var(--stroke); transition: box-shadow 0.15s var(--curva);
+}
+.quadro-previa .mini-palco { display: flex; align-items: center; justify-content: center; }
+.quadro-sem-previa { color: var(--text2); font-size: var(--t-12); }
+.quadro-texto { display: grid; gap: 1px; min-width: 0; }
+.quadro-nome { font-size: var(--t-12); color: var(--text2); overflow-wrap: anywhere; }
+.quadro[aria-pressed="true"] .quadro-nome { color: var(--text); font-weight: 600; }
+.quadro-medida { color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.giro .decisao-nome { display: flex; align-items: baseline; gap: 8px; }
+.giro-medida { color: var(--text2); font-weight: 400; font-variant-numeric: tabular-nums; }
+.giro-spec { color: var(--text2); font-size: 12px; margin-bottom: 2px; }
+.giro-folha { color: var(--text2); font-size: 12px; margin-bottom: 8px; max-width: 62ch; overflow-wrap: anywhere; }
+.giro-opcoes { align-items: center; }
+.giro-opcoes + .giro-opcoes { margin-top: 6px; }
+.giro-rotulo { color: var(--text2); font-size: 12px; margin-right: 4px; }
+.giro .decisao-nota.aviso { margin: 6px 0 0; }
+/* 0.9.2 (A3): sem formato e um estado normal do job novo, nunca um erro: o cartao neutro com a saida */
+.vazio-formatos {
+  display: grid; gap: var(--e-2); justify-items: start; padding: var(--e-4) 18px;
+  border: 1px dashed var(--stroke-forte); border-radius: var(--raio-g); background: var(--card);
+}
+.vazio-formatos .nota { margin: 0; }
+.vazio-titulo { font-weight: 600; color: var(--text); }
+.avisos-tela { flex: none; display: grid; gap: 1px; background: var(--sep); border-bottom: 1px solid var(--sep); }
+.aviso-tela { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 9px 24px; background: var(--bad-bg); color: var(--text); }
+.aviso-tela::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--bad); transform: translateY(-1px); }
+.parada-titulo { font-weight: 600; color: var(--bad); }
+.parada-texto { color: var(--text); max-width: 70ch; }
+.parada-camadas { color: var(--text2); font-size: 12px; }
+.especime {
+  background: var(--card);
+  border: 0;
+  box-shadow: 0 0 0 1px var(--stroke);
+  border-radius: var(--raio-g);
+  padding: 16px 18px 18px;
+  margin-bottom: 12px;
+}
+.especime .rotulo-fonte { color: var(--text2); font-size: 12px; font-family: var(--fonte); }
+.especime .nome-fonte { font-weight: 600; font-size: var(--t-14); margin-bottom: 1px; font-family: var(--fonte); }
+.especime .amostra { font-size: 38px; line-height: 1.1; margin-top: 10px; overflow-wrap: anywhere; color: var(--text); }
+/* 0.9.2 (M10): a amostra com letra que a fonte nao tem avisa, para o DA nao achar que a fonte esta errada */
+.amostra-nota { margin-top: 8px; color: var(--text2); font-size: var(--t-12); font-family: var(--fonte); }
+.fonte-falta { color: var(--bad); background: var(--bad-bg); border-radius: var(--raio); padding: 10px 12px; margin-bottom: 8px; }
+/* 0.9.1, texto como imagem: o botao do DA na fonte que falta, o cartao da decisao e o selo no palco */
+.fonte-falta .nota { color: var(--text2); margin: 6px 0 8px; }
+.fonte-falta-texto { margin: 0; }
+.botao-como-imagem { white-space: normal; text-align: left; height: auto; min-height: 32px; padding-top: 6px; padding-bottom: 6px; }
+.fonte-como-imagem { background: var(--card); border: 0; box-shadow: 0 0 0 1px var(--stroke); border-radius: var(--raio); padding: 10px 12px; margin-bottom: 8px; }
+.fonte-como-imagem .nota { margin: 4px 0 8px; overflow-wrap: anywhere; }
+.selo-texto-imagem {
+  display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: var(--t-12); font-weight: 600; line-height: 18px;
+  background: var(--badge-bg); border: 1px solid transparent; color: var(--badge); white-space: nowrap;
+}
+.peca.como-imagem .como-imagem-pixels { position: absolute; display: block; width: 100%; height: 100%; user-select: none; pointer-events: none; }
+.peca.como-imagem { outline: 1px dashed var(--accent-stroke); pointer-events: none; }
+/* no palco, o selo vai na etiqueta do elemento: fora dos pixels da camada, no tamanho da tela, e sai com ela no Ver limpo */
+.rotulo .etiqueta .selo-texto-imagem { margin-left: 6px; padding: 0 6px; line-height: 14px; font-size: 10px; vertical-align: 1px; }
+.limpo .peca.como-imagem { outline: none; }
+
+/* ---------------------------------------------------------------- passo 2 */
+.passo-funcoes {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr) 300px;
+}
+/* 0.9.2 (M5): a coluna das camadas com a busca, o filtro das que faltam e a contagem em cima da lista */
+.coluna-arvore { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); border-right: 1px solid var(--sep); }
+.arvore-ferramentas { flex: none; display: grid; gap: var(--e-3); padding: var(--e-4) var(--e-3) var(--e-2); }
+.arvore-busca {
+  width: 100%; height: 34px; padding: 0 10px; border: 1px solid transparent; border-radius: 9px;
+  background: var(--track); font-size: 13.5px; transition: border-color var(--t-medio) var(--curva);
+}
+.arvore-busca:hover { border-color: var(--stroke); }
+/* 0.13.0 (P5): a lupa dentro do campo, como no mockup 02; o texto comeca depois dela */
+.busca-caixa { position: relative; display: block; min-width: 0; }
+.busca-lupa { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text2); pointer-events: none; }
+.busca-caixa .arvore-busca { padding-left: 32px; }
+.arvore-busca:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* o filtro das que faltam liga e desliga: desligado e a pilula com o anel, como os outros botoes; ligado fica cheio
+   de azul, como a escolha. A contagem ao lado e so texto, nunca uma opcao */
+#arvore-so-falta { font-weight: 500; flex: none; }
+#arvore-so-falta[aria-pressed="true"] { background: var(--acao); border-color: var(--acao); color: var(--on-acao); }
+.arvore-filtro { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2); min-width: 0; }
+.arvore-conta {
+  color: var(--text2); font-size: var(--t-12); font-variant-numeric: tabular-nums; text-align: right; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.arvore-vazia { padding: var(--e-3) var(--e-2); color: var(--text2); }
+.arvore { flex: 1; min-height: 0; overflow: auto; background: var(--panel); padding: 4px 12px 12px; }
+.arvore ul { list-style: none; margin: 0; padding-left: 14px; display: grid; gap: 2px; }
+.arvore ul ul { border-left: 1px solid var(--sep); margin-left: 9px; padding-left: 6px; }
+.arvore > ul { padding-left: 0; }
+.arvore button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: background-color 0.15s var(--curva);
+}
+.arvore button:hover { background: var(--hover); }
+.arvore button[aria-current="true"] { background: var(--acao); color: var(--on-acao); }
+.arvore button[aria-current="true"] .nome { font-weight: 600; }
+.arvore button[aria-current="true"] .funcao { color: var(--on-acao); }
+.arvore .nome { display: block; overflow-wrap: anywhere; color: inherit; }
+.arvore .funcao { display: block; margin-top: 1px; color: var(--text2); font-size: 12px; }
+/* a cor da classe de cada funcao: imagem, texto, marca e a peca inteira (o ponto na lista, nos botoes e no palco) */
+[data-classe="base"] { --cor-classe: var(--c-img); }
+[data-classe="texto"] { --cor-classe: var(--c-txt); }
+[data-classe="marca"] { --cor-classe: var(--c-brand); }
+[data-classe="global"], [data-classe="fora"], [data-classe="indeterminado"] { --cor-classe: var(--c-all); }
+.arvore button[data-classe] .funcao::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%;
+  background: var(--cor-classe); vertical-align: 0;
+}
+.arvore button[aria-current="true"][data-classe] .funcao::before { background: var(--on-acao); }
+.arvore .grupo > button .nome { font-weight: 600; }
+.detalhe { overflow: auto; background: var(--panel); border-left: 1px solid var(--sep); padding: 20px; }
+.detalhe > .sobretitulo { font-weight: 400; letter-spacing: 0; margin-bottom: 2px; }
+.detalhe h2 { font-size: var(--t-22); font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 14px; overflow-wrap: anywhere; }
+.detalhe dl { margin: 0; display: grid; grid-template-columns: 1fr; gap: 0; }
+.detalhe dt { color: var(--text2); font-size: 12px; padding-top: 10px; border-top: 1px solid var(--sep); }
+.detalhe dd { margin: 2px 0 10px; overflow-wrap: anywhere; }
+.detalhe .nota { line-height: 1.5; }
+
+/* ---------------------------------------------------------------- passo 4: design system (M7a, fatia 3) */
+.passo-design { display: grid; grid-template-columns: minmax(380px, 520px) minmax(0, 1fr); }
+.resumo { width: 100%; max-width: 1100px; margin: 0 auto; padding: 32px 40px 40px; }
+.resumo h1 { font-size: var(--t-34); font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; margin-bottom: 8px; }
+.resumo > .nota { margin-bottom: 20px; max-width: 60ch; }
+.design-lista { overflow: auto; margin: 0; padding: 28px 24px 32px; background: var(--panel); border-right: 1px solid var(--sep); }
+/* cada funcao num cartao; a funcao aberta com o anel azul */
+.funcao-ds {
+  margin-bottom: 10px;
+  padding: 4px 16px 14px;
+  background: var(--card);
+  border-radius: var(--raio-g);
+  box-shadow: 0 0 0 1px var(--stroke);
+  animation: subir 0.3s var(--curva) both;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+.funcao-ds-topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 8px;
+  margin: 0 -8px;
+  width: calc(100% + 16px);
+  border: 0;
+  border-radius: var(--raio-p);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s var(--curva);
+}
+.funcao-ds-topo:hover { background: var(--hover); }
+.funcao-ds.atual { box-shadow: 0 0 0 2px var(--accent); }
+.funcao-ds.feita .decisao-estado { color: var(--ok); }
+.funcao-ds-corpo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; padding-top: 8px; }
+.bloco-ds .subtitulo { color: var(--text2); font-size: 12px; font-weight: 600; }
+.regras { display: flex; flex-wrap: wrap; gap: 4px; }
+.explica { font-size: 12px; margin-top: 6px; max-width: 40ch; }
+.grade-ancora {
+  display: grid;
+  grid-template-columns: repeat(3, 28px);
+  grid-template-rows: repeat(3, 28px);
+  gap: 3px;
+  padding: 4px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--track-cartao);
+  width: max-content;
+}
+.ponto {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.15s var(--curva), box-shadow 0.15s var(--curva), transform 0.15s var(--curva);
+}
+.ponto::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--text2); opacity: 0.45;
+  transition: transform 0.2s var(--curva), background-color 0.2s var(--curva), opacity 0.2s var(--curva);
+}
+.ponto:hover:not(:disabled) { background: var(--hover); }
+.ponto:active:not(:disabled) { transform: scale(0.94); }
+.ponto[aria-pressed="true"] { background: var(--seg); box-shadow: var(--seg-sh); }
+.ponto[aria-pressed="true"]::after { background: var(--accent); opacity: 1; transform: scale(1.4); }
+.ponto:hover:not(:disabled)::after { opacity: 0.8; }
+.ponto:disabled { cursor: default; }
+/* M7c, M4: o padrao da marca no card da funcao, no desenho da sugestao do Claude (borda tracejada: sugestao citada,
+   nunca valor). Os dois campos lado a lado; o que ja esta em uso ganha o traco do acento */
+.padrao-marca { margin: 6px 0 4px; gap: 8px; }
+.padrao-marca:focus { outline: none; }
+.padrao-marca:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.padrao-linhas { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 16px; }
+.padrao-linha { display: grid; gap: 0; min-width: 0; padding-left: 8px; border-left: 2px solid var(--sep); transition: border-color 0.2s var(--curva); }
+.padrao-linha.em-uso { border-left-color: var(--accent); }
+.padrao-pe { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding-top: 6px; border-top: 1px solid var(--sep); }
+.padrao-pe .sugestao-nota { margin: 0; flex: 1 1 22ch; }
+.aviso-padrao { margin: 6px 0 4px; padding: 8px 12px; background: var(--tip-bg); border-radius: var(--raio-p); font-size: 12px; }
+.vazio-design { border: 1px dashed var(--stroke-forte); border-radius: var(--raio-g); background: var(--card); padding: 20px; display: grid; gap: 8px; justify-items: start; }
+.vazio-titulo { font-weight: 600; }
+
+/* ---------------------------------------------------------------- passo 2: escolhas (M7a, fatia 3) */
+.passo-funcoes { grid-template-columns: 300px minmax(0, 1fr) 340px; }
+.arvore li.pasta > button .nome { font-weight: 600; }
+.arvore button.falta .funcao { color: var(--warn); }
+.arvore button.falta .funcao::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--warn); vertical-align: 0; }
+.arvore button.propria:not([aria-current="true"]) .funcao { color: var(--text3); }
+/* o nome da funcao na cor da classe, como no mockup; na camada escolhida fica o branco sobre o azul */
+.arvore button[data-classe]:not([aria-current="true"]):not(.falta) .funcao { color: var(--cor-classe); }
+.arvore button[aria-current="true"].falta .funcao { color: var(--on-acao); }
+.arvore button[aria-current="true"].falta .funcao::before { background: var(--on-acao); }
+.estado-funcao { color: var(--text2); padding: 12px 2px; border-top: 1px solid var(--sep); }
+.classe-funcao { margin-bottom: 12px; }
+.classe-funcao .subtitulo { color: var(--text2); font-size: 12px; font-weight: 600; margin: 2px 2px 6px; }
+.opcoes-funcao, .opcoes-coberta { display: flex; flex-wrap: wrap; gap: 6px; }
+/* os botoes de funcao em chip; dentro das classes de funcao, com o ponto da cor da classe */
+.opcao {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: var(--chip);
+  color: var(--text);
+  font-size: var(--t-13);
+  cursor: pointer;
+  transition: background-color 0.15s var(--curva), border-color 0.15s var(--curva), transform 0.12s var(--curva);
+}
+.classe-funcao .opcao { padding-left: 10px; }
+.classe-funcao .opcao::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--cor-classe, transparent); }
+.opcao:hover:not(:disabled) { border-color: var(--stroke-forte); }
+.opcao:active:not(:disabled) { transform: scale(0.97); }
+.opcao[aria-pressed="true"] { background: var(--acao); border-color: var(--acao); color: var(--on-acao); }
+.classe-funcao .opcao[aria-pressed="true"]::before { box-shadow: 0 0 0 1.5px var(--on-acao); }
+.opcao:disabled { cursor: default; opacity: 0.6; }
+/* a camada coberta no KV: o cartao de atencao com as duas saidas */
+.coberta {
+  background: var(--warn-bg); border: 0; box-shadow: 0 0 0 1px var(--warn-stroke); border-radius: var(--raio);
+  padding: 14px 16px; margin-bottom: 14px; display: grid; gap: 8px;
+}
+.coberta .subtitulo { font-size: var(--t-14); font-weight: 600; margin: 0; }
+.coberta .nota { color: var(--text3); font-size: var(--t-13); line-height: 1.45; }
+.campo { display: grid; gap: 6px; margin: 4px 0 14px; }
+.campo label { font-weight: 600; }
+.campo textarea {
+  font: inherit;
+  color: inherit;
+  resize: vertical;
+  min-height: 64px;
+  padding: 8px 10px;
+  border: 1px solid var(--borda-campo);
+  border-radius: var(--raio-p);
+  background: var(--card);
+}
+.campo textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.campo .ajuda { font-size: 12px; }
+.erro-campo { color: var(--bad); font-size: 12px; }
+.tirar { margin-top: 4px; }
+
+/* M7c, S4: a sugestao do Claude ao lado da funcao. Borda tracejada: e sugestao, nunca valor, ate o clique em Usar */
+.sugestao {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 10px 12px 12px;
+  border: 1px dashed var(--accent-stroke);
+  border-radius: var(--raio);
+  background: var(--tip-bg);
+  animation: subir 0.25s var(--curva) both;
+}
+.sugestao-fonte { margin: 0 0 2px; }
+.sugestao-selo { color: var(--link); font-size: 12px; font-weight: 600; letter-spacing: 0.01em; overflow-wrap: anywhere; }
+.sugestao-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 30px; }
+.sugestao-linha + .sugestao-linha { border-top: 1px solid var(--sep); padding-top: 6px; }
+.sugestao-info { display: grid; gap: 0; min-width: 0; }
+.sugestao-rotulo { color: var(--text2); font-size: var(--t-12); overflow-wrap: anywhere; }
+.sugestao-funcao { font-weight: 600; overflow-wrap: anywhere; }
+.alternativa .sugestao-funcao { font-weight: 500; }
+.sugestao .usar { flex: none; height: 28px; padding: 0 14px; font-size: 12px; }
+.sugestao .usar:active:not(:disabled) { transform: scale(0.97); }
+.sugestao-em-uso { flex: none; color: var(--ok); font-size: 12px; font-weight: 600; }
+.sugestao-nota { font-size: 12px; margin-top: 2px; }
+.sugestao-resumo { margin-top: 12px; }
+.arvore .sugestao-arvore { display: block; margin-top: 1px; color: var(--link); font-size: var(--t-12); }
+.arvore .sugestao-arvore::before { content: ""; display: inline-block; width: 8px; height: 0; margin-right: 5px; border-top: 1px dashed currentColor; vertical-align: 3px; }
+.arvore .sugestao-arvore[hidden] { display: none; }
+.arvore button[aria-current="true"] .sugestao-arvore { color: var(--on-acao); }
+/* a faixa de sugestoes novas: fica entre o topo da mesa e o KV, e espera o "Mostrar" */
+.chegaram {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--tip-bg);
+  border-bottom: 1px solid var(--accent-stroke);
+  animation: surgir 0.25s var(--curva) both;
+}
+.chegaram[hidden] { display: none; }
+.chegaram-texto { flex: 1; min-width: 0; color: var(--text); }
+.chegaram .botao { flex: none; height: 28px; padding: 0 14px; font-size: 12px; }
+
+/* camadas marcadas no KV e o ponto da ancora, no mundo do palco */
+.marca-peca {
+  position: absolute;
+  pointer-events: none;
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  animation: entrar 0.2s var(--curva);
+}
+.ponto-ancora {
+  position: absolute;
+  pointer-events: none;
+  overflow: visible;
+}
+.ponto-ancora::after {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--papel);
+  transform: scale(var(--k, 1));
+}
+
+/* ---------------------------------------------------------------- passo 4: trilho de composicoes */
+/* a linha unica na altura do passo, nunca pelo conteudo: a mesa (palco e barra de edicao) cabe entre o topo e o rodape */
+.passo-pecas { display: grid; grid-template-columns: 264px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+/* 0.9.2 (A1): sem familia, o passo explica o que falta e leva ao passo certo; trilho, controles e palco saem */
+.segmentos:empty, .miniaturas:empty { display: none; }
+.passo-pecas.esperando { grid-template-columns: minmax(0, 1fr); }
+.passo-pecas.esperando .trilho, .passo-pecas.esperando .mesa > :not(.espera) { display: none; }
+.espera {
+  flex: 1; min-height: 0; overflow: auto; display: grid; place-items: center; padding: var(--e-6) var(--e-4);
+  background-color: var(--stage); background-image: radial-gradient(var(--dot) 1px, transparent 1.3px); background-size: 20px 20px;
+}
+.espera-cartao {
+  width: min(560px, 100%); display: grid; gap: var(--e-3); justify-items: start; padding: var(--e-6);
+  background: var(--card); border: 0; border-radius: var(--raio-g); box-shadow: var(--paper);
+  font-size: var(--t-14); line-height: var(--altura-linha); animation: subir 0.3s var(--curva) both;
+}
+.espera-cartao h1 { font-size: var(--t-22); font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.espera-texto { color: var(--text2); max-width: 60ch; }
+.espera-checklist { list-style: none; margin: var(--e-1) 0 var(--e-2); padding: 0; display: grid; gap: var(--e-2); width: 100%; }
+.espera-item {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; gap: var(--e-3); padding: var(--e-3);
+  border: 1px solid var(--stroke); border-radius: var(--raio); background: var(--panel);
+}
+.espera-marca {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--borda-campo);
+  color: var(--text2); font-size: var(--t-12); font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.espera-item.feito .espera-marca { border-color: var(--ok-visto); background: var(--ok-visto); color: var(--on-ok); }
+.espera-item.falta { border-color: var(--warn-stroke); background: var(--badge-bg); }
+.espera-item.falta .espera-marca { border-color: var(--badge-dot); color: var(--badge); }
+.espera-item-textos { display: grid; gap: 1px; min-width: 0; }
+.espera-item-nome { font-weight: 600; }
+.espera-item.feito .espera-item-nome { color: var(--text2); }
+.espera-item-estado { color: var(--text2); font-size: var(--t-13); overflow-wrap: anywhere; }
+.trilho {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--sep);
+}
+.segmentos {
+  display: flex;
+  gap: 2px;
+  margin: 12px 12px 8px;
+  padding: 3px;
+  background: var(--track);
+  border-radius: 9px;
+}
+.segmentos button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.2s var(--curva), color 0.2s var(--curva), box-shadow 0.2s var(--curva);
+}
+.segmentos button[aria-selected="true"] { background: var(--seg); color: var(--text); font-weight: 600; box-shadow: var(--seg-sh); }
+.segmentos .contagem { color: inherit; opacity: 0.7; font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--t-12); }
+.miniaturas { flex: 1; min-height: 0; overflow: auto; padding: 4px 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+/* cada familia num cartao; a escolhida com o anel azul */
+.miniatura {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--raio);
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--stroke);
+  text-align: left;
+  cursor: pointer;
+  animation: subir 0.4s var(--curva) both;
+  transition: background-color 0.2s var(--curva), box-shadow 0.2s var(--curva);
+}
+.miniatura:hover { box-shadow: 0 0 0 1px var(--text2); }
+.miniatura:active { transform: scale(0.99); }
+.miniatura[aria-selected="true"] { box-shadow: 0 0 0 2px var(--accent); }
+.mini-quadro {
+  display: grid;
+  place-items: center;
+  height: 104px;
+  border-radius: 7px;
+  background: var(--stage);
+  overflow: hidden;
+}
+.mini-palco { position: relative; overflow: hidden; box-shadow: var(--paper-p); background: var(--papel); }
+.mini-palco .mundo { position: absolute; }
+.mini-palco.carregando { background: var(--sep); }
+.mini-texto { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.mini-medidas { font-weight: 600; font-size: var(--t-13); overflow-wrap: anywhere; }
+.mini-arquivos { color: var(--text2); font-size: var(--t-12); white-space: nowrap; }
+.mini-selo { margin-top: 6px; }
+/* a familia que ganhou ou perdeu formatos desde que o DA mexeu nela (revisao do M7b, fase A) */
+.mini-mudou { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; color: var(--warn); font-size: var(--t-12); }
+.mini-mudou::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); transform: translateY(-1px); }
+
+/* ---------------------------------------------------------------- mesa do palco */
+.mesa { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--stage); }
+.mesa-topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--sep);
+  flex: none;
+}
+/* nas Funcoes e no Design system, a faixa "Mestre do KV" e uma pilula sobre a mesa pontilhada, na mesma altura de
+   antes (o palco nao muda de tamanho) */
+.passo-funcoes .mesa, .passo-design .mesa {
+  background-color: var(--stage); background-image: radial-gradient(var(--dot) 1px, transparent 1.3px); background-size: 20px 20px;
+}
+.passo-funcoes .area-palco, .passo-design .area-palco { background: transparent; }
+.passo-funcoes .mesa-topo, .passo-design .mesa-topo {
+  align-self: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  height: 32px;
+  margin: 8px 0;
+  padding: 0 14px 0 6px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--float);
+  box-shadow: 0 0 0 1px var(--stroke), 0 2px 8px light-dark(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.3));
+}
+.passo-funcoes .mesa-topo .selo, .passo-design .mesa-topo .selo { height: 22px; padding: 0 10px; color: var(--text); background: var(--chip); }
+.passo-funcoes .mesa-topo .selo::before, .passo-design .mesa-topo .selo::before { background: var(--accent); opacity: 1; }
+.passo-funcoes .mesa-topo .medida, .passo-design .mesa-topo .medida { font-size: var(--t-12); }
+/* nas Familias, a barra de cima e o cabecalho ficam no fundo da tela, e o palco na mesa */
+.passo-pecas .mesa { background: var(--bg); }
+.mesa-info { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; overflow: hidden; }
+.nome-palco { font-weight: 600; font-size: var(--t-14); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.medida { color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1000 auto; }
+.controles { margin-left: auto; display: flex; align-items: center; gap: 2px; padding: 2px; flex: none; background: var(--track); border-radius: 8px; }
+/* o peso da letra fica o de antes: a barra de edicao foi medida com ele (a 1024 px os botoes cabem numa linha so) */
+.botao-vista { height: 28px; padding: 0 10px; font-size: 12px; border-color: var(--stroke-forte); }
+.botao-icone { width: 28px; padding: 0; }
+/* o botao ligado fora de um trilho: o tom azul claro com o anel */
+.botao-vista[aria-pressed="true"] { background: var(--tip-bg); border-color: var(--accent-stroke); color: var(--link); }
+.controles-divisor { width: 1px; height: 16px; background: var(--sep); margin: 0 4px; }
+/* os botoes da vista do palco, num trilho so: apagados, e o ligado em relevo */
+.controles .botao-vista { height: 24px; border-color: transparent; border-radius: 6px; background: transparent; color: var(--text); }
+.controles .botao-icone { width: 28px; }
+.controles .botao-vista:hover { background: var(--hover); }
+.controles .botao-vista[aria-pressed="true"] { background: var(--seg); box-shadow: var(--seg-sh); font-weight: 600; }
+.controles .botao-vista[aria-pressed="false"] { color: var(--text3); }
+.controles .controles-divisor { margin: 0 3px; background: var(--stroke-forte); }
+/* decisao 199 (0.10.0): o cabecalho da familia diz o arquivo que o DA edita e quantos seguem o layout dele. As fichas
+   "Arquivo desta familia" sairam: o palco e so do arquivo de edicao */
+.cabecalho-familia {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--sep);
+  flex: none;
+}
+.cabecalho-texto { color: var(--text3); font-size: 12.5px; }
+.cabecalho-arquivo { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.cabecalho-nota { color: var(--text2); font-size: var(--t-12); }
+.etiqueta-giro {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--text2);
+  font-size: var(--t-12);
+  white-space: nowrap;
+}
+.trocar-arquivo { position: relative; margin-left: auto; }
+.trocar-arquivo > summary { list-style: none; display: inline-flex; align-items: center; cursor: pointer; }
+.trocar-arquivo > summary::-webkit-details-marker { display: none; }
+.trocar-arquivo > summary[aria-disabled="true"] { color: var(--text2); cursor: default; }
+.trocar-arquivo[open] > summary { background: var(--acao); border-color: var(--acao); color: var(--on-acao); }
+.trocar-lista {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 5;
+  display: grid;
+  gap: 6px;
+  /* revisao da 0.10.0: a lista nunca passa da borda direita da janela; o nome e o giro quebram linha */
+  width: min(340px, calc(100vw - 32px));
+  padding: 12px;
+  border: 0;
+  border-radius: var(--raio);
+  background: var(--card);
+  box-shadow: var(--sombra-pop);
+  animation: surgir 0.2s var(--curva);
+}
+.trocar-lista .nota { white-space: normal; overflow-wrap: anywhere; }
+.trocar-opcao { justify-content: flex-start; flex-wrap: wrap; gap: 2px 8px; height: auto; min-height: 32px; padding-top: 4px; padding-bottom: 4px; white-space: normal; text-align: left; }
+.trocar-opcao > span { overflow-wrap: anywhere; }
+.trocar-nome { font-weight: 600; font-variant-numeric: tabular-nums; }
+.trocar-medida { color: var(--text2); font-variant-numeric: tabular-nums; }
+/* a devolucao (reprova) no vermelho; o aviso da familia e o do passo 2 na atencao */
+.devolucao {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  padding: 9px 16px;
+  background: var(--bg);
+  color: var(--text3);
+  border-bottom: 1px solid var(--sep);
+  flex: none;
+}
+.devolucao::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--bad); box-shadow: 0 0 0 3px var(--bad-bg); transform: translateY(-1px); }
+#aviso-familia::before, #aviso-passo-2::before { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-bg); }
+.amostra-hachura {
+  flex: none;
+  width: 18px;
+  height: 12px;
+  border: 1px solid var(--text2);
+  border-radius: 2px;
+  background-image: repeating-linear-gradient(45deg, var(--hachura) 0 2px, transparent 2px 5px);
+  background-color: var(--papel); /* a amostra e um pedaco da peca: o papel fixo atras da hachura fixa */
+}
+/* o aviso do fantasma, uma vez por palco, no canto da mesa */
+.aviso-apoio {
+  position: absolute;
+  left: 12px;
+  top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text2);
+  font-size: 12px;
+  pointer-events: none;
+}
+.limpo .aviso-apoio { display: none; }
+
+/* ---------------------------------------------------------------- galeria de versoes, ao lado do palco */
+/* a linha unica fica na altura da mesa: o palco e a barra de edicao dividem essa altura, e a barra nunca desce para
+   baixo do rodape */
+.mesa-corpo { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); }
+.mesa-palco { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+/* 0.13.0 (P5): o palco das Familias num quadro de raio 14 com a mesa em volta, como no mockup 03. A margem fica por
+   fora do palco: a escala do Ajustar mede o palco e ja encolhe com ela */
+.passo-pecas #palco { margin: 14px 16px 8px; border-radius: var(--raio-g); }
+@media (max-height: 800px) { .passo-pecas #palco { margin: 8px 12px 4px; } }
+.variante-palco {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 8px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--sep);
+  color: var(--text2);
+  flex: none;
+}
+.var-palco-descricao { color: var(--text); font-weight: 500; }
+.var-palco-aviso { display: inline-flex; align-items: baseline; gap: 6px; color: var(--badge); font-size: 12px; }
+.var-palco-aviso::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; transform: translateY(-1px); }
+.var-palco-aviso.forte { color: var(--bad); }
+/* M7b, D5: a decisao do DA e informacao, nunca alerta: a tinta neutra, com o valor a vista */
+.var-palco-aviso.do-da { color: var(--text2); }
+/* 0.9.6: o aviso que o DA aceitou ao confirmar a familia: tinta neutra, nunca o vermelho de erro */
+.var-palco-aviso.aceito { color: var(--text2); }
+.galeria {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+  border-left: 1px solid var(--sep);
+}
+.galeria-topo { padding: 16px 16px 12px; flex: none; }
+.galeria-topo h2 { font-size: var(--t-15); font-weight: 600; letter-spacing: -0.01em; margin-bottom: 4px; }
+.motivo-galeria { color: var(--text2); font-size: 12px; line-height: 1.45; margin-bottom: 6px; }
+.motivo-galeria:empty { display: none; }
+.galeria-topo .nota { font-size: 12px; line-height: 1.45; color: var(--text3); }
+.variantes { flex: 1; min-height: 0; overflow: auto; padding: 4px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+/* cada versao num cartao, com o circulo de escolha a direita; a escolhida com o anel e o visto azul */
+.variante {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr) 20px;
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--raio);
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--stroke);
+  text-align: left;
+  cursor: pointer;
+  animation: subir 0.4s var(--curva) both;
+  transition: background-color 0.2s var(--curva), box-shadow 0.2s var(--curva), transform 0.15s var(--curva);
+}
+.variante::after {
+  content: ""; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  border: 1.5px solid var(--borda-campo); color: var(--on-acao); font-size: 11px; font-weight: 700; line-height: 1;
+}
+.variante:hover { box-shadow: 0 0 0 1px var(--text2); }
+.variante:active { transform: scale(0.99); }
+.variante[aria-selected="true"] { box-shadow: 0 0 0 2px var(--accent); }
+.variante[aria-selected="true"]::after { content: "\2713" / ""; border-color: var(--acao); background: var(--acao); }
+.var-quadro { display: grid; place-items: center; height: 84px; border-radius: 7px; background: var(--stage); overflow: hidden; }
+.var-texto { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding-top: 1px; }
+.var-numero { color: var(--text); font-size: var(--t-13); font-weight: 600; font-variant-numeric: tabular-nums; }
+.var-descricao {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text2);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+.var-marcas { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.marca-aviso {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--badge-bg);
+  color: var(--badge);
+  font-size: var(--t-12);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.marca-aviso.forte { background: var(--bad-bg); color: var(--bad); }
+.marca-aviso.do-da { background: var(--chip); color: var(--text); }
+/* 0.9.6: o aviso aceito pelo DA na familia confirmada, sem cor de erro */
+.marca-aviso.aceito { border-color: var(--stroke-forte); background: transparent; color: var(--text2); font-weight: 500; }
+
+/* selos: discretos, texto em minuscula, um so acento para a proposta */
+.selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: var(--t-12);
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  background: var(--chip);
+  color: var(--text2);
+}
+.selo:empty { display: none; }
+.selo::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.8; }
+/* a proposta e as versoes para escolher no ambar, a devolucao no vermelho */
+.selo-proposta, .selo-galeria { background: var(--badge-bg); color: var(--badge); }
+.selo-proposta::before, .selo-galeria::before { background: var(--badge-dot); opacity: 1; }
+.selo-devolvido { background: var(--bad-bg); color: var(--bad); }
+.selo-neutro, .selo-escala_pura, .selo-kv { background: var(--chip); color: light-dark(var(--text2), var(--text3)); }
+
+/* ---------------------------------------------------------------- palco: coordenadas em pixel real, escala so na exibicao */
+.area-palco {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+  display: flex;
+  padding: 28px 12px 12px;
+  background-color: var(--stage);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.3px);
+  background-size: 20px 20px;
+}
+.escala { position: relative; margin: auto; flex: none; }
+/* o texto da peca sem cor propria herda esta tinta fixa, nunca a da moldura: a peca nao muda com o tema */
+.mundo { position: absolute; left: 0; top: 0; transform-origin: 0 0; color: #18181b; }
+.recorte { position: absolute; overflow: hidden; }
+.peca { position: absolute; display: block; }
+img.peca { user-select: none; pointer-events: none; }
+.peca.sem-imagem { outline: 1px dashed #63636b; background: rgba(24, 24, 27, 0.04); }
+.texto { white-space: pre; }
+.texto .linha { display: block; position: relative; white-space: pre; }
+.texto .linha .marco { display: inline-block; width: 0; height: 0; vertical-align: baseline; }
+.texto.sem-fonte .trecho { font-family: var(--fonte); }
+/* 0.9.4: o texto escrito no palco. O campo fica fora do .mundo, em px da tela; o texto do palco some embaixo dele */
+.texto-no-palco {
+  position: absolute; z-index: 3; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent;
+  resize: none; overflow: hidden; white-space: pre; overflow-wrap: normal; font-kerning: normal;
+  outline: 1.5px solid var(--accent); outline-offset: 3px; cursor: text; touch-action: auto; caret-color: currentColor;
+  box-sizing: content-box; min-width: 0; min-height: 0;
+}
+.texto-no-palco:focus-visible { outline: 1.5px solid var(--accent); outline-offset: 3px; }
+.texto-no-palco[aria-invalid="true"] { outline-color: var(--bad); }
+.texto-no-palco[readonly] { cursor: progress; opacity: 0.7; }
+.texto-espelho { position: absolute; left: 0; top: 0; visibility: hidden; white-space: pre; pointer-events: none; }
+#palco .recorte.em-escrita .texto { visibility: hidden; }
+#palco .rotulo.em-escrita, #palco .rotulo.em-escrita .etiqueta { pointer-events: none; }
+#palco .rotulo.em-escrita .alca { display: none; }
+/* revisao 0.9.4: o contorno do campo passava por cima da etiqueta e parecia risca-la. O nome do elemento segue no
+   aria-label do campo e na linha "Escolhido" */
+#palco .rotulo.em-escrita .etiqueta { visibility: hidden; }
+@media (prefers-reduced-motion: no-preference) { .texto-no-palco { transition: outline-color 0.2s var(--curva); } }
+.peca.fantasma { opacity: 0.35; }
+/* o papel atras da peca e sempre branco (--papel): no tema escuro, so a mesa em volta escurece */
+.quadro-fundo { position: absolute; background: var(--papel); box-shadow: var(--paper); }
+/* 0.13.0 (P1): a sangria. O tom do mockup (--bleed) por cima da mesa (--fora); sobre a mesa vazia a cor e a do mockup
+   nos dois temas, e a parte da peca fora do formato continua apagada. A peca embaixo nunca muda */
+.fora { position: absolute; background: linear-gradient(var(--bleed), var(--bleed)), var(--fora); pointer-events: none; }
+/* o tracejado em volta da sangria: a borda de fora da caixa da escala, que tem a medida do mundo na tela. Fica por
+   fora da caixa, sem cobrir a peca e sem entrar no clique. Revisao da 0.13.0: so nos lados em que a peca passa do
+   formato (data-sangria); no lado em que o mundo e o formato coincidem, so o fio da moldura. No ::before, que pinta
+   antes do mundo: a etiqueta que passa da borda fica por cima do traco */
+.escala.com-sangria::before {
+  content: ""; position: absolute; inset: -1.5px; border: 0 dashed var(--bleed-stroke); pointer-events: none;
+}
+.escala[data-sangria~="cima"]::before { border-top-width: 1.5px; }
+.escala[data-sangria~="baixo"]::before { border-bottom-width: 1.5px; }
+.escala[data-sangria~="esquerda"]::before { border-left-width: 1.5px; }
+.escala[data-sangria~="direita"]::before { border-right-width: 1.5px; }
+.limpo .escala.com-sangria::before { display: none; }
+.moldura { position: absolute; outline: 1px solid color-mix(in srgb, var(--text) 35%, transparent); pointer-events: none; }
+/* nas Funcoes e no Design system a peca e o KV inteiro: a borda dela e a do papel (--paper), sem o fio forte. Nas
+   Familias o fio fica, porque marca o formato sobre a sangria */
+.passo-funcoes .moldura, .passo-design .moldura { outline-color: var(--stroke); }
+.rotulo {
+  position: absolute;
+  border: 1px dashed rgba(24, 24, 27, 0.55);
+  /* o traco claro por fora: o contorno aparece sobre a peca e tambem sobre a sangria fora do formato no escuro */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+}
+.rotulo .etiqueta {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  background: var(--float);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--stroke);
+  font: 500 11px/1.35 var(--fonte);
+  padding: 2px 6px;
+  border-radius: 5px 5px 5px 0;
+  white-space: nowrap;
+}
+/* 0.13.0 (P5): o ponto da cor da classe na etiqueta (mockup 03); na etiqueta cheia de azul ele fica branco */
+.rotulo .etiqueta[data-classe]::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%;
+  background: var(--cor-classe); vertical-align: 1px;
+}
+.rotulo.destaque .etiqueta[data-classe]::before, .rotulo.selecionado .etiqueta[data-classe]::before { background: var(--on-acao); }
+.rotulo .etiqueta.pela-direita { left: auto; right: 0; transform-origin: 100% 0; border-radius: 5px 5px 0 5px; }
+/* revisao do 0.9.2 (M2): a etiqueta que cobriria outra sai da vista; a do escolhido sempre aparece */
+.rotulo .etiqueta.etiqueta-encoberta { visibility: hidden; }
+.rotulo.selecionado .etiqueta.etiqueta-encoberta, .rotulo.destaque .etiqueta.etiqueta-encoberta { visibility: visible; }
+.rotulo.fantasma {
+  border-style: solid;
+  border-color: rgba(24, 24, 27, 0.45);
+  background-image: repeating-linear-gradient(45deg, var(--hachura) 0 1.5px, transparent 1.5px 9px);
+}
+.rotulo.fantasma .etiqueta { background: var(--float); color: var(--text2); box-shadow: 0 0 0 1px var(--stroke-forte); }
+.rotulo.destaque { border: 2px solid var(--accent); }
+.rotulo.destaque .etiqueta { background: var(--acao); color: var(--on-acao); box-shadow: none; }
+.limpo .rotulo, .limpo .fora, .limpo .fantasma { display: none; }
+/* Nomes desligado: so as etiquetas saem; a caixa de cada elemento continua para o clique, e o escolhido mantem o nome */
+.sem-nomes .rotulo:not(.selecionado):not(.no-grupo):not(.destaque) .etiqueta { display: none; }
+.limpo .mundo { clip-path: var(--recorte-limpo); }
+
+/* ---------------------------------------------------------------- movimento: so transform e opacidade */
+@keyframes entrar { from { opacity: 0; } to { opacity: 1; } }
+@keyframes surgir { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes subir { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+/* 0.9.2 (B1): o brilho do carregando anda por transform, nunca por background-position */
+@keyframes brilho { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@keyframes vai-e-vem { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+.mini-palco.carregando::after, .ad-quadro.carregando::after, .final-caixa.carregando::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, var(--card) 50%, transparent 100%);
+  animation: brilho 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* telas baixas (2048 x 720): moldura mais justa para o palco ficar maior */
+@media (max-height: 800px) {
+  .topo { height: 46px; }
+  .acoes { height: 46px; }
+  .lista-faltam { top: 52px; }
+  .mesa-topo { height: 42px; }
+  .passo-funcoes .mesa-topo, .passo-design .mesa-topo { margin: 5px 0; }
+  #salvar-seguir { height: 34px; }
+  #confirmar-familia { height: 32px; }
+  .cabecalho-familia { min-height: 38px; padding: 5px 16px; }
+  .mini-quadro { height: 84px; }
+  .var-quadro { height: 60px; }
+  .variante { padding: 6px 8px; gap: 8px; }
+  .var-descricao { -webkit-line-clamp: 3; }
+  .galeria-topo { padding: 10px 16px 8px; }
+  .motivo-galeria { margin-bottom: 4px; }
+  .variante-palco { padding: 6px 16px; }
+  .lido-grade, .resumo { padding-top: 20px; }
+}
+/* revisao da 0.13.0: no rodape a frase do rascunho cabe ate 1100 px (a 1280 sobra espaco, como no mockup); o ponto
+   fica so na janela estreita */
+@media (max-width: 1100px) {
+  /* 0.9.2 (B6): sem espaco para a frase, o estado do rascunho vira um ponto (desde a 0.13.0, no rodape, depois do
+     passo), com a frase no title */
+  .selo-leitura { flex: none; width: 8px; max-width: none; height: 8px; font-size: 0; border-radius: 50%; background: var(--text2); }
+  .selo-leitura[data-estado="salvo"], .selo-leitura[data-estado="pronto"] { background: var(--ok-fill); }
+}
+@media (max-width: 1280px) {
+  /* revisao do 0.9.2: o erro do rascunho e as escolhas de outra leitura nunca viram so um ponto; a frase aparece numa
+     etiqueta de aviso (o resto no title), porque o DA precisa saber que nada grava. Revisao da 0.13.0: no rodape a
+     etiqueta tem a largura das duas linhas da frase inteira e nao encolhe; o grupo da esquerda so encolhe ate ela, e o
+     trilho dos passos sai (o "Passo N de 5" fica). Quem encolhe e o motivo ao lado do botao, que tem o title. Este
+     bloco vem depois do ponto (max-width 1100) para valer sobre ele */
+  .selo-leitura[data-estado="erro"], .selo-leitura[data-estado="outro_laudo"] {
+    flex: none; width: min(360px, 36vw); height: auto; max-width: none; padding: 4px 10px;
+    font-size: 12px; line-height: 1.35; text-align: left; border-radius: var(--raio-p); background: var(--bad-bg);
+    color: var(--bad); box-shadow: inset 0 0 0 1px var(--bad-stroke);
+  }
+  .selo-leitura[data-estado="outro_laudo"] { background: var(--chip); color: var(--text); box-shadow: inset 0 0 0 1px var(--stroke); }
+  .acoes-esquerda:has(> .selo-leitura[data-estado="erro"]), .acoes-esquerda:has(> .selo-leitura[data-estado="outro_laudo"]) { min-width: auto; }
+  .acoes-esquerda:has(> .selo-leitura[data-estado="erro"]) > .passos-trilho,
+  .acoes-esquerda:has(> .selo-leitura[data-estado="outro_laudo"]) > .passos-trilho { display: none; }
+  .passo-funcoes { grid-template-columns: 240px minmax(0, 1fr) 300px; }
+  /* a coluna das funcoes com 440 px: os tamanhos cabem em duas ou tres por linha ao lado da ancora */
+  .passo-design { grid-template-columns: 440px minmax(0, 1fr); }
+  .passos button { padding: 0 10px 0 8px; }
+}
+
+/* ---------------------------------------------------------------- rascunho e confirmacao na janela (M7a, fatia 1) */
+.selo-leitura[data-estado="salvando"] { color: var(--text2); }
+.selo-leitura[data-estado="erro"] { color: var(--bad); }
+.confirmacao {
+  width: min(440px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--raio-g);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--sombra-pop);
+}
+.confirmacao[open] { animation: subir 0.24s var(--curva); }
+/* revisao do 0.9.2: o que tira algo do job (remover) leva a cor de aviso no Confirmar */
+.botao-perigo, .botao-primario.botao-perigo { background: var(--perigo); border-color: var(--perigo); color: var(--on-acao); }
+.botao-primario.botao-perigo:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--perigo) 85%, black); border-color: color-mix(in srgb, var(--perigo) 85%, black);
+}
+.confirmacao::backdrop { background: var(--veu); }
+.confirmacao h2 { font-size: var(--t-17); font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.confirmacao h2:focus { outline: none; }
+.confirmacao-texto { margin-top: 8px; color: var(--text2); font-size: var(--t-14); max-width: 60ch; }
+/* as duas respostas com o mesmo peso: nenhuma vem marcada nem em destaque (decisoes-v1.md, 159) */
+.confirmacao-acoes { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+/* ---------------------------------------------------------------- edicao por familia (M7a, fatia 4) */
+.rotulo.editavel { pointer-events: auto; cursor: grab; touch-action: none; transition: border-color 0.2s var(--curva); }
+.rotulo.editavel.de-conteudo { z-index: 1; }
+.rotulo.editavel:hover { border-color: var(--accent); }
+.rotulo.editavel.arrastando { cursor: grabbing; will-change: transform; }
+/* revisao 2 da fase D: a etiqueta de quem nao esta escolhido escolhe com o clique (o arraste nela desenha o retangulo);
+   a mao de arrastar fica so na etiqueta do escolhido, que anda por ela */
+.rotulo.editavel .etiqueta { cursor: pointer; }
+.rotulo.editavel.selecionado .etiqueta { cursor: grab; }
+.rotulo.editavel.arrastando .etiqueta { cursor: grabbing; }
+.rotulo.editavel:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+.rotulo.selecionado { border: 1.5px solid var(--accent); }
+.rotulo.selecionado .etiqueta { background: var(--acao); color: var(--on-acao); box-shadow: none; }
+.alca { position: absolute; background: var(--papel); border: 1px solid var(--accent); border-radius: 2px; cursor: nwse-resize; }
+.alca[data-canto="ne"], .alca[data-canto="sw"] { cursor: nesw-resize; }
+/* o grupo (M7b, D1): cada escolhido com a borda do acento e a etiqueta clara; uma caixa so em volta de todos, com os
+   cantos para mudar o tamanho juntos. O retangulo de selecao e so desenho */
+.rotulo.no-grupo { border-style: solid; }
+.rotulo.no-grupo .etiqueta { background: var(--float); color: var(--link); box-shadow: 0 0 0 1.5px var(--accent); }
+.caixa-grupo {
+  position: absolute;
+  z-index: 2;
+  outline: calc(1.5px * var(--k, 1)) dashed var(--accent);
+  outline-offset: 0;
+  pointer-events: none;
+  animation: entrar 0.16s var(--curva);
+}
+.caixa-grupo .alca { pointer-events: auto; }
+.caixa-grupo.arrastando { will-change: transform; }
+.retangulo-selecao {
+  position: absolute;
+  z-index: 3;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  outline: calc(1px * var(--k, 1)) solid var(--accent);
+  pointer-events: none;
+}
+.recorte { will-change: auto; }
+.guia { position: absolute; background: var(--accent); opacity: 0.75; pointer-events: none; animation: entrar 0.12s var(--curva); }
+/* Linhas do DA (0.9.4): o texto editado nunca quebra sozinho; a caixa cresce ate a linha mais longa (white-space: pre,
+   como o texto do KV), em volta da ancora do texto (medirTexto) */
+.selo-confirmada { background: var(--ok-bg); color: var(--ok); }
+.selo-confirmada::before { background: var(--ok-fill); opacity: 1; }
+/* revisao 1 da fase D: os botoes do elemento e os de alinhar dividem a primeira linha quando cabem (a tela larga do
+   Duda fica com mais palco); embaixo, o nome do escolhido (o grupo pelos nomes curtos, inteiro) e a frase da ultima
+   mudanca, uma linha cada. As duas linhas ficam reservadas: escolher um elemento ou a frase que some nunca mudam a
+   altura da barra, e o palco nao pula embaixo do mouse */
+.barra-edicao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-top: 1px solid var(--sep);
+  flex: none;
+  position: relative;
+}
+/* revisao 2 da fase D: a linha do nome leva "Como editar" no fim; a lista dos gestos abre por cima do palco, sem
+   mudar a altura da barra */
+.linha-escolhido { order: 3; flex: 1 1 100%; min-width: 0; display: flex; align-items: center; gap: 12px; height: 18px; }
+.botao-ajuda {
+  flex: none;
+  height: 24px; /* revisao do 0.9.2: alvo de 24 px */
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 12px var(--fonte);
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.botao-ajuda:hover { color: var(--accent); }
+.botao-ajuda:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+.ajuda-painel {
+  position: absolute;
+  right: 16px;
+  bottom: calc(100% + 8px);
+  z-index: 3;
+  width: min(440px, calc(100% - 32px));
+  box-sizing: border-box;
+  padding: 14px 16px 12px;
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-pop);
+}
+.ajuda-painel[hidden] { display: none; }
+.ajuda-titulo { margin: 0 0 6px; font-weight: 600; color: var(--text); }
+.ajuda-lista { margin: 0 0 10px; padding-left: 18px; color: var(--text2); font-size: 12px; line-height: 1.5; }
+.ajuda-lista li + li { margin-top: 4px; }
+.elemento-escolhido {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--text2);
+  line-height: 18px;
+  height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.barra-grupo { order: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.barra-grupo .botao-vista:disabled, .barra-alinhar .botao-vista:disabled { cursor: not-allowed; color: var(--text2); background: var(--chip); border-color: transparent; }
+.barra-grupo .botao-vista:disabled svg, .barra-alinhar .botao-vista:disabled svg { opacity: 0.6; }
+/* 0.9.2 (M3): sem nada escolhido, so Desfazer, Escolher vários e a frase ficam a vista. Os outros guardam o lugar
+   (visibility), para a barra nunca mudar de altura e o palco nao pular embaixo do mouse ao escolher */
+.barra-edicao.sem-escolha .barra-grupo > :not(#ed-varios):not(#ed-desfazer), .barra-edicao.sem-escolha .barra-alinhar { visibility: hidden; }
+.barra-edicao.sem-escolha .elemento-escolhido { color: var(--text); font-weight: 500; }
+.botao-apagar:not(:disabled) { color: var(--bad); }
+.botao-apagar:not(:disabled):hover { border-color: var(--bad); }
+/* o tamanho por numero (M7b, D3): o rotulo, o campo com o % colado e o Aplicar, juntos entre Aumentar e o texto */
+.campo-tamanho { display: inline-flex; align-items: center; gap: 6px; margin: 0 2px 0 6px; }
+.tamanho-caixa {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 8px 0 0;
+  background: var(--card);
+  border: 1px solid var(--borda-campo);
+  border-radius: var(--raio-p);
+  transition: border-color 0.15s var(--curva), box-shadow 0.15s var(--curva);
+}
+.tamanho-caixa:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--tip-bg); }
+.tamanho-caixa input {
+  width: 6ch;
+  height: 100%;
+  padding: 0 2px 0 8px;
+  border: 0;
+  background: transparent;
+  font: 13px var(--fonte);
+  color: var(--text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+.tamanho-caixa input::placeholder { color: var(--text2); }
+/* revisao do 0.9.2: o foco pelo teclado aparece no proprio campo (o anel da caixa, em ocre claro, quase nao se via) */
+.tamanho-caixa input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 2px; }
+.tamanho-caixa input:disabled { cursor: not-allowed; }
+.tamanho-caixa:has(input:disabled) { background: var(--chip); border-color: transparent; color: var(--text2); }
+.tamanho-caixa:has(input[aria-invalid="true"]) { border-color: var(--bad); box-shadow: 0 0 0 3px var(--bad-bg); }
+.tamanho-unidade { color: var(--text2); font-size: 12px; }
+/* alinhar no quadro (M7b, D2): a referencia em dois botoes colados e os seis alvos, com o desenho do alinhamento e o
+   nome escrito; a linha fica abaixo dos botoes do elemento, alinhada a direita como eles */
+.barra-alinhar { order: 2; margin-left: auto; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+.barra-rotulo { color: var(--text2); font-size: 12px; margin-right: 2px; }
+.segmentado { display: inline-flex; }
+.segmentado .botao-vista { border-radius: 0; }
+.segmentado .botao-vista:first-child { border-radius: var(--raio-p) 0 0 var(--raio-p); }
+.segmentado .botao-vista:last-child { border-radius: 0 var(--raio-p) var(--raio-p) 0; }
+/* 0.12.0: os botoes colados dividem a borda (o do alinhamento do texto tem tres, o do meio quadrado), e o escolhido
+   fica por cima da borda dos vizinhos */
+.segmentado .botao-vista + .botao-vista { margin-left: -1px; }
+.segmentado .botao-vista[aria-pressed="true"] { position: relative; z-index: 1; }
+/* os botoes colados leem como os outros trilhos: o fundo do trilho e o escolhido em relevo. As medidas ficam as de
+   antes (a borda so fica transparente), porque a barra foi medida com elas */
+.segmentado .botao-vista { background: var(--track); border-color: transparent; color: var(--text3); }
+.segmentado .botao-vista:hover:not(:disabled) { border-color: transparent; color: var(--text); }
+.segmentado .botao-vista[aria-pressed="true"] { background: var(--seg); border-color: transparent; box-shadow: var(--seg-sh); color: var(--text); font-weight: 400; }
+/* os desligados de um par colado ficam no tom do chip, sem sumir no fundo */
+.segmentado .botao-vista:disabled + .botao-vista:disabled { border-left-color: var(--stroke); }
+.botao-alinhar svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.botao-alinhar svg rect { fill: currentColor; stroke: none; opacity: 0.55; }
+/* 0.9.2 (M3): abaixo de 1280 px os seis botoes de alinhar ficam so com o desenho; o nome segue no leitor de tela e
+   no title, e a linha de alinhar cabe numa linha so */
+@media (max-width: 1279px) {
+  .botao-alinhar { position: relative; width: 30px; padding: 0; }
+  .botao-alinhar .rotulo-botao, .campo-tamanho .barra-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* a linha dos botoes do elemento cabe numa linha a 1024 px: um pouco menos de folga dentro de cada botao */
+  .barra-grupo .botao-vista { padding: 0 8px; }
+  .campo-tamanho { margin-left: 2px; }
+}
+/* 0.12.0: o alinhamento das linhas do texto, tres botoes so com o desenho, colados, depois de Quebrar linha. O
+   desenho e o das linhas de texto (sem a guia dos botoes de Alinhar pela, que mexem o elemento no quadro) */
+.alinhar-texto .botao-vista { width: 28px; padding: 0; justify-content: center; }
+.alinhar-texto svg { width: 16px; height: 16px; flex: none; }
+/* 0.12.0: abaixo de 1280 px os tres botoes novos cabem na linha dos botoes do elemento a 1024 px, como em 0.9.2 (o
+   Apagar nao desce para uma linha so dele): botoes de 24 px, um pouco menos de folga dentro de cada botao do elemento,
+   entre eles e em volta dos divisores */
+@media (max-width: 1279px) {
+  .barra-grupo { gap: 4px; }
+  .barra-grupo .botao-vista { padding: 0 5px; }
+  .barra-grupo .controles-divisor { margin: 0 2px; }
+  .alinhar-texto .botao-vista { width: 24px; padding: 0; }
+}
+/* 0.12.0: os botoes do elemento e os de Alinhar pela dividem uma linha quando cabem (revisao 1 da fase D). Os tres
+   botoes novos tiram dela 88 px: numa faixa estreita de largura da barra (a tela de 2048 px do Duda com a faixa dos
+   arquivos ao lado), as duas metades cabiam juntas antes e com os nomes ja nao cabem. So nessa faixa os seis botoes de
+   Alinhar pela ficam so com o desenho, como abaixo de 1280 px: a barra continua com duas linhas e o palco nao perde
+   altura; o nome segue no title e no leitor de tela. Abaixo dela, as duas metades ja ficavam em linhas separadas, e
+   os nomes ficam; acima, tudo cabe com os nomes. As medidas sao a largura da barra sem o respiro dela: 1660 px um
+   pouco abaixo de onde as duas metades cabiam juntas em 0.11.0 (1684), 1790 px um pouco acima de onde cabem com os
+   nomes agora (1772) */
+.barra-edicao { container-type: inline-size; container-name: barra; }
+@container barra (min-width: 1660px) and (max-width: 1790px) {
+  .botao-alinhar { position: relative; width: 30px; padding: 0; }
+  .botao-alinhar .rotulo-botao { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+/* M4: o nome do formato fica inteiro; o selo e a medida encolhem primeiro, com reticencias */
+.mesa-info .selo { display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; line-height: 20px; }
+.mesa-info .selo::before { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.mesa-info .selo:empty { display: none; }
+.mesa-info .nome-palco { flex: 0 0 auto; max-width: 50%; }
+/* revisao 2 da fase D: a frase tem altura fixa (o palco nunca pula entre um gesto e outro). Na tela larga, uma linha;
+   na estreita, duas, onde a frase do Tamanho quebra. O que passar disso termina em reticencias, e a frase inteira
+   fica no title */
+.ed-mensagem {
+  order: 4;
+  flex: 1 1 100%;
+  margin: 0;
+  height: 36px;
+  line-height: 18px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--text2);
+  font-size: 12px;
+}
+@media (min-width: 1700px) {
+  .ed-mensagem { height: 18px; -webkit-line-clamp: 1; }
+}
+.ed-mensagem.erro { color: var(--bad); }
+.editor-texto {
+  display: grid;
+  gap: 6px;
+  padding: 12px 16px 14px;
+  background: var(--panel);
+  border-top: 1px solid var(--sep);
+  flex: none;
+  animation: entrar 0.2s var(--curva);
+}
+.editor-rotulo { font-weight: 600; font-size: 12px; }
+.editor-texto textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  padding: 8px 10px;
+  font: 13px/1.45 var(--fonte);
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--borda-campo);
+  border-radius: var(--raio-p);
+}
+.editor-texto textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.editor-texto textarea[aria-invalid="true"] { border-color: var(--bad); }
+.editor-texto .nota { font-size: 12px; }
+/* com o editor de texto aberto, o palco fica com o espaco: sem as miniaturas e so com a etiqueta do escolhido */
+.mesa-palco.escrevendo .membros { display: none; }
+.mesa-palco.escrevendo .rotulo:not(.destaque) .etiqueta { display: none; }
+.mesa-palco.escrevendo .editor-texto { grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: 12px; }
+.mesa-palco.escrevendo .editor-texto > :not(textarea):not(.editor-acoes) { grid-column: 1 / -1; }
+.mesa-palco.escrevendo .editor-texto textarea { min-height: 44px; }
+.erro-campo { color: var(--bad); font-size: 12px; }
+.erro-campo:empty { display: none; }
+.editor-acoes { display: flex; justify-content: flex-end; gap: 8px; }
+/* ---------------------------------------------------------------- quebra de linha (M7b, C4)
+   O controle fica embaixo do palco, como o editor de texto: o texto na fonte do job, em linhas, com um vao clicavel
+   entre as palavras e a marca da quebra no fim de cada linha. A quebra do KV fica discreta, a do DA no acento e a
+   faixa de aviso diz quando o texto editado passa da borda de um formato (Linhas do DA, 0.9.4). Com o controle
+   aberto (.quebrando, revisao do C), o
+   palco guarda a altura para o DA ler a quebra: as miniaturas passam para uma coluna ao lado do palco (revisao 2 do
+   C: o DA ve a quebra em cada membro), a frase "Com as suas edicoes" sem aviso sai da frente, so a etiqueta do
+   escolhido e a do texto que passa da borda aparecem, e o controle e baixo, com o texto a esquerda e a situacao e os botoes a
+   direita na janela larga. */
+.faixa-quebra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bad-bg);
+  border-top: 1px solid var(--bad-stroke);
+  color: var(--text);
+  flex: none;
+  animation: surgir 0.24s var(--curva);
+}
+.faixa-quebra[hidden] { display: none; }
+.faixa-quebra p { flex: 1; min-width: 0; font-size: 12px; line-height: 1.45; }
+.faixa-quebra .botao { height: 28px; font-size: 12px; }
+.botao-acento { background: var(--acao); border-color: var(--acao); color: var(--on-acao); font-weight: 600; }
+.botao-acento:hover:not(:disabled) { background: var(--acao-hover); border-color: var(--acao-hover); }
+.editor-quebra {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px 14px;
+  background: var(--panel);
+  border-top: 1px solid var(--sep);
+  flex: none;
+  animation: entrar 0.2s var(--curva);
+}
+.editor-quebra[hidden] { display: none; }
+.quebra-topo { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; }
+.quebra-topo .nota { font-size: 12px; }
+.quebra-linhas {
+  display: grid;
+  gap: 2px;
+  max-height: 168px;
+  overflow: auto;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: var(--raio-p);
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1.25;
+}
+.quebra-linha { display: flex; flex-wrap: wrap; align-items: center; min-height: 30px; animation: subir 0.22s var(--curva) both; }
+.quebra-palavra { white-space: pre; }
+.quebra-vao {
+  position: relative;
+  width: 16px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.15s var(--curva);
+}
+.quebra-vao::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--accent);
+  opacity: 0;
+  transform: scaleY(0.4);
+  transition: opacity 0.15s var(--curva), transform 0.2s var(--curva);
+}
+.quebra-vao:hover::after, .quebra-vao:focus-visible::after { opacity: 1; transform: none; }
+.quebra-vao:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+.quebra-vao:active { transform: scale(0.94); }
+.quebra-marca {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  margin-left: 8px;
+  padding: 0;
+  border: 1px solid var(--accent-stroke);
+  border-radius: 999px;
+  background: var(--tip-bg);
+  color: var(--accent);
+  cursor: pointer;
+  transition: border-color 0.2s var(--curva), transform 0.15s var(--curva);
+}
+.quebra-marca:hover { border-color: var(--accent); }
+.quebra-marca:active { transform: scale(0.94); }
+.quebra-marca:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.quebra-marca.do-kv { border-color: transparent; background: var(--chip); color: light-dark(var(--text2), var(--text3)); }
+.quebra-pe { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.quebra-situacao { flex: 1; min-width: 0; color: var(--text2); font-size: 12px; }
+.rotulo.passa-da-borda { border: 1.5px dashed var(--bad); }
+.rotulo.passa-da-borda .etiqueta { background: var(--float); color: var(--bad); box-shadow: 0 0 0 1px var(--bad); }
+/* com o controle aberto, as miniaturas dos membros viram uma coluna ao lado do palco (revisao 2 do C): o DA ve a
+   quebra em cada arquivo da familia enquanto clica, e o palco so cede largura, que sobra quando a peca e baixa */
+.mesa-palco.quebrando {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-areas: "aviso aviso" "palco membros" "faixa faixa" "barra barra" "texto texto" "quebra quebra";
+}
+.mesa-palco.quebrando > .variante-palco { grid-area: aviso; }
+.mesa-palco.quebrando > .area-palco { grid-area: palco; }
+.mesa-palco.quebrando > .faixa-quebra { grid-area: faixa; }
+.mesa-palco.quebrando > .barra-edicao { grid-area: barra; }
+.mesa-palco.quebrando > .editor-texto { grid-area: texto; }
+.mesa-palco.quebrando > .editor-quebra { grid-area: quebra; }
+.mesa-palco.quebrando > .membros {
+  grid-area: membros;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px 8px 8px 10px;
+  border-top: 0;
+  border-left: 1px solid var(--sep);
+  animation: entrar 0.2s var(--curva);
+}
+.mesa-palco.quebrando > .membros[hidden] { display: none; }
+.mesa-palco.quebrando .membros-topo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.mesa-palco.quebrando .membros-lista { flex-direction: column; flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; gap: 4px; }
+.mesa-palco.quebrando .membro { max-width: none; width: auto; }
+.mesa-palco.quebrando .membro-quadro { height: 96px !important; }
+.mesa-palco.quebrando .variante-palco:not(:has(.var-palco-aviso)) { display: none; }
+.mesa-palco.quebrando .rotulo:not(.selecionado):not(.passa-da-borda) .etiqueta { display: none; }
+.mesa-palco.quebrando .faixa-quebra { padding-top: 6px; padding-bottom: 6px; }
+@media (min-width: 1100px) {
+  .editor-quebra {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+    grid-template-areas: "topo topo" "linhas pe";
+    align-items: start;
+    gap: 6px 16px;
+    padding: 10px 16px 12px;
+  }
+  .editor-quebra .quebra-topo { grid-area: topo; }
+  .editor-quebra .quebra-linhas { grid-area: linhas; max-height: 112px; padding: 6px 12px; }
+  .editor-quebra .quebra-pe { grid-area: pe; flex-direction: column; align-items: stretch; gap: 8px; }
+  .editor-quebra .quebra-pe .editor-acoes { flex-wrap: wrap; }
+}
+.membros { flex: none; background: var(--panel); border-top: 1px solid var(--sep); padding: 8px 16px 10px; }
+.membros-topo { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; }
+.membros-topo h2 { font-size: var(--t-13); font-weight: 600; letter-spacing: -0.01em; }
+.resumo-edicao { color: var(--text2); font-size: 12px; }
+/* decisao 199 (0.10.0): cada arquivo legivel, com cerca de 200 px de altura, e o selo em palavras. O arquivo de edicao
+   abre a faixa, com fio do acento; os outros abrem o "Ver grande" no clique, so para ver */
+.membros-lista { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; }
+.membro {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min-content;
+  min-width: 176px;
+  max-width: 300px;
+  padding: 8px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--raio);
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  scroll-snap-align: start;
+  animation: subir 0.35s var(--curva) both;
+  transition: border-color 0.2s var(--curva), box-shadow 0.2s var(--curva), transform 0.15s var(--curva);
+}
+button.membro:hover { border-color: var(--stroke-forte); box-shadow: 0 4px 14px light-dark(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.4)); }
+button.membro:active { transform: scale(0.98); }
+.membro-seu { cursor: default; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.membro-quadro {
+  display: grid;
+  place-items: center;
+  min-width: 160px;
+  height: 200px;
+  padding: 0 8px;
+  border-radius: var(--raio-p);
+  background: var(--stage);
+  overflow: hidden;
+}
+.membro-linha { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.membro-nome { font-size: var(--t-12); font-weight: 600; font-variant-numeric: tabular-nums; }
+.membro-medida { font-size: var(--t-12); color: var(--text2); font-variant-numeric: tabular-nums; }
+.membro .marca-aviso.do-da { align-self: flex-start; }
+.selo-copia {
+  font-size: var(--t-12);
+  line-height: 1.4;
+  color: var(--text2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.selo-copia .selo-rotulo { font-weight: 600; }
+.selo-igual .selo-rotulo { color: var(--ok); }
+.selo-seu .selo-rotulo { color: var(--link); }
+.selo-ajustado .selo-rotulo { color: var(--badge); }
+.selo-copia .marca-aviso { display: inline; padding: 0 6px; }
+/* revisao da 0.10.0: o aviso do Vapt embaixo do selo aparece inteiro, nunca cortado em reticencias (nada calado) */
+.selo-nota { font-size: var(--t-12); color: var(--text2); line-height: 1.4; overflow-wrap: anywhere; }
+
+/* o "Ver grande", so leitura: o arquivo a esquerda, o selo, as frases e os atos a direita */
+.confirmacao.ver-grande { width: min(1040px, calc(100vw - 32px)); }
+.ver-grande-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ver-grande-textos { display: grid; gap: 4px; min-width: 0; }
+.ver-grande-corpo { display: grid; grid-template-columns: auto minmax(220px, 1fr); gap: 20px; margin-top: 16px; align-items: start; }
+.ver-grande-palco {
+  position: relative;
+  border-radius: var(--raio-p);
+  background: var(--stage);
+  box-shadow: 0 0 0 8px var(--stage);
+  overflow: hidden;
+  margin: 8px;
+}
+.ver-grande-palco > .mini-palco { position: absolute; left: 0; top: 0; }
+.ver-grande-lado { display: grid; gap: 12px; align-content: start; }
+.ver-grande-lado .selo-copia { -webkit-line-clamp: unset; display: block; font-size: var(--t-13); }
+.ver-grande-frases { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--text2); }
+.ver-grande-frases .frase-falha { color: var(--bad); }
+.ver-grande-atos { display: grid; gap: 8px; justify-items: start; padding-top: 12px; border-top: 1px solid var(--sep); }
+/* revisao da 0.10.0: "Mostrar o seu por cima" desenha o contorno de cada elemento do seu arquivo levado a este pela
+   mesma conta da copia; no arquivo igual ao seu, o contorno cai em cima do elemento */
+.por-cima { position: absolute; inset: 0; pointer-events: none; animation: entrar 0.2s var(--curva); }
+.contorno-seu { position: absolute; outline: 1.5px dashed #18181b; outline-offset: 0; border-radius: 1px; background: rgba(255, 255, 255, 0.08); }
+.contornos { position: absolute; inset: 0; pointer-events: none; }
+.contorno-ajuste { position: absolute; outline: 2px dashed var(--accent); outline-offset: 2px; border-radius: 2px; animation: entrar 0.24s var(--curva); }
+@media (max-width: 900px) {
+  .ver-grande-corpo { grid-template-columns: 1fr; }
+}
+
+/* Conferir os N arquivos: o contador, o filtro e a lista, os que pedem ajuste primeiro e os iguais recolhidos */
+.conferir { display: grid; gap: 12px; }
+.conferir-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; position: sticky; top: 0; background: var(--card); padding-bottom: 4px; z-index: 1; }
+.conferir-contagem { font-weight: 600; font-variant-numeric: tabular-nums; }
+.conferir-filtro { display: flex; gap: 4px; }
+.conferir-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.conferir-item { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--sep); animation: subir 0.3s var(--curva) both; }
+.conferir-item:first-child { border-top: 0; }
+.conferir-quadro { display: grid; place-items: center; width: 80px; height: 80px; border-radius: var(--raio-p); background: var(--stage); overflow: hidden; }
+.conferir-textos { display: grid; gap: 4px; min-width: 0; }
+.conferir-textos .selo-copia { -webkit-line-clamp: 4; }
+.conferir-iguais > summary { cursor: pointer; color: var(--text2); font-weight: 600; padding: 6px 0; }
+.conferir-iguais[open] > summary { margin-bottom: 4px; }
+
+/* ---------------------------------------------------------------- render e aprovacao (M7b, B5)
+   Lista por linhas, sem cartoes: cada formato numa faixa separada por fio. O detalhe a direita mostra a imagem com a
+   caixa de antes tracejada (cor de aviso) e a de depois cheia (o acento). Verde so para o aprovado. */
+.passo-formatos { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(380px, 0.85fr); }
+.painel-coluna { min-height: 0; overflow: auto; padding: 32px 40px 40px; }
+.painel-cabeca { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
+.painel-titulo { min-width: 0; }
+.painel-titulo h1 { font-size: var(--t-34); font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; margin-bottom: 8px; }
+.painel-acoes { display: flex; gap: 8px; flex: none; }
+.contagem-botao {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--chip);
+  font-size: var(--t-12);
+  font-variant-numeric: tabular-nums;
+}
+.botao-primario .contagem-botao { background: var(--on-acao-fundo); }
+.painel-mensagem { margin: 0 0 16px; padding: 12px 14px; background: var(--tip-bg); border-radius: var(--raio); max-width: 80ch; animation: surgir 0.24s var(--curva); }
+.painel-mensagem[data-tipo="parou"], .painel-mensagem[data-tipo="cancelada"] { background: var(--bad-bg); }
+.painel-mensagem[data-tipo="feita"] { background: var(--ok-bg); }
+
+/* a tarefa em andamento: o texto do motor, a etapa e o formato, e a barra dos prontos */
+.tarefa { margin: 0 0 16px; padding: 14px 16px; background: var(--card); border: 0; box-shadow: 0 0 0 1px var(--stroke); border-radius: var(--raio-g); animation: surgir 0.24s var(--curva); }
+.tarefa-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tarefa-texto { font-weight: 600; }
+.tarefa-detalhe { margin-top: 6px; color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.tarefa-detalhe:empty { display: none; }
+.tarefa-trilho { position: relative; height: 4px; margin-top: 10px; border-radius: 999px; background: var(--track-cartao); overflow: hidden; }
+.tarefa-barra { position: absolute; inset: 0; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0.02); transition: transform 0.5s var(--curva); }
+.tarefa-trilho.indeterminada .tarefa-barra { width: 40%; background: var(--text2); animation: vai-e-vem 1.4s var(--curva) infinite; }
+
+/* as linhas dos formatos */
+.lista-formatos-topo { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 12px; padding: 0 16px 8px; color: var(--text2); font-size: var(--t-12); font-weight: 600; letter-spacing: 0.02em; }
+.lista-formatos-topo span:first-child { grid-column: 2; }
+/* os formatos num cartao so, uma linha por formato */
+.lista-formatos { display: grid; background: var(--card); border-radius: var(--raio-g); box-shadow: 0 0 0 1px var(--stroke); overflow: hidden; }
+.lista-formatos:empty, .lista-formatos:has(> .painel-vazio) { background: none; box-shadow: none; overflow: visible; }
+.linha-formato {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--sep);
+  animation: subir 0.35s var(--curva) both;
+  transition: background-color 0.2s var(--curva);
+}
+.linha-formato:last-child { border-bottom: 0; }
+.linha-formato:hover { background: var(--hover); }
+.linha-formato:has(.linha-abrir[aria-pressed="true"]) { background: var(--tip-bg); }
+.linha-formato:has(.linha-abrir[aria-pressed="true"])::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 0 2px 2px 0; background: var(--accent); }
+/* revisao do 0.9.2: alvo de clique de 24 px (WCAG 2.5.8) */
+.linha-marca { width: 24px; height: 24px; margin: 0; accent-color: var(--acao); cursor: pointer; }
+.linha-marca:disabled { cursor: not-allowed; opacity: 0.6; }
+/* a caixa desligada e vazia some no cartao branco do jeito do Chromium: ela fica no trilho, com o anel, no mesmo
+   tamanho de 24 px */
+.linha-marca:disabled:not(:checked) {
+  appearance: none; box-sizing: border-box; border: 1px solid var(--ring); border-radius: 5px; background: var(--track); opacity: 1;
+}
+.linha-abrir { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 12px; padding: 2px 0; border: 0; background: transparent; text-align: left; cursor: pointer; min-width: 0; transition: transform 0.15s var(--curva); }
+.linha-abrir:active { transform: scale(0.99); }
+.linha-mini { display: grid; place-items: center; width: 36px; height: 28px; border-radius: 6px; background: var(--stage); }
+.linha-forma { display: block; border: 1.5px solid var(--text2); border-radius: 2px; background: var(--card); }
+.linha-textos { display: grid; gap: 2px; min-width: 0; }
+.linha-nome { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.linha-medida { font-weight: 600; font-variant-numeric: tabular-nums; }
+.linha-giro { color: var(--text2); font-size: 12px; white-space: nowrap; }
+.linha-motivo { color: var(--text2); font-size: 12px; overflow-wrap: anywhere; }
+/* 0.9.6 (aprovacao soberana): o aviso que o DA aceitou, discreto e sem cor de erro */
+.linha-aviso-aceito, .detalhe-aviso-aceito {
+  display: block; padding-left: 8px; border-left: 2px solid var(--stroke-forte); color: var(--text2);
+  font-size: 12px; overflow-wrap: anywhere;
+}
+.detalhe-aviso-aceito { max-width: 60ch; margin: 0; }
+.conta-mudancas { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--tip-bg); color: var(--link); font-size: var(--t-12); font-weight: 600; white-space: nowrap; }
+.linha-marcas { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+/* 0.9.2 (M8): sem formato no passo 5 e um estado normal: a frase em tinta, o quadro tracejado e o botao para as familias */
+.painel-vazio {
+  display: grid; gap: var(--e-3); justify-items: start; margin-top: var(--e-4); padding: var(--e-6);
+  border: 1px dashed var(--stroke-forte); border-radius: var(--raio-g); background: var(--card); color: var(--text2);
+}
+.painel-vazio .vazio-titulo { color: var(--text); font-weight: 600; }
+.detalhe-vazio { display: grid; place-items: center; min-height: 240px; border: 1px dashed var(--stroke-forte); border-radius: var(--raio-g); color: var(--text2); text-align: center; padding: var(--e-5); }
+
+/* a situacao: neutra no que ainda nao foi ao render, acento no render em dia, aviso no que caiu ou ficou velho */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--chip);
+  color: var(--text2);
+  font-size: var(--t-12);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.8; }
+/* a situacao de cada formato: azul no render em dia, verde no aprovado, atencao no que pede render, vermelho no que caiu */
+.chip-renderizado { background: var(--tip-bg); color: var(--link); }
+.chip-aprovado { background: var(--ok-bg); color: var(--ok); }
+.chip-desatualizado, .chip-pede_render { background: var(--warn-bg); color: var(--warn); }
+.chip-aprovacao_caida { background: var(--bad-bg); color: var(--bad); }
+.chip-sem_derivacao { color: var(--text2); }
+.etiqueta-painel { font-size: var(--t-12); color: var(--text2); white-space: nowrap; }
+.etiqueta-painel.pede { color: var(--warn); font-weight: 600; }
+.etiqueta-painel.pode { color: var(--link); font-weight: 600; }
+
+/* o historico, so para leitura: uma linha do tempo discreta */
+.historico { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--sep); }
+.historico h2 { font-size: var(--t-13); font-weight: 600; color: var(--text2); margin-bottom: 4px; }
+.historico-nota { font-size: 12px; margin-bottom: 12px; }
+.historico-versoes { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 1px solid var(--stroke-forte); display: grid; gap: 12px; }
+.historico-versoes .vazio { color: var(--text2); }
+.versao { position: relative; display: grid; gap: 1px; }
+.versao::before { content: ""; position: absolute; left: -18px; top: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--bg); border: 1px solid var(--text2); }
+.versao:first-child::before { background: var(--accent); border-color: var(--accent); }
+.versao-topo { display: flex; align-items: baseline; gap: 10px; }
+.versao-numero { font-weight: 600; font-variant-numeric: tabular-nums; }
+.versao-data, .versao-origem, .versao-formatos { color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.versao-formatos { color: var(--text3); }
+
+/* o detalhe do formato escolhido */
+.formato-detalhe { min-height: 0; overflow: auto; padding: 28px 24px 32px; background: var(--panel); border-left: 1px solid var(--sep); display: flex; flex-direction: column; gap: 14px; }
+.detalhe-formato-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.detalhe-formato-nome { font-size: var(--t-22); font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.detalhe-giro { color: var(--text2); font-size: 12px; }
+.detalhe-motivo { color: var(--text); max-width: 60ch; }
+.antes-depois { margin: 0; display: grid; gap: 8px; }
+.ad-quadro { position: relative; justify-self: start; overflow: hidden; border-radius: 6px; background-color: var(--stage); background-image: radial-gradient(var(--dot) 1px, transparent 1.3px); background-size: 12px 12px; box-shadow: var(--paper); animation: entrar 0.3s var(--curva); }
+.ad-quadro.carregando { background-image: none; background-color: var(--sep); }
+.ad-imagem { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ad-previa { position: absolute; left: 0; top: 0; box-shadow: none; }
+.ad-caixas { position: absolute; inset: 0; pointer-events: none; }
+.caixa-antes, .caixa-depois { position: absolute; border-radius: 1px; transition: opacity 0.2s var(--curva); }
+.caixa-antes { border: 1.5px dashed #b3261e; background: rgba(179, 38, 30, 0.06); }
+.caixa-depois { border: 1.5px solid var(--acao); background: rgba(0, 113, 227, 0.1); }
+.ad-caixas:has(.realce) > :not(.realce) { opacity: 0.25; }
+.ad-legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; color: var(--text2); font-size: 12px; }
+.ad-origem { flex-basis: 100%; color: var(--text3); font-weight: 500; }
+.ad-antes, .ad-depois { display: inline-flex; align-items: center; gap: 6px; }
+.ad-antes::before, .ad-depois::before { content: ""; width: 14px; height: 9px; border-radius: 1px; }
+.ad-antes::before { border: 1.5px dashed var(--bad); } /* a legenda fica na moldura; a caixa sobre o render segue fixa */
+.ad-depois::before { border: 1.5px solid var(--acao); }
+.mudou { padding-top: 14px; border-top: 1px solid var(--sep); }
+.mudou-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.mudou h3 { font-size: 12px; font-weight: 600; color: var(--text2); margin: 0; }
+.mudou-versao { color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.mudou-itens { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.mudou-item { padding-left: 2px; animation: subir 0.3s var(--curva) both; }
+.mudou-item::marker { color: var(--text2); font-variant-numeric: tabular-nums; }
+.mudou-item[data-elemento] { border-radius: 4px; transition: background-color 0.2s var(--curva); }
+.mudou-item[data-elemento]:hover, .mudou-item[data-elemento]:focus-visible { background: var(--tip-bg); }
+
+/* a janela de confirmacao com o que o ato mostra: os formatos do render e o arquivo final de cada formato a aprovar */
+.confirmacao.confirmacao-larga { width: min(760px, calc(100vw - 32px)); }
+.confirmacao-extra { margin-top: 16px; max-height: min(52vh, 440px); overflow: auto; }
+.formatos-do-ato { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.formatos-do-ato .chip::before { display: none; }
+.finais { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
+.final { margin: 0; display: grid; gap: 6px; }
+.final-caixa { display: grid; place-items: center; height: 148px; padding: 8px; border-radius: var(--raio-p); background: var(--stage); }
+.final-caixa.carregando { position: relative; overflow: hidden; background: var(--sep); }
+.final-caixa img { display: block; width: auto; height: auto; max-width: 100%; max-height: 132px; object-fit: contain; box-shadow: var(--paper-p); }
+.confirmacao-larga .confirmacao-texto { max-width: 72ch; }
+.final-legenda { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; }
+.final-nome { font-weight: 600; font-variant-numeric: tabular-nums; }
+.final-tipo { color: var(--text2); font-size: var(--t-12); font-weight: 600; letter-spacing: 0.04em; }
+
+/* a janela do lado do giro: a figura mostra a peca deitada, a seta e a peca de pe com o topo marcado */
+.sentido-formatos { margin-top: 16px; display: grid; gap: 16px; }
+.sentido-nome { font-weight: 600; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.sentido-opcoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.sentido-opcao {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--stroke-forte);
+  border-radius: var(--raio);
+  background: var(--card);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s var(--curva), background-color 0.2s var(--curva), transform 0.15s var(--curva);
+}
+.sentido-opcao:hover { border-color: var(--text2); }
+.sentido-opcao:active { transform: scale(0.98); }
+.sentido-opcao[aria-pressed="true"] { border-color: var(--accent); background: var(--tip-bg); box-shadow: inset 0 0 0 1px var(--accent); }
+.sentido-opcao-texto { color: var(--text2); font-size: 12px; max-width: 30ch; }
+.figura-giro .giro-peca { fill: var(--card); stroke: var(--text); stroke-width: 1.5; }
+.figura-giro .giro-topo { fill: var(--accent); }
+.figura-giro .giro-seta { fill: none; stroke: var(--text); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+#sentido .botao[data-resposta="sim"]:disabled { cursor: not-allowed; opacity: 0.45; }
+
+@media (max-width: 1280px) {
+  .passo-formatos { grid-template-columns: minmax(0, 1fr) 400px; }
+  .painel-coluna { padding: 24px 24px 32px; }
+}
+
+/* ---------------------------------------------------------------- o padrao da marca (M7c, M5)
+   Uma faixa no fio da lista, com o acento: aparece so quando todos os formatos estao aprovados e o job tem marca. A
+   janela do registro lista, por linhas e sem cartoes, o que vai ao perfil: funcao, valor e o job de origem. */
+.registro-marca {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 24px;
+  margin: 0 0 20px;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: var(--raio-g);
+  background: var(--tip-bg);
+  box-shadow: 0 0 0 1px var(--accent-stroke);
+  animation: subir 0.3s var(--curva) both;
+}
+.registro-marca[data-situacao="guardado"] { background: var(--ok-bg); box-shadow: 0 0 0 1px var(--ok-stroke); }
+.registro-textos { min-width: 0; display: grid; gap: 2px; }
+.registro-selo { color: var(--link); font-size: 12px; font-weight: 600; letter-spacing: 0.01em; overflow-wrap: anywhere; }
+.registro-marca[data-situacao="guardado"] .registro-selo { color: var(--ok); }
+.registro-marca h2 { font-size: var(--t-15); font-weight: 600; letter-spacing: -0.01em; }
+.registro-nota { font-size: 12px; max-width: 72ch; color: var(--text2); }
+.registro-guardar { flex: none; white-space: nowrap; }
+.registro-extra { display: grid; gap: 18px; }
+.registro-grupo-topo { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.registro-grupo h3 { font-size: 12px; font-weight: 600; color: var(--text2); margin: 0; }
+.registro-conta { color: var(--text2); font-size: var(--t-12); font-variant-numeric: tabular-nums; }
+.registro-lista { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--sep); }
+.registro-linha {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 1.3fr) auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--sep);
+  animation: subir 0.25s var(--curva) both;
+}
+.registro-funcao { font-weight: 600; overflow-wrap: anywhere; }
+.registro-valor { color: var(--text); overflow-wrap: anywhere; }
+/* ajuste nome: o nome do job de origem pode ser longo; quebra dentro da coluna, sem alargar a linha */
+.registro-origem { color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; max-width: 24ch; overflow-wrap: anywhere; text-align: right; }
+.registro-faces .chip { font-variant-numeric: normal; overflow-wrap: anywhere; }
+.registro-fora { font-size: 12px; padding-top: 2px; }
+@media (max-width: 1280px) {
+  .registro-marca { grid-template-columns: minmax(0, 1fr); }
+  .registro-guardar { justify-self: start; }
+  .registro-linha { grid-template-columns: minmax(96px, 0.9fr) minmax(0, 1.2fr) auto; gap: 8px; }
+}
+@media (min-width: 900px) {
+  .registro-extra { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 28px; }
+  .registro-extra > .registro-grupo:nth-child(3), .registro-extra > .registro-fora { grid-column: 1 / -1; }
+  .registro-extra .registro-linha { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) auto; }
+}
+
+/* 0.10.0 (decisao 199): na janela baixa e estreita, a faixa "Como fica em cada arquivo" fica embaixo do palco, e o
+   "Como editar" abre preso ao alto da janela, com rolagem, para caber inteiro */
+@media (max-height: 800px) and (max-width: 1499px) {
+  .ajuda-painel {
+    position: fixed;
+    top: 56px;
+    bottom: auto;
+    right: 16px;
+    width: min(440px, calc(100vw - 32px));
+    max-height: calc(100vh - 72px);
+    overflow-y: auto;
+  }
+  .membros .selo-copia { -webkit-line-clamp: 2; }
+}
+
+/* 0.10.0 (decisao 199): a faixa "Como fica em cada arquivo" vira uma coluna a direita do palco (faixa-coluna, posta
+   pela tela): na janela de 1500 px ou mais (a do Duda e 2048 x 720, decisao 157) e, desde a revisao da 0.10.0, na
+   janela deitada com o arquivo de edicao em pe ou quadrado (1366 x 768, 1280 x 800, 1440 x 900). O palco guarda a
+   altura, e cada arquivo continua legivel, um embaixo do outro. Na janela em pe, ou com o arquivo deitado na janela
+   estreita, a faixa fica embaixo do palco, com a altura das miniaturas tirada do que sobra */
+.mesa-palco.faixa-coluna {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-areas: "aviso membros" "palco membros" "faixa membros" "barra barra" "texto texto" "quebra quebra";
+}
+.mesa-palco.faixa-coluna > .variante-palco { grid-area: aviso; }
+.mesa-palco.faixa-coluna > .area-palco { grid-area: palco; }
+.mesa-palco.faixa-coluna > .faixa-quebra { grid-area: faixa; }
+.mesa-palco.faixa-coluna > .barra-edicao { grid-area: barra; }
+.mesa-palco.faixa-coluna > .editor-texto { grid-area: texto; }
+.mesa-palco.faixa-coluna > .editor-quebra { grid-area: quebra; }
+.mesa-palco.faixa-coluna > .membros {
+  grid-area: membros;
+  display: flex;
+  flex-direction: column;
+  width: 264px;
+  min-height: 0;
+  padding: 8px 10px;
+  border-top: 0;
+  border-left: 1px solid var(--sep);
+}
+.mesa-palco.faixa-coluna > .membros[hidden] { display: none; }
+.mesa-palco.faixa-coluna .membros-lista { flex-direction: column; flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; scroll-snap-type: y proximity; }
+.mesa-palco.faixa-coluna .membro { width: auto; max-width: none; min-width: 0; }
+.mesa-palco.faixa-coluna .membro-quadro { min-width: 0; }
+/* com o editor do texto aberto, ele toma o lugar da coluna: o palco continua com a altura dele */
+.mesa-palco.faixa-coluna.escrevendo {
+  grid-template-areas: "aviso texto" "palco texto" "faixa texto" "barra barra" "quebra quebra" "quebra quebra";
+}
+.mesa-palco.faixa-coluna.escrevendo > .editor-texto {
+  width: 340px;
+  align-self: stretch;
+  align-content: start;
+  border-top: 0;
+  border-left: 1px solid var(--sep);
+}
+.mesa-palco.faixa-coluna.escrevendo > .membros { display: none; }
+.mesa-palco.faixa-coluna.escrevendo .editor-texto { grid-template-columns: minmax(0, 1fr); }
+.mesa-palco.faixa-coluna.escrevendo .editor-texto textarea { min-height: 96px; }
+/* o controle da quebra aberto manda na coluna, como antes da coluna da faixa (revisao 2 do C) */
+.mesa-palco.faixa-coluna.quebrando {
+  grid-template-areas: "aviso aviso" "palco membros" "faixa faixa" "barra barra" "texto texto" "quebra quebra";
+}
+.mesa-palco.faixa-coluna.quebrando > .membros { width: auto; padding: 8px 8px 8px 10px; }
+/* na janela estreita, a coluna fica mais fina, e o editor do texto tambem */
+@media (max-width: 1499px) {
+  .mesa-palco.faixa-coluna > .membros { width: 220px; }
+  .mesa-palco.faixa-coluna.escrevendo > .editor-texto { width: 300px; }
+}
+
+/* a barra de edicao estreita (a galeria de versoes ao lado, numa janela comum): os botoes ficam como abaixo de
+   1280 px, so com o desenho nos seis de Alinhar pela e menos folga entre eles. Assim o Apagar e o Na base nao descem
+   sozinhos para uma linha so deles; o nome segue no title e no leitor de tela */
+@container barra (max-width: 980px) {
+  .botao-alinhar { position: relative; width: 30px; padding: 0; }
+  .botao-alinhar .rotulo-botao, .campo-tamanho .barra-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .barra-grupo { gap: 4px; }
+  .barra-grupo .botao-vista { padding: 0 5px; }
+  .barra-grupo .controles-divisor { margin: 0 2px; }
+  .alinhar-texto .botao-vista { width: 24px; padding: 0; }
+  .campo-tamanho { margin-left: 2px; }
+}
+
+/* o alto contraste do Windows tira o fundo e a sombra: o escolhido ganha o contorno do sistema e o cartao a borda */
+@media (forced-colors: active) {
+  [aria-pressed="true"], [aria-selected="true"], [aria-current="true"], .variante[aria-selected="true"] {
+    outline: 2px solid Highlight; outline-offset: -2px;
+  }
+  .modos, .digitados, .especime, .fonte-como-imagem, .miniatura, .variante, .funcao-ds, .tarefa, .lista-formatos,
+  .lista-faltam, .faltam { border: 1px solid CanvasText; }
+  /* revisao da 0.13.0: as barras do nivel do modo e a tecla Enter sao desenhadas so com fundo e sombra, que o alto
+     contraste tira. As barras ficam nas cores do sistema (a ligada em CanvasText) e a tecla ganha a borda */
+  .nivel > span { forced-color-adjust: none; background: GrayText; }
+  .nivel > .nivel-on, .modo[aria-pressed="true"] .nivel-on, .nivel-legenda > span { background: CanvasText; }
+  .tecla { border: 1px solid CanvasText; }
+}

@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Gera os perfis da biblioteca inicial de specs (plugins/desdobra/biblioteca-specs/) a partir das folhas publicas.
+"""Gera os perfis da biblioteca inicial de specs (plugins/vapt/biblioteca-specs/) a partir das folhas publicas.
 
 Uso (na raiz do repositorio, com o ambiente de desenvolvimento):
   .venv/Scripts/python.exe dev/gerar_biblioteca_specs.py --pme <pdf da Eletromidia Aqui> --globo <pasta das paginas
-      salvas da Globo Ads> [--saida plugins/desdobra/biblioteca-specs]
+      salvas da Globo Ads> [--saida plugins/vapt/biblioteca-specs]
 
 As folhas ficam fora do repositorio. O perfil guarda so os valores extraidos pelo motor, com a citacao (folha,
 sha256, pagina, secao e o trecho de onde cada numero saiu), nunca a folha inteira: entram so os trechos citados.
 
-O perfil e o que o proprio motor extrai da folha (desdobra.specs.importar), mais a curadoria abaixo: qual trecho
+O perfil e o que o proprio motor extrai da folha (vapt.specs.importar), mais a curadoria abaixo: qual trecho
 e o ambiente, a praca, a area segura, a borda, o nome do veiculador. A curadoria segue a mesma regra das propostas
 do Claude: diz so qual trecho vai para qual campo, e o numero sai do texto literal do trecho. Os valores do perfil
 ficam em rascunho: dentro de um job, quem confirma e o DA.
@@ -22,10 +22,10 @@ import tempfile
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(RAIZ / 'plugins' / 'desdobra' / 'motor'))
+sys.path.insert(0, str(RAIZ / 'plugins' / 'vapt' / 'motor'))
 
-from desdobra import contratos  # noqa: E402
-from desdobra.specs import importar, modelo  # noqa: E402
+from vapt import contratos  # noqa: E402
+from vapt.specs import importar, modelo  # noqa: E402
 
 DATA = '2026-10-31'
 
@@ -146,9 +146,9 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--pme', required=True, type=Path)
     ap.add_argument('--globo', required=True, type=Path)
-    ap.add_argument('--saida', type=Path, default=RAIZ / 'plugins' / 'desdobra' / 'biblioteca-specs')
+    ap.add_argument('--saida', type=Path, default=RAIZ / 'plugins' / 'vapt' / 'biblioteca-specs')
     a = ap.parse_args(argv)
-    with tempfile.TemporaryDirectory(prefix='desdobra-biblioteca-') as tmp:
+    with tempfile.TemporaryDirectory(prefix='vapt-biblioteca-') as tmp:
         doc, mapa = _montar(Path(tmp) / 'pme', 'eletromidia', [a.pme], mapeamento_pme)
         pme = _perfil(doc, mapa, 'eletromidia-pme', 'eletromidia',
                       'Perfil inicial da Eletromidia Aqui (PME). Valores em rascunho: no job, quem confirma e o DA.')

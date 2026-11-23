@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vapt:schema:derivacao:1",
+  "title": "Derivacao de um formato (derivacao/1)",
+  "description": "derivacao/<formato>.json (arquitetura-v1.md, 4.10): a familia, o caminho (transform, solver, mestre_propria ou devolvido), os elementos com caixa, escala, ancora, quebras e a regra aplicada (funcao, regra e caminho), as restricoes com a forca e a fonte, as validacoes de layout e, quando o formato volta ao DA, a devolucao com o nome e a fonte da restricao. Sem texto da peca nem nome de camada: so ids, funcoes e medidas.",
+  "type": "object",
+  "required": ["esquema", "job_id", "gerado_em", "motor_versao", "formato", "areas", "parametros", "briefing_sha256", "briefing_origem", "laudo_sha256", "portao_fontes", "fora_da_peca", "sem_geometria", "mestre", "familia", "caminho", "situacao", "elementos", "restricoes", "validacoes", "devolucao", "registros"],
+  "$defs": {
+    "caixa": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4}
+  },
+  "properties": {
+    "esquema": {"const": "derivacao/1"},
+    "job_id": {"type": "string"},
+    "gerado_em": {"type": "string"},
+    "motor_versao": {"type": "string"},
+    "formato": {
+      "type": "object",
+      "required": ["id", "chave", "largura", "altura", "composicao", "base"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "chave": {"type": "string"},
+        "largura": {"type": "integer", "minimum": 1},
+        "altura": {"type": "integer", "minimum": 1},
+        "composicao": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2},
+        "base": {"type": "object", "required": ["tipo", "dimensoes"], "properties": {"tipo": {"enum": ["arquivo", "composicao", "area_util"]}}}
+      }
+    },
+    "areas": {"type": "object", "required": ["area_util", "faixas", "area_segura"]},
+    "parametros": {"type": "object", "required": ["faixa", "base", "mestres_max"]},
+    "briefing_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "O briefing gravado quando o formato foi derivado (so registro: a cadeia render, contrato, portao e aprovacao le impressao_formato; M7b, A2)"},
+    "impressao_formato": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "A impressao do formato (vapt.derivacao.impressao; M7b, A2): o sha256 da derivacao sem gerado_em, briefing_sha256, inventario_entre_formatos e ela mesma, e de tudo o que alimenta o formato no briefing, no laudo e na folha de spec. Fora do required: a derivacao gravada antes do M7b le e cai como desatualizada"},
+    "briefing_origem": {"enum": ["da", "fixture_de_teste"]},
+    "laudo_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "portao_fontes": {"enum": ["passa", "decisao_do_da", "bloqueado", "nao_conferido"]},
+    "fora_da_peca": {"type": "array", "items": {"type": "integer"}},
+    "sem_geometria": {"type": "array", "items": {"type": "integer"}},
+    "fora_do_canvas": {"type": "array", "items": {"type": "integer"}},
+    "fora_do_quadro": {"type": "integer", "minimum": 0},
+    "mestre": {"type": ["object", "null"]},
+    "familia": {"type": ["object", "null"]},
+    "caminho": {"enum": ["transform", "solver", "mestre_propria", "galeria", "familia", "devolvido"], "description": "galeria: a versao da galeria que o DA escolheu e confirmou na familia (decisoes-v1.md, 164 e 167); familia: a copia do layout aprovado no arquivo de edicao da familia (decisao 199), com o registro transferencia"},
+    "situacao": {"enum": ["derivado", "devolvido"]},
+    "elementos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "raiz", "funcao", "classe", "layer_ids", "texto", "regra", "ancora", "caixa_mestre", "caixa", "escala", "regra_aplicada", "transformacao"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^el[0-9]+$"},
+          "funcao": {"type": "string"},
+          "layer_ids": {"type": "array", "items": {"type": "integer"}},
+          "caixa": {"$ref": "#/$defs/caixa"},
+          "caixa_mestre": {"$ref": "#/$defs/caixa"},
+          "escala": {"type": "number", "exclusiveMinimum": 0},
+          "regra_aplicada": {"type": "object", "required": ["funcao", "regra", "caminho", "classe"]},
+          "transformacao": {"type": "object", "required": ["s", "origem_doc", "destino", "recorte_doc"]},
+          "origem_geometria": {"enum": ["da", "regra", "transformacao", "sugestao_citada", "galeria", "familia"], "description": "De onde veio a caixa: da (editada ou desenhada pelo DA), regra (solver), transformacao (escala pura), sugestao_citada, galeria (versao da galeria sem edicao), familia (copia do layout aprovado no arquivo de edicao, decisao 199)"},
+          "texto_editado": {"type": "string", "description": "O texto que o DA editou no palco, so na familia dele (decisoes-v1.md, 169 e 171)"},
+          "alinhamento_do_da": {"type": "object", "required": ["alinhamento", "camadas"], "properties": {"alinhamento": {"enum": ["esquerda", "centro", "direita"]}, "camadas": {"type": "array", "items": {"type": "object", "required": ["layer_id", "justificacao"], "properties": {"layer_id": {"type": "integer"}, "justificacao": {"enum": ["LEFT", "CENTER", "RIGHT"]}, "desvio": {"type": "number"}, "caixa_doc": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4}}}}}, "description": "0.12.0, aditivo: o alinhamento das linhas do texto escolhido pelo DA na familia (so quando muda o do KV). Cada camada leva a justificacao nova, o desvio da ancora no espaco do texto (a linha mais larga fica no lugar) e, no texto do KV, a caixa da tinta medida com o alinhamento novo, no documento (a caixa validada do render). Sem desvio, a medida faltou: o render desenha o texto como o KV, com o registro"},
+          "caixa_texto_editado": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4, "description": "0.9.4, aditivo (Linhas do DA): a caixa da tinta medida do texto editado no formato, com as linhas do DA e o mesmo corpo, sem quebra na largura da caixa. O render a usa como caixa validada do texto, e o texto que passa da borda do formato e recusado antes de desenhar"},
+          "sangria_do_da": {"type": "array", "items": {"enum": ["esq", "topo", "dir", "base"]}, "minItems": 1, "maxItems": 4, "uniqueItems": true, "description": "Os lados em que o DA deixou o elemento, mexido ou escalado no palco, passar da borda do formato (M7b, D4): o quadro corta o que fica fora, e transformacao.sangra leva o lado. Sem o campo, o elemento so sangra onde sangrava no KV. Texto e marca nunca levam o campo"},
+          "texto_como_imagem": {"type": "array", "items": {"type": "integer"}, "description": "0.9.1, aditivo: as camadas de texto do elemento que vao como imagem por decisao do DA na tela (fontes/conferencia.json, texto_como_imagem): escalam como raster, sem quebra nem medida, com o corpo para o piso de legibilidade"},
+          "caixas_texto_como_imagem": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["layer_id", "caixa"], "properties": {"layer_id": {"type": "integer"}, "caixa": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4}}}, "description": "0.9.1, aditivo (revisao): a caixa de cada camada de texto como imagem na composicao (a tinta da camada no documento pela transformacao do elemento). A area segura da entrega confere esta caixa, e nao a do elemento inteiro"},
+          "figura_de_fundo": {"const": true, "description": "0.11.0, aditivo (decisoes-v1.md, n 202): a foto do KV deitado que fica de fundo neste formato em pe ou quadrado, na versao da galeria sem a foto numa banda. O conteudo sobre ela foi aprovado e nao e colisao; a validacao figura_de_fundo_acima_do_conteudo confere que ela nao esta acima, na pilha, de um conteudo que passa a cobrir. O registro figura_de_fundo diz o elemento e a versao"},
+          "quebras_origem": {"enum": ["da", "proposta"], "description": "De onde veio a quebra de linha da familia da tela no texto do elemento (M7b, C2; decisoes-v1.md, 167 e 171): da (o DA pos ou tirou a quebra) ou proposta (o motor propos, e o DA aprova). Sem o campo, as quebras sao as do KV, as da faixa (M5) ou as da mestre propria. Os itens de quebras.familia da quebra da tela levam inseridas (as posicoes de espaco que viram quebra) e, no texto do KV, a caixa medida (caixa_doc)"}
+        }
+      }
+    },
+    "restricoes": {"type": "array", "items": {"type": "object", "required": ["nome", "forca", "fonte", "elementos"]}},
+    "validacoes": {"type": "array", "items": {"type": "object", "required": ["nome", "situacao", "fonte", "elementos"], "properties": {"situacao": {"enum": ["ok", "reprova", "avisa", "registra"]}}}},
+    "devolucao": {
+      "anyOf": [{"type": "null"}, {
+        "type": "object",
+        "required": ["motivo", "o_que_fazer", "restricao", "elementos"],
+        "properties": {
+          "motivo": {"enum": ["troca_forte_de_orientacao", "troca_de_orientacao_quadrado", "fora_da_faixa_de_familia", "acima_do_numero_de_mestres", "restricao_obrigatoria_nao_fecha", "validacao_obrigatoria_reprovou", "indeterminado_sem_regra", "mestre_propria_incompleta", "formato_sem_folha", "spec_por_confirmar", "mestre_por_confirmar", "dimensao_diferente_da_folha", "erro_no_formato", "ajuste_global_sem_aplicar", "bloco_partido_na_pilha", "bloco_com_regras_diferentes", "quebra_sem_medida"]},
+          "restricao": {"anyOf": [{"type": "null"}, {"type": "object", "required": ["nome", "forca", "fonte"]}]}
+        }
+      }]
+    },
+    "registros": {"type": "array", "items": {"type": "object", "required": ["codigo"], "allOf": [{"if": {"properties": {"codigo": {"const": "transferencia"}}}, "then": {"description": "A copia do layout aprovado no arquivo de edicao da familia (decisao 199, 2 e 3; 0.10.0): o arquivo de edicao, a escala unica do conteudo (s), o crescimento de cada base que sangra, a ancora de cada bloco, os ajustes do menor ajuste (cada um com a frase para o DA), as relacoes do layout aprovado que ficaram sem ajuste e a situacao (igual, ajustado ou pede_ajuste).", "required": ["medidas"], "properties": {"medidas": {"type": "object", "required": ["arquivo_de_edicao", "s", "crescimento", "ancoras", "ajustes", "relacoes_quebradas", "situacao"], "properties": {"arquivo_de_edicao": {"type": "string"}, "s": {"type": "number", "exclusiveMinimum": 0}, "crescimento": {"type": "object", "additionalProperties": {"type": "number"}}, "ancoras": {"type": "object"}, "ajustes": {"type": "array", "items": {"type": "object", "required": ["frase"], "properties": {"frase": {"type": "string"}}}}, "relacoes_quebradas": {"type": "array", "items": {"type": "object"}}, "situacao": {"enum": ["igual", "ajustado", "pede_ajuste"]}}}}}}, {"if": {"properties": {"codigo": {"const": "figura_de_fundo"}}}, "then": {"description": "0.11.0 (decisoes-v1.md, n 202): a foto do KV deitado fica de fundo neste formato em pe ou quadrado, atras do conteudo. medidas: o elemento da foto e o id efetivo da versao da galeria de onde o arquivo de edicao partiu.", "required": ["medidas"], "properties": {"medidas": {"type": "object", "required": ["elemento"], "properties": {"elemento": {"type": "string"}, "versao": {"type": ["string", "null"]}}}}}}]}},
+    "inventario_entre_formatos": {"enum": ["igual", "diferente"]},
+    "proposta": {
+      "type": "object",
+      "description": "A familia confirmada de que o formato faz parte (briefing composicoes): versao, numero de edicoes e a confirmacao. O entregar recusa proposta sem confirmacao.",
+      "required": ["familia", "versao", "edicoes", "confirmada", "confirmacao"]
+    },
+    "apagados_pelo_da": {
+      "type": "array",
+      "description": "Elementos que o DA tirou da familia no palco (decisoes-v1.md, 169): saem do formato e nao reprovam o inventario.",
+      "items": {"type": "object", "required": ["elemento", "layer_ids", "origem"], "properties": {"origem": {"enum": ["da", "fixture_de_teste"]}}}
+    }
+  }
+}

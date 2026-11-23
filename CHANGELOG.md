@@ -1,6 +1,16 @@
-# Novidades do desdobra
+# Novidades do Vapt
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
+
+## 0.14.0 (23/11/2026): o desdobra passa a se chamar Vapt
+
+Pedido do Duda: já existe uma solução parecida com o nome antigo, então o produto passa a se chamar Vapt.
+
+- O plugin, o marketplace, as skills e a tela passam a usar o nome Vapt. As skills agora são `/vapt:doctor`, `/vapt:continuar`, `/vapt:novo-job`, `/vapt:ler-spec` e `/vapt:sugerir-funcoes`.
+- O topo da tela mostra o logo novo: a palavra "vapt", com o "v" azul e um rastro de velocidade. O "v" fica azul nos dois temas, e o resto da palavra acompanha a cor do texto. Os arquivos do logo ficam em `docs/marca`.
+- O endereço do plugin no GitHub muda para `egrandelle/vapt`.
+- Quem já tinha o plugin instalado precisa instalar o Vapt de novo. O ambiente do motor é refeito na primeira sessão, e o tema escolhido na tela volta a seguir o Windows até o próximo clique.
+- Os jobs feitos com o nome antigo continuam abrindo no Vapt: os arquivos do job não levam o nome do produto.
 
 ## 0.13.0 (23/11/2026): a tela ganha o visual novo, com tema claro e escuro
 
@@ -55,10 +65,10 @@ Correção do teste com o cartaz vertical de 19/11. As versões de cada formato 
 Correção do job real com a família vertical de 1080x1920 e 300x600. Você editou só o 1080x1920, e o 300x600 saiu com a assinatura sobre o azul. Agora cada família tem um arquivo de edição, e os outros arquivos seguem o layout que você aprovou nele. Tudo foi conferido em arquivos sintéticos.
 
 - Cada família tem um arquivo de edição: o maior dela, em pé, como o público vê. No palco, você edita só ele. O topo diz, por exemplo, "Você edita o 1080x1920. Os outros 3 arquivos seguem este layout."
-- As fichas "Arquivo desta família" saíram. Os outros arquivos aparecem em "Como fica em cada arquivo", ao lado do palco, grandes o bastante para ler, cada um com um selo em palavras: "Igual ao seu", "Ajustado pelo desdobra", com o que mudou, ou "Pede ajuste", com o valor.
-- O clique num arquivo da faixa abre "Ver grande", só para ver. Lá, "Mostrar o seu por cima" desenha o arquivo de edição por cima, e o contorno marca o que o desdobra ajustou.
+- As fichas "Arquivo desta família" saíram. Os outros arquivos aparecem em "Como fica em cada arquivo", ao lado do palco, grandes o bastante para ler, cada um com um selo em palavras: "Igual ao seu", "Ajustado pelo Vapt", com o que mudou, ou "Pede ajuste", com o valor.
+- O clique num arquivo da faixa abre "Ver grande", só para ver. Lá, "Mostrar o seu por cima" desenha o arquivo de edição por cima, e o contorno marca o que o Vapt ajustou.
 - Os outros arquivos copiam o seu layout com uma escala só. Cada bloco fica preso à borda ou ao centro em que você o deixou, e o que estava no branco continua no branco. No caso do job real, a assinatura do 300x600 fica no branco, sem ajuste.
-- Quando o layout não cabe igual num arquivo, o desdobra faz o menor ajuste que aparece menos e diz qual foi. O que ele ajusta nunca fica calado.
+- Quando o layout não cabe igual num arquivo, o Vapt faz o menor ajuste que aparece menos e diz qual foi. O que ele ajusta nunca fica calado.
 - A forma que sangra cresce nos outros arquivos só o necessário para continuar chegando à borda, até 1,5 vez o tamanho copiado. Quando precisa crescer mais, o arquivo fica com "Pede ajuste" e diz quanto ela cresceu e a que bordas ela chega. Isso vale também para a forma que você juntou a um texto num grupo. O fundo cresce o quanto precisar.
 - "Confirmar família" abre "Conferir os N arquivos". Primeiro vêm os que pedem ajuste, depois os ajustados, e os iguais ficam recolhidos. Há um contador e um filtro.
 - O arquivo girado aparece em pé, com a etiqueta "gira 90° na entrega". O giro acontece só na entrega.
@@ -71,17 +81,17 @@ Correção do job real com a família vertical de 1080x1920 e 300x600. Você edi
 
 Correção do teste da 0.9.5 num job real. A família confirmada com "Pede ajuste" deixava os formatos "Sem layout" no passo 5, a caixa do texto editado continuava com a altura antiga, e cada valor de spec pedia dois cliques. Tudo foi conferido em arquivos sintéticos.
 
-- Quando você confirma uma família, o layout dela vale, mesmo com "Pede ajuste". O desdobra guarda o aviso e segue. Os formatos chegam ao passo 5 com "Layout pronto".
-- No passo 5, o formato que você aprovou com aviso mostra uma linha discreta "Aviso aceito por você", com o que o desdobra achou.
+- Quando você confirma uma família, o layout dela vale, mesmo com "Pede ajuste". O Vapt guarda o aviso e segue. Os formatos chegam ao passo 5 com "Layout pronto".
+- No passo 5, o formato que você aprovou com aviso mostra uma linha discreta "Aviso aceito por você", com o que o Vapt achou.
 - Antes de confirmar, a família continua mostrando "Pede ajuste" e os motivos. Depois de confirmar, a marca vira "Aprovado por você", sem a cor de erro.
 - O texto que você editou e que passa da borda de um arquivo não trava mais "Confirmar família". A tela avisa, e o render corta o texto na borda, como o palco mostra.
-- O desdobra só para quando não dá para fazer a peça: falta uma letra na fonte, falta um arquivo ou há um erro do motor. Nesses casos, a tela diz o motivo.
+- O Vapt só para quando não dá para fazer a peça: falta uma letra na fonte, falta um arquivo ou há um erro do motor. Nesses casos, a tela diz o motivo.
 - Se o "Salvar e seguir" grava o briefing e não consegue montar os layouts, a tela diz isso, e o botão volta ligado. O aviso fica no rodapé até os layouts serem montados. No passo 5, o formato sem layout de uma família confirmada mostra o motivo real.
-- O job salvo na 0.9.5 com formatos "Sem layout": abra a tela e clique em "Salvar e seguir". O desdobra monta os layouts de novo.
+- O job salvo na 0.9.5 com formatos "Sem layout": abra a tela e clique em "Salvar e seguir". O Vapt monta os layouts de novo.
 - A família com texto editado que você confirmou antes da 0.9.6 pede a confirmação de novo, uma vez, porque a caixa do texto mudou. As outras continuam confirmadas.
-- O arquivo que o desdobra não consegue montar, como o da quebra de linha sem medida, continua com "Pede ajuste" na família. A tela diz que ele fica sem layout, mesmo com a família confirmada.
+- O arquivo que o Vapt não consegue montar, como o da quebra de linha sem medida, continua com "Pede ajuste" na família. A tela diz que ele fica sem layout, mesmo com a família confirmada.
 - Depois de confirmar, a frase do aviso no palco deixa o vermelho de erro. No passo 5, o aviso aceito diz o que acontece, por exemplo "Uma parte do fundo fica fora do formato, na base."
-- Quando o texto editado perde linhas, a caixa tracejada diminui junto. Ela tem a altura das linhas que você escreveu. Assim o desdobra não acusa mais sobreposição que não existe.
+- Quando o texto editado perde linhas, a caixa tracejada diminui junto. Ela tem a altura das linhas que você escreveu. Assim o Vapt não acusa mais sobreposição que não existe.
 - Alinhar e mudar o tamanho de um texto editado usam a caixa das linhas que você escreveu.
 - No passo 1, os valores de spec de cada formato ficam num cartão com caixas de marcar. "Marcar todos" marca tudo, e "Confirmar os marcados" confirma de uma vez, com uma janela que lista cada valor. Nada vem marcado.
 - O valor em que as folhas discordam e o formato com duas medidas continuam pedindo a sua escolha, um por um.
@@ -95,7 +105,7 @@ Correção do teste do KV A na 0.9.4, no passo das Famílias. No 970x250, aument
 
 - Quando você mexe num elemento, só ele anda. Os outros ficam no mesmo lugar e com o mesmo tamanho, em todos os arquivos da família.
 - Isso vale para mover, mudar o tamanho, alinhar, editar o texto e apagar.
-- O desdobra não reorganiza mais a peça depois da sua edição. Antes, ele refazia o encaixe e mudava elementos que você não tinha tocado.
+- O Vapt não reorganiza mais a peça depois da sua edição. Antes, ele refazia o encaixe e mudava elementos que você não tinha tocado.
 - Se a sua edição deixa um elemento sobre outro, fora do formato, fora da área segura ou mais perto do que o KV pede, a tela avisa. Você decide o que fazer.
 - A prévia e o "Salvar e seguir" continuam dando o mesmo resultado.
 - O Tamanho agora vai até 1000%. O limite de 400% chegava cedo no título do 970x250. O teto de 1000% fica só para proteger de um número digitado errado.
@@ -117,11 +127,11 @@ Correção do teste do KV A na 0.9.3, no passo das Famílias. O texto editado qu
 
 - O texto que você edita nunca quebra sozinho. As linhas são as que você escreve, com Enter no texto ou com o controle de quebra de linha.
 - O texto fica com o mesmo corpo de letra. A caixa cresce até a linha mais longa, em volta do ponto de alinhamento do texto do KV.
-- A proposta de quebra do desdobra e o botão "Aprovar quebra" saíram do texto editado. Um rascunho antigo com essa proposta numa família ainda não confirmada volta às linhas do texto e não trava a confirmação. A família já confirmada fica como você a confirmou.
+- A proposta de quebra do Vapt e o botão "Aprovar quebra" saíram do texto editado. Um rascunho antigo com essa proposta numa família ainda não confirmada volta às linhas do texto e não trava a confirmação. A família já confirmada fica como você a confirmou.
 - Quando o texto editado passa da borda de um arquivo da família, a miniatura dele fica marcada, uma faixa diz qual é o arquivo e leva até ele, e "Confirmar família" espera o ajuste.
-- Antes do render, o desdobra confere o texto editado de novo. Se ele passa da borda de um formato, o render não começa, e a tela diz o formato e o que fazer. Nada muda no job.
-- Se o render parar porque um texto passou da borda, a tela diz isso com o nome do formato. A mensagem genérica de problema fica só para o que o desdobra não sabe explicar.
-- Uma família confirmada na 0.9.3 com texto editado pede "Salvar e seguir" de novo antes do render, para o desdobra medir o texto com as linhas novas. A tela diz isso com o nome do formato.
+- Antes do render, o Vapt confere o texto editado de novo. Se ele passa da borda de um formato, o render não começa, e a tela diz o formato e o que fazer. Nada muda no job.
+- Se o render parar porque um texto passou da borda, a tela diz isso com o nome do formato. A mensagem genérica de problema fica só para o que o Vapt não sabe explicar.
+- Uma família confirmada na 0.9.3 com texto editado pede "Salvar e seguir" de novo antes do render, para o Vapt medir o texto com as linhas novas. A tela diz isso com o nome do formato.
 - O texto editado que encosta na borda do formato, dentro da folga que a tela aceita, também passa no render.
 - A moldura do texto editado cresce com ele. O duplo clique na parte nova do texto abre a escrita.
 - Na escrita no palco, a prévia fica na mesma altura do render, também com uma primeira linha vazia.
@@ -132,12 +142,12 @@ Correção do teste do KV A na 0.9.3, no passo das Famílias. O texto editado qu
 
 Correção do teste do KV A na 0.9.2: com as funções e o Design system feitos, as famílias não apareciam, o "Salvar e seguir" não dava retorno e o passo das Famílias mandava de volta para Funções. Tudo foi conferido em arquivos sintéticos.
 
-- A tela agora pergunta ao desdobra pelas famílias também depois de cada escolha do Design system. Antes, ela só perguntava depois de uma escolha de função, e quem fazia o Design system por último via a espera velha.
-- Quando o desdobra ainda não consegue montar as famílias, o passo das Famílias diz o motivo concreto, com o nome das camadas, marca na lista o item que falta e leva ao lugar certo. A lista nunca fica toda verde junto com a espera.
-- Todo motivo que o desdobra pode dar ganhou uma frase para o DA, com o passo onde ele se resolve.
+- A tela agora pergunta ao Vapt pelas famílias também depois de cada escolha do Design system. Antes, ela só perguntava depois de uma escolha de função, e quem fazia o Design system por último via a espera velha.
+- Quando o Vapt ainda não consegue montar as famílias, o passo das Famílias diz o motivo concreto, com o nome das camadas, marca na lista o item que falta e leva ao lugar certo. A lista nunca fica toda verde junto com a espera.
+- Todo motivo que o Vapt pode dar ganhou uma frase para o DA, com o passo onde ele se resolve.
 - No KV A, o motivo mais provável é o retângulo de fundo e o grafismo, que se sobrepõem e andam juntos num bloco: as funções deles precisam da mesma regra de escala. O Design system mostra esse aviso no alto, e a contagem "Faltam" conta esse item.
 - O "Salvar e seguir" fica desligado enquanto as famílias não aparecem, com o motivo ao lado. A frase "Tudo confirmado. Pode salvar." só aparece com todas as famílias confirmadas.
-- Quando o desdobra recusa um clique ou uma escolha não é salva, o aviso aparece no rodapé, ao lado do "Salvar e seguir", com o motivo que o desdobra deu. O botão mostra "Conferindo" enquanto espera a resposta. A frase "Tente de novo" saiu dos casos em que tentar de novo não resolve.
+- Quando o Vapt recusa um clique ou uma escolha não é salva, o aviso aparece no rodapé, ao lado do "Salvar e seguir", com o motivo que o Vapt deu. O botão mostra "Conferindo" enquanto espera a resposta. A frase "Tente de novo" saiu dos casos em que tentar de novo não resolve.
 - Quando uma escolha não é salva, o rodapé e o passo das Famílias dizem isso, com o motivo. Antes, a tela podia ficar dizendo "Salvando" sem salvar nada.
 - O aviso de um clique recusado sai quando você muda alguma coisa ou troca de passo. O motivo aparece uma vez só, no rodapé, e o foco do teclado volta ao botão.
 - A frase curta ao lado do "Salvar e seguir" diz o que fazer, como "Dê a mesma regra de tamanho às funções do bloco". As listas de camadas usam "e" no fim, e uma camada sem nome aparece como "sem nome".
@@ -149,7 +159,7 @@ Correção do teste do KV A na 0.9.2: com as funções e o Design system feitos,
 Para o job que chega sem folha de spec. Sem folha, o job não tinha formato nenhum, e as famílias nunca apareciam. Tudo foi conferido em arquivos sintéticos.
 
 - No passo 1 da tela, em "Valores de spec", o bloco "Formatos sem folha de spec" recebe a largura e a altura de cada formato em pixels. Dá para colar vários de uma vez, separados por vírgula, como 1080x1920, 300x600.
-- A tela avisa na hora o que não entendeu, o formato repetido e o tamanho fora do que o desdobra aceita.
+- A tela avisa na hora o que não entendeu, o formato repetido e o tamanho fora do que o Vapt aceita.
 - Uma janela de confirmação mostra os formatos, e eles entram já confirmados, com quem escreveu e quando. O Claude não escreve formatos.
 - Os formatos aparecem em "Formatos e giro" e, com as funções e o Design system completos, nas famílias.
 
@@ -190,16 +200,16 @@ Para o KV que tem texto vivo no PSD, mas cuja fonte a agência nunca recebeu em 
 
 ## 0.9.0 (13/11/2026): marca, sugestão de função e skills (M7c)
 
-Com esta versão, o Claude pode sugerir a função de cada camada quando o diretor de arte pede, o desdobra guarda o padrão de cada marca da agência e as skills levam o DA da criação do job até a tela sem nenhum comando. Tudo foi conferido em arquivos sintéticos; a rodada com os KVs reais fica para quando o Duda decidir. Antes de usar, veja também "O que ainda não funciona nesta versão", no fim desta entrada.
+Com esta versão, o Claude pode sugerir a função de cada camada quando o diretor de arte pede, o Vapt guarda o padrão de cada marca da agência e as skills levam o DA da criação do job até a tela sem nenhum comando. Tudo foi conferido em arquivos sintéticos; a rodada com os KVs reais fica para quando o Duda decidir. Antes de usar, veja também "O que ainda não funciona nesta versão", no fim desta entrada.
 
 ### Sugestão de função, só quando o DA pede
 
 - O job nasce sem modo de dados. O DA escolhe o modo no passo 1 da tela, e até a escolha nada do conteúdo do job vai ao Claude.
-- Depois de gravar o modo (a) ou (b), a tela mostra a frase para escrever ao Claude: "quero sugestões". O Claude prepara as sugestões, o desdobra confere cada uma e a tela as mostra ao lado de cada função, com a alternativa e a fonte.
+- Depois de gravar o modo (a) ou (b), a tela mostra a frase para escrever ao Claude: "quero sugestões". O Claude prepara as sugestões, o Vapt confere cada uma e a tela as mostra ao lado de cada função, com a alternativa e a fonte.
 - A sugestão nunca vira função sozinha: só o clique do DA em "Usar" põe a função no briefing. Com a tela aberta, as sugestões novas aparecem com o aviso "Chegaram as sugestões do Claude", e o que o DA já fez não muda.
 - No modo (a), vão ao Claude só as imagens de camadas sem texto. Ficam de fora o grupo, o objeto inteligente com texto dentro ou linkado, a camada escondida e a camada recortada sobre um texto; na dúvida, a camada fica de fora. A tela avisa que letra desenhada em pixel pode ir na imagem.
-- Quando o modo muda, ou quando a agência baixa o teto, o desdobra refaz o que o Claude pode ler, e as sugestões do modo antigo saem da tela.
-- O desdobra mede quantas sugestões batem com a função que o DA confirmou e o tempo do passo "Funções", com e sem sugestão na tela. Esses números ficam no job, fora do briefing, e o DA não vê.
+- Quando o modo muda, ou quando a agência baixa o teto, o Vapt refaz o que o Claude pode ler, e as sugestões do modo antigo saem da tela.
+- O Vapt mede quantas sugestões batem com a função que o DA confirmou e o tempo do passo "Funções", com e sem sugestão na tela. Esses números ficam no job, fora do briefing, e o DA não vê.
 
 ### O padrão da marca
 
@@ -211,13 +221,13 @@ Com esta versão, o Claude pode sugerir a função de cada camada quando o diret
 
 ### Biblioteca da agência
 
-- A pasta onde o desdobra guarda o padrão de cada marca é escolhida pelo DA em `/plugin`, no plugin desdobra, opção Configure, com cliques. Ela é opcional: sem ela, o job roda normal, sem marca, e a tela diz onde configurar.
-- A pasta fica fora do plugin, por isso desinstalar ou atualizar o desdobra não apaga o padrão das marcas. A conferência da instalação diz se a pasta existe, se dá para gravar nela e se ela está num lugar que o desdobra apagaria.
+- A pasta onde o Vapt guarda o padrão de cada marca é escolhida pelo DA em `/plugin`, no plugin vapt, opção Configure, com cliques. Ela é opcional: sem ela, o job roda normal, sem marca, e a tela diz onde configurar.
+- A pasta fica fora do plugin, por isso desinstalar ou atualizar o Vapt não apaga o padrão das marcas. A conferência da instalação diz se a pasta existe, se dá para gravar nela e se ela está num lugar que o Vapt apagaria.
 
 ### O Claude lê menos do job
 
-- Dentro da pasta de um job, o Claude lê só o que o modo de dados permite: os pacotes preparados pelo desdobra, as imagens permitidas do modo (a) e as sugestões. O PSD, as fontes, o laudo, o briefing, as imagens geradas e a biblioteca da agência ficam fechados para ele, por qualquer ferramenta.
-- O Claude nunca grava o padrão de uma marca nem o que o desdobra preparou para ele.
+- Dentro da pasta de um job, o Claude lê só o que o modo de dados permite: os pacotes preparados pelo Vapt, as imagens permitidas do modo (a) e as sugestões. O PSD, as fontes, o laudo, o briefing, as imagens geradas e a biblioteca da agência ficam fechados para ele, por qualquer ferramenta.
+- O Claude nunca grava o padrão de uma marca nem o que o Vapt preparou para ele.
 
 ### Skills
 
@@ -228,8 +238,8 @@ Com esta versão, o Claude pode sugerir a função de cada camada quando o diret
 ### Para quem já usava a 0.8.0
 
 - Configure a biblioteca da agência em `/plugin` se quiser guardar o padrão das marcas. Sem ela, nada muda no job.
-- A versão do desdobra entra na impressão de cada formato. Um formato aprovado na 0.8.0 pode pedir render e aprovação de novo, uma vez, quando o job for salvo nesta versão.
-- Ao abrir um job que já existia, o desdobra lê de novo as specs dele, uma vez, porque a biblioteca de specs passou a levar a versão nova. As confirmações de spec que o DA já fez entram nessa leitura.
+- A versão do Vapt entra na impressão de cada formato. Um formato aprovado na 0.8.0 pode pedir render e aprovação de novo, uma vez, quando o job for salvo nesta versão.
+- Ao abrir um job que já existia, o Vapt lê de novo as specs dele, uma vez, porque a biblioteca de specs passou a levar a versão nova. As confirmações de spec que o DA já fez entram nessa leitura.
 - O pacote que o Claude lê é refeito no formato novo na primeira vez que o job é aberto.
 
 ### O que ainda não funciona nesta versão
@@ -245,7 +255,7 @@ Com esta versão, o diretor de arte corrige o briefing depois da aprovação, ge
 
 ### Corrigir sem perder o que já estava pronto
 
-- Quando o DA muda alguma coisa depois de aprovar, o desdobra refaz só os formatos que a mudança atinge. Os outros continuam com a mesma imagem e com a aprovação que já tinham.
+- Quando o DA muda alguma coisa depois de aprovar, o Vapt refaz só os formatos que a mudança atinge. Os outros continuam com a mesma imagem e com a aprovação que já tinham.
 - Cada formato mostra, em frase simples, o que mudou desde a última versão. As versões do briefing ficam guardadas em ordem e aparecem para consulta.
 - O texto que o DA editou no palco sai na imagem final com as mesmas linhas da prévia. Uma letra que a fonte do job não tem trava o render com uma mensagem clara.
 - A família guarda o mesmo nome quando o DA muda os formatos dela, e a tela avisa quando uma família ganhou ou perdeu formatos e precisa ser confirmada de novo.
@@ -260,7 +270,7 @@ Com esta versão, o diretor de arte corrige o briefing depois da aprovação, ge
 ### Editar a mestre da família
 
 - O DA quebra a linha de um texto direto no palco, com as miniaturas dos outros formatos da família ao lado. A quebra vale para a família inteira.
-- A quebra que o próprio DA faz já vale como aprovada. A quebra que o desdobra propõe pede um clique em "Aprovar quebra" antes de confirmar a família.
+- A quebra que o próprio DA faz já vale como aprovada. A quebra que o Vapt propõe pede um clique em "Aprovar quebra" antes de confirmar a família.
 - O tempo para desenhar a mestre de cada família é medido e guardado junto do job, fora do briefing.
 
 ### Mais jeitos de mexer no palco
@@ -287,7 +297,7 @@ Com esta versão, o diretor de arte corrige o briefing depois da aprovação, ge
 
 - A aprovação feita na versão anterior pede uma nova aprovação do formato, uma vez.
 - Toda família confirmada na 0.7.0 pede uma nova confirmação, uma vez, com ou sem edição.
-- Ao abrir um job que já existia, o desdobra lê de novo as specs dele, uma vez, porque a biblioteca de specs passou a levar a versão nova. As confirmações de spec que o DA já fez entram nessa leitura.
+- Ao abrir um job que já existia, o Vapt lê de novo as specs dele, uma vez, porque a biblioteca de specs passou a levar a versão nova. As confirmações de spec que o DA já fez entram nessa leitura.
 
 ### O que ainda não funciona nesta versão
 

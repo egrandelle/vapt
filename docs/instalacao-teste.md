@@ -1,6 +1,6 @@
 # Teste de instalação do plugin a partir do repositório privado
 
-Este roteiro instala o plugin `desdobra` de um marketplace adicionado por URL git (HTTPS). Ele serve para o critério de pronto do M1 (arquitetura-v1.md, 9.2):
+Este roteiro instala o plugin `vapt` de um marketplace adicionado por URL git (HTTPS). Ele serve para o critério de pronto do M1 (arquitetura-v1.md, 9.2):
 - o plugin instala do marketplace git;
 - é copiado para o cache da versão;
 - o gancho cria o ambiente Python;
@@ -18,7 +18,7 @@ Nada aqui foi executado ainda. Adicionar o marketplace e instalar o plugin muda 
 |---|---|
 | Claude Code | 2.1.300 (`claude --version`). O `/plugin install ... --marketplace` pede 2.1.275 ou mais novo, o `claude plugin install ... --marketplace` pede 2.1.292, e campo `options` em `userConfig` pede 2.1.271 |
 | Python no PATH | `C:\Python314\python.exe`, Python 3.14.2. Também existe o atalho `python3` da Microsoft Store em `WindowsApps`; o gancho chama `python`, sem o 3 |
-| Remoto do repositório | `https://github.com/egrandelle/desdobra.git`, ramo `main` |
+| Remoto do repositório | `https://github.com/egrandelle/vapt.git`, ramo `main` |
 | Credencial do git | `credential.helper = manager` (Git Credential Manager). Não há chave SSH, então o caminho é HTTPS |
 
 ## Passos manuais
@@ -27,11 +27,11 @@ Cada passo numerado é uma ação de quem instala. Anote o tempo e o que aparece
 
 ### Uma vez, antes de instalar (Trezion)
 
-1. **Publicar o repositório.** Fazer commit e push do `main` com o M1 para `https://github.com/egrandelle/desdobra.git`. O repositório continua privado.
+1. **Publicar o repositório.** Fazer commit e push do `main` com o M1 para `https://github.com/egrandelle/vapt.git`. O repositório continua privado.
 2. **Guardar a credencial do GitHub no git.** O Claude Code clona com as credenciais que o git já tem e desliga os pedidos de senha do git, então a clonagem falha em vez de perguntar (https://code.claude.com/docs/en/plugins/install.md, Add a private marketplace). Num terminal comum, rode:
 
    ```
-   git ls-remote https://github.com/egrandelle/desdobra.git
+   git ls-remote https://github.com/egrandelle/vapt.git
    ```
 
    Se o Git Credential Manager abrir o navegador, entre na conta do GitHub. O passo termina quando o comando lista o `HEAD` sem pedir nada.
@@ -42,14 +42,14 @@ Cada passo numerado é uma ação de quem instala. Anote o tempo e o que aparece
 4. **Adicionar o marketplace.** Numa sessão do Claude Code:
 
    ```
-   /plugin marketplace add https://github.com/egrandelle/desdobra.git
+   /plugin marketplace add https://github.com/egrandelle/vapt.git
    ```
 
-   O esperado é `Successfully added marketplace: desdobra`. O nome vem do campo `name` de `.claude-plugin/marketplace.json`. A URL vai com `https://`, porque sem o prefixo o Claude Code lê `owner/repo` do GitHub (mesma página, Add a marketplace).
+   O esperado é `Successfully added marketplace: vapt`. O nome vem do campo `name` de `.claude-plugin/marketplace.json`. A URL vai com `https://`, porque sem o prefixo o Claude Code lê `owner/repo` do GitHub (mesma página, Add a marketplace).
 5. **Instalar o plugin.** Na mesma sessão:
 
    ```
-   /plugin install desdobra@desdobra
+   /plugin install vapt@vapt
    ```
 
    Escolha o escopo do usuário. O diálogo de configuração abre e pede o **Teto do modo de dados**. Para o teste interno sem autorização de envio de material de cliente, escolha `c` (arquitetura-v1.md, 7.4).
@@ -57,14 +57,14 @@ Cada passo numerado é uma ação de quem instala. Anote o tempo e o que aparece
    Pelo terminal, os passos 4 e 5 viram um comando só, que não abre o diálogo e recebe o teto por `--config` (https://code.claude.com/docs/en/plugins/components.md, Ask the user for configuration values):
 
    ```
-   claude plugin install desdobra --marketplace https://github.com/egrandelle/desdobra.git --config teto_modo_dados=c
+   claude plugin install vapt --marketplace https://github.com/egrandelle/vapt.git --config teto_modo_dados=c
    ```
 
 6. **Abrir uma sessão nova, Local, numa pasta de trabalho.** Plugins não funcionam em sessão na nuvem nem em WSL (https://code.claude.com/docs/en/desktop.md). O gancho SessionStart roda em segundo plano, e a primeira resposta do Claude espera o gancho terminar (https://code.claude.com/docs/en/hooks.md, SessionStart). Na primeira vez ele cria o ambiente. Mande uma mensagem curta e marque o tempo até a resposta.
 7. **Rodar o doctor.** Na sessão:
 
    ```
-   /desdobra:doctor
+   /vapt:doctor
    ```
 
    Aprove cada pedido de permissão e conte quantos foram. O esperado é um pedido de leitura do `interpretador.json`, um do Bash para o motor e um de leitura do `doctor.json`.
@@ -73,33 +73,33 @@ Cada passo numerado é uma ação de quem instala. Anote o tempo e o que aparece
 
 ## O que conferir depois do passo 7
 
-Os caminhos abaixo saem de https://code.claude.com/docs/en/plugins/loading.md (Find plugins on disk). O id da pasta de dados troca por `-` todo caractere que não seja letra, número, `_` ou `-` (https://code.claude.com/docs/en/plugins/components.md, Reference plugin paths and store data), então `desdobra@desdobra` vira `desdobra-desdobra`.
+Os caminhos abaixo saem de https://code.claude.com/docs/en/plugins/loading.md (Find plugins on disk). O id da pasta de dados troca por `-` todo caractere que não seja letra, número, `_` ou `-` (https://code.claude.com/docs/en/plugins/components.md, Reference plugin paths and store data), então `vapt@vapt` vira `vapt-vapt`.
 
 | Conferência | Onde | Esperado |
 |---|---|---|
-| Clone do marketplace | `~/.claude/plugins/marketplaces/desdobra/` | o repositório inteiro |
-| Cópia da versão no cache | `~/.claude/plugins/cache/desdobra/desdobra/0.1.0/` | só a pasta `plugins/desdobra`, sem `dev/` nem `docs/` |
-| Ambiente Python | `~/.claude/plugins/data/desdobra-desdobra/venv/` | venv com os pacotes do lock |
-| Interpretador | `~/.claude/plugins/data/desdobra-desdobra/interpretador.json` | `plugin_root` aponta para a pasta do cache, e nunca para o repositório (defeito b do predecessor) |
-| Tempo da primeira criação | `~/.claude/plugins/data/desdobra-desdobra/preparo.json`, campos `tempo_s` e `etapas` | anotar o total e o tempo de cada etapa. Se o total chegar perto de 600 s, a instalação sai do gancho e vai para o doctor (arquitetura-v1.md, 3.6) |
-| Saída do pip | `~/.claude/plugins/data/desdobra-desdobra/preparo.log` | sem erro de hash |
-| Doctor | `~/.claude/plugins/data/desdobra-desdobra/doctor.json` | `codigo` 0. Os dois testes do isolador com `situacao` ok e o filho que estoura com o pico abaixo do teto |
-| Linha do gancho na sessão | o contexto da sessão | uma linha só, começando por `desdobra: ambiente Python criado em` |
+| Clone do marketplace | `~/.claude/plugins/marketplaces/vapt/` | o repositório inteiro |
+| Cópia da versão no cache | `~/.claude/plugins/cache/vapt/vapt/0.1.0/` | só a pasta `plugins/vapt`, sem `dev/` nem `docs/` |
+| Ambiente Python | `~/.claude/plugins/data/vapt-vapt/venv/` | venv com os pacotes do lock |
+| Interpretador | `~/.claude/plugins/data/vapt-vapt/interpretador.json` | `plugin_root` aponta para a pasta do cache, e nunca para o repositório (defeito b do predecessor) |
+| Tempo da primeira criação | `~/.claude/plugins/data/vapt-vapt/preparo.json`, campos `tempo_s` e `etapas` | anotar o total e o tempo de cada etapa. Se o total chegar perto de 600 s, a instalação sai do gancho e vai para o doctor (arquitetura-v1.md, 3.6) |
+| Saída do pip | `~/.claude/plugins/data/vapt-vapt/preparo.log` | sem erro de hash |
+| Doctor | `~/.claude/plugins/data/vapt-vapt/doctor.json` | `codigo` 0. Os dois testes do isolador com `situacao` ok e o filho que estoura com o pico abaixo do teto |
+| Linha do gancho na sessão | o contexto da sessão | uma linha só, começando por `vapt: ambiente Python criado em` |
 | Sessão seguinte | abrir outra sessão e mandar uma mensagem | a linha diz `sem mudança`. A espera até a primeira resposta não pode crescer de forma perceptível |
 
 ## Teste de versão fixada e de atualização
 
 1. Faça um commit qualquer no repositório (por exemplo, numa doc) sem mudar o `version` de `plugin.json`, e faça push.
-2. Rode `claude plugin update desdobra@desdobra`. O esperado é `desdobra is already at the latest version (0.1.0).`, porque a versão do manifesto vem primeiro (https://code.claude.com/docs/en/plugins/loading.md, How Claude Code computes the version).
-3. Mude o `version` para `0.1.1` sem mexer no lock, faça push e rode `claude plugin update desdobra@desdobra`. O esperado é uma pasta nova `cache/desdobra/desdobra/0.1.1/`.
+2. Rode `claude plugin update vapt@vapt`. O esperado é `vapt is already at the latest version (0.1.0).`, porque a versão do manifesto vem primeiro (https://code.claude.com/docs/en/plugins/loading.md, How Claude Code computes the version).
+3. Mude o `version` para `0.1.1` sem mexer no lock, faça push e rode `claude plugin update vapt@vapt`. O esperado é uma pasta nova `cache/vapt/vapt/0.1.1/`.
 4. Abra uma sessão nova. A linha do gancho tem de dizer que o motor foi religado à versão instalada, sem recriar o ambiente. O `preparo.json` mostra `acao: religar`, com só as etapas `motor` e `conferir`.
 5. Mude uma linha do lock (por exemplo, numa versão nova autorizada de um pacote), faça push, atualize e abra uma sessão nova. O esperado é `acao: recriar` e o ambiente recriado do zero.
 6. Anote o tempo de cada caso.
 
 ## Limpeza depois do teste
 
-- `claude plugin uninstall desdobra@desdobra` apaga também a pasta de dados, a não ser que se passe `--keep-data` (https://code.claude.com/docs/en/plugins/manifest-reference.md, Environment variables).
-- `/plugin marketplace remove desdobra` tira o marketplace.
+- `claude plugin uninstall vapt@vapt` apaga também a pasta de dados, a não ser que se passe `--keep-data` (https://code.claude.com/docs/en/plugins/manifest-reference.md, Environment variables).
+- `/plugin marketplace remove vapt` tira o marketplace.
 
 As duas ações mudam a configuração do usuário e só rodam com autorização.
 

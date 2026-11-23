@@ -1,0 +1,1921 @@
+{
+ "esquema": "fontes-de-limites/1",
+ "nota": "Todo numero que o motor usa como regra. A fonte e relativa a pasta do projeto de pesquisa (pesquisa/, decisoes-v1.md, arquitetura-v1.md). Sem fonte, a situacao e a_calibrar, e a_calibrar nunca reprova. Mudancas neste arquivo passam pelo integrador.",
+ "limites": [
+  {
+   "id": "prova_pixel.limiar_diferenca",
+   "valor": 24,
+   "unidade": "nivel de 0 a 255, por canal",
+   "fonte": {
+    "arquivo": "pesquisa/corpus-testes.md",
+    "secao": "2"
+   },
+   "situacao": "medido",
+   "efeito": "registra",
+   "nota": "Limiar de medicao da pesquisa: um pixel conta como diferente do merged quando algum canal difere mais que isto. Serve para comparar com a linha de base."
+  },
+  {
+   "id": "prova_pixel.fracao_reprova",
+   "valor": null,
+   "unidade": "fracao de 0 a 1 dos pixels do canvas",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "4.4"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Como regra que reprova, a prova de pixel fica a calibrar. No M1 so registra e compara com a linha de base."
+  },
+  {
+   "id": "prova_pixel.regiao_min_px",
+   "valor": 20,
+   "unidade": "pixels acima do limiar num componente conexo",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Regioes menores que isto nao sao listadas uma a uma, so somadas. Valor herdado da sonda da pesquisa."
+  },
+  {
+   "id": "prova_pixel.max_regioes",
+   "valor": 40,
+   "unidade": "regioes listadas por arquivo",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Teto de regioes suspeitas listadas no laudo. Valor herdado da sonda da pesquisa."
+  },
+  {
+   "id": "coberta_no_kv.fracao_coberta_min",
+   "valor": 1.0,
+   "unidade": "fracao de 0 a 1 dos pixels visiveis da camada cobertos por camadas acima",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "29/10, respostas ao teste do corpus, 10"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "A decisao fala de camada visivel totalmente coberta. A tolerancia de borda (antialiasing) ainda nao foi medida."
+  },
+  {
+   "id": "coberta_no_kv.ocupa_canvas_fracao",
+   "valor": 1.0,
+   "unidade": "fracao de 0 a 1 da area do canvas ocupada pela camada",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "29/10, respostas ao teste do corpus, 10"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "A decisao fala de o canvas inteiro. Um caso do gabarito tem camadas cobertas que ocupam 73% da prancheta (pesquisa/gabarito-resultado.md, 2, item 4), e o limiar precisa decidir esse caso (arquitetura-v1.md, 4.4)."
+  },
+  {
+   "id": "quadros.fracao_canvas_grupo_topo",
+   "valor": 0.5,
+   "unidade": "fracao de 0 a 1 da area do canvas coberta pela caixa de uma camada do grupo de topo",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "29/10, respostas as perguntas da arquitetura, 26 (31/10)"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "Regra generica de quadros (pesquisa/corpus-testes.md, 4, item 1): grupo de topo com alguma camada de fundo que cobre ao menos esta fracao do canvas e candidato a quadro. Medido nos 27 PSDs do corpus em 31/10: de 0,3 a 0,7 os quadros achados sao os mesmos; com 0,9 (valor antigo, do instrumento da pesquisa) a Tela 3 de um DOOH vertical ficava de fora, porque o maior fundo dela cobre 0,72 do canvas; de 0,97 para cima uma tela de outro DOOH sai. O 0,5 fica no meio da faixa que acerta o corpus."
+  },
+  {
+   "id": "quadros.min_candidatos",
+   "valor": 2,
+   "unidade": "pranchetas ou grupos candidatos",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "29/10, respostas ao teste do corpus, 1"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "Com mais de um quadro, a peca sai do quadro que o DA escolher."
+  },
+  {
+   "id": "isolador.base_python_bytes",
+   "valor": 102760448,
+   "unidade": "bytes",
+   "fonte": {
+    "arquivo": "pesquisa/wf_ec5e3b89-c45-resultado.json",
+    "secao": "psd, recomendacao revista do psd-tools, item b"
+   },
+   "situacao": "medido",
+   "efeito": "avisa",
+   "nota": "Cerca de 98 MiB ao importar numpy e psd-tools com BLAS em 1 fio, no Windows. Parcela fixa do orcamento do filho. Decide o codigo de saida da leitura (recusa antes de alocar, codigo 3, ou parada do filho, codigo 4). Como o calculo tem parcela a calibrar, a parada nao reprova: a recusa sai com a decisao pede_confirmacao_do_da, e o DA pode confirmar um teto maior com --teto-memoria-bytes (vapt.leitor, LIMITES_QUE_DECIDEM_CODIGO)."
+  },
+  {
+   "id": "isolador.fator_abertura_max",
+   "valor": 2.64,
+   "unidade": "vezes o tamanho em bytes do que o filho abre",
+   "fonte": {
+    "arquivo": "pesquisa/wf_ec5e3b89-c45-resultado.json",
+    "secao": "psd, recomendacao revista do psd-tools, item b"
+   },
+   "situacao": "medido",
+   "efeito": "avisa",
+   "nota": "Abrir com o psd-tools custou de 2,10 a 2,64 vezes o tamanho do arquivo (pesquisa/render-local-pesquisa.md, 2). O orcamento usa o maior valor medido. Decide o codigo de saida da leitura (recusa antes de alocar, codigo 3, ou parada do filho, codigo 4). Como o calculo tem parcela a calibrar, a parada nao reprova: a recusa sai com a decisao pede_confirmacao_do_da, e o DA pode confirmar um teto maior com --teto-memoria-bytes (vapt.leitor, LIMITES_QUE_DECIDEM_CODIGO)."
+  },
+  {
+   "id": "isolador.margem_orcamento",
+   "valor": 1.25,
+   "unidade": "fator sobre a soma da base com o custo de abertura",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Folga para composicao e miniaturas. Sem medicao. Decide o codigo de saida da leitura (recusa antes de alocar, codigo 3, ou parada do filho, codigo 4). Como o calculo tem parcela a calibrar, a parada nao reprova: a recusa sai com a decisao pede_confirmacao_do_da, e o DA pode confirmar um teto maior com --teto-memoria-bytes (vapt.leitor, LIMITES_QUE_DECIDEM_CODIGO)."
+  },
+  {
+   "id": "isolador.tempo_max_s",
+   "valor": 600,
+   "unidade": "segundos de relogio por processo filho",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Timeout de relogio no pai, por processo filho. Sem medicao que de o numero: a sonda levou 183 s para o corpus inteiro, sem timeout (pesquisa/corpus-testes.md, 1). Decide o codigo de saida (parada por tempo, codigo 4), mas a parada nao reprova: a recusa sai com a decisao pede_confirmacao_do_da, e o DA pode confirmar um tempo maior com --tempo-max-s (vapt.leitor, LIMITES_QUE_DECIDEM_CODIGO)."
+  },
+  {
+   "id": "isolador.fracao_pico_memoria",
+   "valor": 0.95,
+   "unidade": "fracao de 0 a 1 do teto de memoria",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "So rotula a falha de um filho que ja terminou com erro: com pico de memoria acima desta fracao do teto, a falha conta como memoria (codigo 4), e nao como queda (codigo 3). Nao faz o filho parar nem reprova o arquivo."
+  },
+  {
+   "id": "isolador.stdout_max_bytes",
+   "valor": 1048576,
+   "unidade": "bytes",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Teto do que o pai guarda da saida padrao do filho. O filho grava tudo em disco e imprime no maximo uma linha."
+  },
+  {
+   "id": "leitor.max_alloc_bytes",
+   "valor": 4294967296,
+   "unidade": "bytes",
+   "fonte": {
+    "arquivo": "pesquisa/render-local-pesquisa.md",
+    "secao": "9"
+   },
+   "situacao": "medido",
+   "efeito": "avisa",
+   "nota": "Limite padrao de alocacao do psd-tools 1.26.0. Com ele, a composicao do arquivo maior do corpus foi recusada antes de alocar 5,5 GB. Quando a composicao do documento passa deste teto, a leitura vale e o laudo registra um bloqueio do documento (recusas, etapa composicao), que pede decisao do DA (situacao ok_com_bloqueio)."
+  },
+  {
+   "id": "leitor.profundidade_max_smart",
+   "valor": 2,
+   "unidade": "niveis de smart object aninhado abaixo do documento",
+   "fonte": {
+    "arquivo": "pesquisa/render-local-pesquisa.md",
+    "secao": "2"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "A pesquisa pede profundidade maxima sem dar o numero. Objeto mais fundo fica registrado e nao e aberto. A camada do objeto nao aberto recebe o alerta smart_object_nao_aberto."
+  },
+  {
+   "id": "laudo.miniatura_lado_px",
+   "valor": 384,
+   "unidade": "pixels no lado maior",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Tamanho das miniaturas por camada. Valor herdado da sonda da pesquisa."
+  },
+  {
+   "id": "laudo.previa_lado_px",
+   "valor": 1600,
+   "unidade": "pixels no lado maior",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Tamanho da previa, da recomposicao e do mapa de diferencas. Valor herdado da sonda da pesquisa."
+  },
+  {
+   "id": "laudo.tolerancia_escala_texto",
+   "valor": 1e-06,
+   "unidade": "diferenca absoluta da escala horizontal ou vertical para 1",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Abaixo disto a escala do texto conta como 100% (regra D7). Valor herdado da sonda da pesquisa."
+  },
+  {
+   "id": "regressao.arquivo_grande_bytes",
+   "valor": 524288000,
+   "unidade": "bytes",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Arquivos acima disto rodam um de cada vez na regressao, porque um PSB grande pede ate cerca de 6,4 GB ao abrir (pesquisa/wf_ec5e3b89-c45-resultado.json, psd)."
+  },
+  {
+   "id": "segredos.padroes",
+   "valor": [
+    {
+     "nome": "chave de API do Google",
+     "regex": "AIza[0-9A-Za-z_\\-]{35}"
+    },
+    {
+     "nome": "chave de acesso da AWS",
+     "regex": "(?:AKIA|ASIA)[0-9A-Z]{16}"
+    },
+    {
+     "nome": "token do GitHub",
+     "regex": "(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})"
+    },
+    {
+     "nome": "chave da Anthropic",
+     "regex": "sk-ant-[A-Za-z0-9_\\-]{20,}"
+    },
+    {
+     "nome": "chave da OpenAI",
+     "regex": "sk-(?:proj-)?[A-Za-z0-9_\\-]{20,}"
+    },
+    {
+     "nome": "token do Slack",
+     "regex": "xox[abposr]-[A-Za-z0-9\\-]{10,}"
+    },
+    {
+     "nome": "chave do Stripe",
+     "regex": "(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}"
+    },
+    {
+     "nome": "chave privada",
+     "regex": "-----BEGIN [A-Z ]*PRIVATE KEY-----"
+    },
+    {
+     "nome": "token JWT",
+     "regex": "eyJ[A-Za-z0-9_\\-]{8,}\\.eyJ[A-Za-z0-9_\\-]{8,}\\.[A-Za-z0-9_\\-]{8,}"
+    },
+    {
+     "nome": "valor rotulado como segredo",
+     "regex": "(?i)(?:api[_ -]?key|apikey|secret|segredo|token|senha|password|passwd|pwd|chave(?:[_ -]?(?:de[_ -]?)?api)?|access[_ -]?key|client[_ -]?secret|auth)[\"']?\\s*[:=]\\s*[\"']?(?P<valor>(?=[A-Za-z0-9_\\-+/=.]*[0-9])(?=[A-Za-z0-9_\\-+/=.]*[A-Za-z])[A-Za-z0-9_\\-+/=.]{16,})"
+    }
+   ],
+   "unidade": "lista de padroes (expressao regular do Python)",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "29/10, respostas as perguntas da arquitetura, 2 (filtro de segredos)"
+   },
+   "situacao": "decidido",
+   "efeito": "reprova",
+   "nota": "Achado vira bloqueio, mostrado so ao DA. Motivacao: chave de API em texto puro achada num script do corpus (pesquisa/corpus-testes.md, 7). O padrao rotulado pega valor de 16 caracteres ou mais, com letras e numeros, depois de um rotulo de segredo."
+  },
+  {
+   "id": "isolador.bytes_por_px_canvas",
+   "valor": 128,
+   "unidade": "bytes por pixel do canvas",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Parcela do orcamento do filho que cresce com o canvas (composicao, previa, comparacao e cobertura). Valor tirado do pico da sonda 1.26.0 na linha de base: no maximo cerca de 107 bytes por pixel acima da base e do custo de abertura, nos canvas acima de 1 Mpx. Decide o codigo de saida da leitura (recusa antes de alocar, codigo 3, ou parada do filho, codigo 4). Como o calculo tem parcela a calibrar, a parada nao reprova: a recusa sai com a decisao pede_confirmacao_do_da, e o DA pode confirmar um teto maior com --teto-memoria-bytes (vapt.leitor, LIMITES_QUE_DECIDEM_CODIGO)."
+  },
+  {
+   "id": "laudo.tolerancia_malha_px",
+   "valor": 0.01,
+   "unidade": "pixels do objeto de origem",
+   "fonte": {
+    "arquivo": "pesquisa/corpus-testes.md",
+    "secao": "4, item 6"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Malha de deformacao (customEnvelopeWarp) com desvio maximo ate isto em relacao a grade identidade nao deforma e nao degrada (regra D6). A malha identidade medida na pesquisa desvia cerca de 1e-12 px."
+  },
+  {
+   "id": "laudo.tolerancia_nao_afim_px",
+   "valor": 0.01,
+   "unidade": "pixels do documento",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "nonAffineTransform diferente de Trnf acima disto degrada (regra D6). Valor herdado da sonda da pesquisa."
+  },
+  {
+   "id": "laudo.tolerancia_paralelogramo_px",
+   "valor": 0.02,
+   "unidade": "pixels do documento",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Quadrilatero colocado de smart object cujas diagonais nao se cruzam no meio por mais que isto nao e paralelogramo e degrada (regra D6). Valor herdado da sonda da pesquisa."
+  },
+  {
+   "id": "ambiente.python_versoes_aceitas",
+   "valor": [
+    "3.14"
+   ],
+   "unidade": "versao maior.menor do CPython",
+   "fonte": {
+    "arquivo": "pesquisa/wf_ec5e3b89-c45-resultado.json",
+    "secao": "A24, dependencias do extra composite; ambiente da pesquisa com Python 3.14.2"
+   },
+   "situacao": "medido",
+   "efeito": "reprova",
+   "nota": "So o 3.14 foi testado e o lock so tem hashes cp314. As rodas do 3.12 e do 3.13 existem no PyPI (conferencia do M1), mas entram so com hashes no lock e regressao nessa versao. O 3.11 fica de fora porque o scipy 1.18.1 e o numpy 2.5.4 pedem 3.12 ou mais."
+  },
+  {
+   "id": "ambiente.trava_preparo_max_s",
+   "valor": 600,
+   "unidade": "segundos de idade da trava do preparo",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "3.6"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Trava mais velha que o timeout padrao do gancho (600 s, hooks.md) e de um preparo que morreu."
+  },
+  {
+   "id": "segredos.entropia_min_bits",
+   "valor": 3.0,
+   "unidade": "bits por caractere (entropia de Shannon do trecho achado)",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Hoje a entropia so e medida e gravada em segredos-bloqueados.json, para calibrar; nao decide bloqueio. O codigo ainda nao le este id."
+  },
+  {
+   "id": "regressao.tolerancia_prova_pixel_pct",
+   "valor": 0,
+   "unidade": "pontos percentuais de pixels acima do limiar",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "29/10, respostas as perguntas da arquitetura, 3"
+   },
+   "situacao": "decidido",
+   "efeito": "reprova",
+   "nota": "A versao nova so entra se nada piorar: a prova de pixel de agora acima da base mais esta tolerancia e piora."
+  },
+  {
+   "id": "regressao.varredura_min_caracteres",
+   "valor": 4,
+   "unidade": "caracteres de um nome de camada ou texto de peca",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Separa o modo de procurar cada nome de camada ou texto de peca na saida padrao do modo c. Termo deste tamanho para cima: procurado em qualquer valor de texto. Termo mais curto: procurado como palavra inteira so no texto livre (o_que_fazer e conteudo), fora das palavras dos textos fixos do motor. Nos dois casos, o que aparece conta como achado."
+  },
+  {
+   "id": "fontes.fator_abertura_max",
+   "valor": 64,
+   "unidade": "vezes os bytes do arquivo de fonte, somado a isolador.base_python_bytes",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "4.5"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Orcamento de memoria do processo filho que le um arquivo de fonte: (isolador.base_python_bytes + este fator x bytes do arquivo) x isolador.margem_orcamento. A arquitetura pede orcamento de memoria e de tempo para a leitura da fonte, sem numero. O valor cobre a descompactacao do WOFF2 e o cmap de fontes grandes; o pico medido nas fontes do corpus fica no relatorio do M2."
+  },
+  {
+   "id": "fontes.tempo_max_s",
+   "valor": 120,
+   "unidade": "segundos de relogio por arquivo de fonte",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "4.5"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Tempo maximo do processo filho que le um arquivo de fonte. A leitura das tabelas name, cmap e metricas leva menos de 1 s nas fontes do corpus; o valor so evita filho preso."
+  },
+  {
+   "id": "fontes.largura_divergencia_pct",
+   "valor": 0.2,
+   "unidade": "porcentagem de diferenca entre a largura da linha no Chromium e a largura gravada na caixa TySh",
+   "fonte": {
+    "arquivo": "pesquisa/wf_9612ef10-419-resultado.json",
+    "secao": "analise de fontes, implicacoes (proposta de limiar)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "A pesquisa mediu ate 0,01% com o arquivo certo (pesquisa/corpus-testes.md, 4, item 8) e propos 0,2%. Ate o limiar ser fixado, a divergencia acima dele vira decisao bloqueante do DA, sem reprovacao automatica (arquitetura-v1.md, 4.5)."
+  },
+  {
+   "id": "chromium.corpo_medicao_px",
+   "valor": 100,
+   "unidade": "pixels do maior corpo de cada camada na pagina de medicao",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "4.5 (largura de cada linha no Chromium contra a caixa TySh)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "A pagina de medicao escala cada camada de texto para que o maior corpo tenha este tamanho, e divide a largura medida pela mesma escala. Evita corpo muito pequeno no espaco de texto. Origem: valor escolhido na implementacao do M2, sem medicao propria; a pesquisa mediu no corpo do espaco de texto, sem escala (pesquisa/corpus-testes.md, 4, item 8), e a arquitetura pede a medida sem dar numero."
+  },
+  {
+   "id": "chromium.tempo_max_s",
+   "valor": 120,
+   "unidade": "segundos por operacao do Chromium (abrir, carregar a pagina, medir)",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "4.5 (carregamento pelo @font-face e conferencia por CDP no Chromium fixado)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Teto de cada passo do Chromium na conferencia de fontes. Estourado, a conferencia sai sem a parte do Chromium e as camadas ficam bloqueantes para o DA decidir. Origem: valor escolhido na implementacao do M2, igual ao de fontes.tempo_max_s, sem medicao; a arquitetura pede o passo no Chromium sem dar tempo. A conferencia das fontes sinteticas dos testes leva poucos segundos."
+  },
+  {
+   "id": "chromium.perfil_caracteres_max",
+   "valor": 220,
+   "unidade": "caracteres do caminho do perfil do Chromium da tela",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 20 (perfil do Chromium na pasta temporaria do sistema)"
+   },
+   "situacao": "decidido",
+   "efeito": "reprova",
+   "nota": "A n 20 registra que, no Windows, com o perfil acima de uns 220 caracteres o Chromium deixa de gravar cache, e o teste de cache perde o valor. A tela (M7a1, proposta do M7, secao 3, linha Perfil) recusa abrir com o perfil num caminho mais longo que isto."
+  },
+  {
+   "id": "chromium.apagar_perfil_tentativas",
+   "valor": 20,
+   "unidade": "tentativas de apagar o perfil do Chromium no fecho",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 20 e n 156 (perfil apagado ao fechar); proposta do M7, secao 3, linha Perfil (novas tentativas e confirmacao de que a pasta sumiu)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "O Chromium solta os arquivos do perfil alguns instantes depois de fechar. Origem: valor escolhido na implementacao do M7a1, sem medicao; com chromium.apagar_perfil_intervalo_s da uns 10 s no total. Esgotadas as tentativas, apagar_perfil devolve falso e quem chama registra a pasta que ficou."
+  },
+  {
+   "id": "chromium.apagar_perfil_intervalo_s",
+   "valor": 0.5,
+   "unidade": "segundos entre duas tentativas de apagar o perfil",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 20 e n 156 (perfil apagado ao fechar); proposta do M7, secao 3, linha Perfil"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Origem: valor escolhido na implementacao do M7a1, sem medicao."
+  },
+  {
+   "id": "chromium.aberto_espera_max_s",
+   "valor": 20,
+   "unidade": "segundos que a medida da quebra espera o Chromium aberto da tela (a abertura dele conta)",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "portao do M7a0, pergunta 4 (a tela rapida, facil de usar e precisa) e n 169 (o motor refaz as quebras e a previa mostra o texto novo com a fonte real)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Estourado, o pedido sai pelo caminho frio (o Chromium que abre e fecha a cada medida) e o fio do aberto fica de lado ate voltar: o DA nunca espera sem teto. Origem: valor escolhido na implementacao, sem medicao: a abertura do Chromium fixado levou de 1 a 7 s nesta maquina (o disco frio na primeira), e uma medida no aberto leva decimos de segundo."
+  },
+  {
+   "id": "chromium.aberto_falhas_abertura_max",
+   "valor": 3,
+   "unidade": "aberturas seguidas do Chromium aberto da tela que falham antes de ele ficar desligado ate a tela fechar",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "portao do M7a0, pergunta 4 (a tela rapida, facil de usar e precisa) e n 169 (o motor refaz as quebras e a previa mostra o texto novo com a fonte real)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "A abertura que falha (o Chromium novo caiu ou o driver morreu antes do controle positivo) manda o pedido pelo caminho frio, e a medida seguinte tenta abrir de novo; a abertura boa zera a conta. Chegando ao teto, o aberto fica desligado e toda medida sai pelo caminho frio, sem o DA pagar uma abertura que falha em cada previa. Origem: valor escolhido na implementacao, sem medicao: uma queda isolada na abertura (revisao 2 do aberto) se recupera na proxima, e uma falha que se repete nao passa de tres previas mais lentas."
+  },
+  {
+   "id": "tela.partida_max_s",
+   "valor": 180,
+   "unidade": "segundos que o 'vapt tela abrir' espera o aviso do processo de fundo",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 159 (o Claude abre a tela pela skill e o comando volta logo); proposta do M7, secao 3, linha Lancamento, e fatia a2"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "O processo de fundo monta o conteudo do job (preparar da derivacao, que pode medir as quebras no Chromium sem janela, e a derivacao em memoria), sobe o servidor e abre a janela antes de avisar. Estourado, o comando encerra o fundo e devolve tela_nao_respondeu ao Claude. Origem: valor escolhido na implementacao do M7a2, sem medicao: uma vez e meia chromium.tempo_max_s, para caber a medida das quebras e a abertura da janela; o job sintetico dos testes abre em poucos segundos."
+  },
+  {
+   "id": "tela.parar_max_s",
+   "valor": 30,
+   "unidade": "segundos que o parar do servidor da tela espera o serve_forever terminar",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "O shutdown() do socketserver espera sem teto; com o serve_forever preso (um Thread.start que nao volta, o caso do HiGHS em fio curto de 06/11), o processo da tela ou o pytest ficava parado para sempre. Estourado, o parar fecha o socket e levanta erro. Origem: valor escolhido na correcao, sem medicao; o serve_forever sai em ate meio segundo (poll_interval do socketserver) quando nao esta preso."
+  },
+  {
+   "id": "tela.corpo_max_bytes",
+   "valor": 2097152,
+   "unidade": "bytes do corpo de uma escrita na tela (POST)",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 159 (toda escrita pede cookie e token da pagina); proposta do M7, secao 3, linha Teto do corpo da requisicao"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Acima do teto, o servidor da tela recusa (403, sem corpo) sem ler o corpo. Origem: os 2 MiB da proposta do M7 (INFERENCIA, sem medicao do maior rascunho de um job do corpus)."
+  },
+  {
+   "id": "tela.rascunho_espera_ms",
+   "valor": 500,
+   "unidade": "milissegundos sem mudanca antes de a tela gravar o rascunho",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 167 (escolhas e edicoes num rascunho salvo sozinho); proposta do M7, secao 3, linha Gravacao do rascunho, e 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "A pagina grava o rascunho quando o DA para de mexer por este tempo (cada mudanca nova recomeca a espera), e o servidor entrega o valor na rota de leitura do rascunho. Origem: os 500 ms da proposta do M7 (INFERENCIA, sem medicao)."
+  },
+  {
+   "id": "tela.mestre_pausa_max_s",
+   "valor": 60,
+   "unidade": "segundos sem clique nem tecla acima dos quais o cronometro da mestre deixa de contar o tempo como ativo",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "9.8, Editor de mestre (o tempo para desenhar uma mestre e medido e registrado); plano do M7b, passo C5 e pergunta 9"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "O cronometro da mestre (vapt.tela.cronometro) conta, por familia, o tempo entre dois cliques ou teclas so quando ele fica ate este teto; a pausa mais longa entra so no tempo total. O resultado vai a medicoes/tela.json, fora do briefing. Origem: os 60 s da resposta recomendada a pergunta 9 do plano do M7b (INFERENCIA, sem medicao de como o DA pausa)."
+  },
+  {
+   "id": "tela.escala_min",
+   "valor": 0.25,
+   "unidade": "fator do tamanho do elemento sobre o tamanho antes das edicoes do DA (a conta dos fatores de escalar)",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "9.8, Editor de mestre; plano do M7b, passo D3 (escala por numero, fator livre entre 0,25 e 4)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "O menor tamanho que o DA da a um elemento no palco: o campo Tamanho recusa menos de 25%, Diminuir e o canto param nele, e a previa e o rascunho recusam a edicao que passa dele (vapt.tela.edicao.escala_fora, com a folga do arredondamento das fracoes). Origem: o fator 0,25 do plano do M7b (INFERENCIA, sem medicao de quanto o DA reduz um elemento)."
+  },
+  {
+   "id": "tela.escala_max",
+   "valor": 10,
+   "unidade": "fator do tamanho do elemento sobre o tamanho antes das edicoes do DA (a conta dos fatores de escalar)",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "9.8, Editor de mestre; plano do M7b, passo D3 (escala por numero, fator livre entre 0,25 e 4), revisto pela decisao do Duda em 17/11 (0.9.5)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "O maior tamanho que o DA da a um elemento no palco: o campo Tamanho recusa mais de 1000%, Aumentar e o canto param nele, e a previa e o rascunho recusam a edicao que passa dele (vapt.tela.edicao.escala_fora). Origem: decisao do Duda em 17/11, depois do teste do KV A na 0.9.4: o teto de 400% sobre o tamanho da versao chegou cedo no titulo do 970x250; o teto fica so como protecao contra numero digitado errado. Antes, o fator 4 do plano do M7b (INFERENCIA)."
+  },
+  {
+   "id": "leitor.filhos_paralelos",
+   "valor": 4,
+   "unidade": "processos filhos de smart object ao mesmo tempo",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Os embutidos PSD/PSB de um mesmo nivel rodam em paralelo, cada um no proprio Job Object. Cada filho custa cerca de 1,3 s so para subir o Python e importar as bibliotecas; na regressao do M1, os 148 filhos de smart object somaram 285 s rodando um de cada vez. Sem medicao de qual numero e o melhor."
+  },
+  {
+   "id": "leitor.orcamento_paralelo_bytes",
+   "valor": 8589934592,
+   "unidade": "bytes (soma da memoria esperada dos filhos que rodam juntos)",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Teto da soma da memoria esperada (base mais o custo de abrir, sem o termo do canvas) dos filhos de smart object que rodam ao mesmo tempo. Um filho acima disto roda sozinho. O teto de memoria de cada filho continua sendo o orcamento inteiro. A maquina de teste tem 31 GB, e a regressao roda ate 3 arquivos pequenos ao mesmo tempo."
+  },
+  {
+   "id": "cor.intent_saida",
+   "valor": "relativo_colorimetrico",
+   "unidade": "intent da conversao para sRGB (perceptual, relativo_colorimetrico, saturacao ou absoluto_colorimetrico)",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "10.2, pergunta 5"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Padrao do job ate o Duda decidir o intent; o job troca com 'vapt ds parametros-cor'. Nos perfis de matriz do corpus (Adobe RGB, sRGB e os de monitor), o LittleCMS da o mesmo resultado em perceptual e relativo colorimetrico."
+  },
+  {
+   "id": "cor.compensacao_ponto_preto",
+   "valor": "nao",
+   "unidade": "sim ou nao",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "10.2, pergunta 5"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Compensacao de ponto preto na conversao do perfil do documento para sRGB. Parametro do job ate o Duda decidir."
+  },
+  {
+   "id": "cor.saida_perfil_embutido",
+   "valor": "nao",
+   "unidade": "sim ou nao",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, 140"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "O arquivo entregue sai sem perfil embutido (decisao 140, pergunta 5 da arquitetura), como os exports das agencias do corpus (pesquisa/corpus-testes.md, 3). O job ainda grava a escolha em parametros/cor.json; com sim, a entrega recusa, porque o motor nao tem um perfil fixo conferido por hash (o perfil gerado na hora grava a data e muda os bytes a cada execucao)."
+  },
+  {
+   "id": "cor.delta_e76_token_max",
+   "valor": null,
+   "unidade": "ΔE76 entre o token sRGB e o pixel do merged em area chapada",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "9.3"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "O criterio do M2 e o erro do token ficar abaixo do erro sem conversao (ΔE76 de 10,9 a 13,0 nos arquivos Adobe RGB, pesquisa/corpus-testes.md, 3). O limite numerico fica a calibrar."
+  },
+  {
+   "id": "cor.gama_mistura_texto",
+   "valor": 1.45,
+   "unidade": "expoente G sobre a curva do perfil, na mistura da borda do texto",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "29/10, respostas ao teste do corpus, 9"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "O render emula a mistura com gama do Photoshop (G = 1,45). O ds so leva o valor ao limites.json do job; quem usa e o render (M4)."
+  },
+  {
+   "id": "cor.fator_abertura_max",
+   "valor": 64,
+   "unidade": "vezes os bytes do perfil ICC do documento, somado a isolador.base_python_bytes",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "7.1 (o processo principal nunca parseia dado de cliente)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Orcamento de memoria do processo filho que abre o perfil ICC do documento e converte as cores: (isolador.base_python_bytes + este fator x bytes do perfil) x isolador.margem_orcamento. Origem: o mesmo fator de fontes.fator_abertura_max, sem medicao propria; um perfil de matriz tem poucos kB, e a arquitetura pede o filho isolado sem dar numero."
+  },
+  {
+   "id": "cor.tempo_max_s",
+   "valor": 120,
+   "unidade": "segundos de relogio do processo filho da cor",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "7.1 (timeout de relogio no pai)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Tempo maximo do processo filho que abre o perfil ICC e converte as cores do documento. Origem: o mesmo valor de fontes.tempo_max_s, sem medicao propria; o valor so evita filho preso. Estourado, as cores ficam nao convertidas, com o motivo no design system."
+  },
+  {
+   "id": "ds.sujeito_limiar_alfa",
+   "valor": 128,
+   "unidade": "nivel de alfa de 0 a 255",
+   "fonte": {
+    "arquivo": "pesquisa/corpus-testes.md",
+    "secao": "4, item 19"
+   },
+   "situacao": "medido",
+   "efeito": "registra",
+   "nota": "Com recorte em alfa, o limiar no maior componente conexo da a caixa certa do sujeito. Com o sujeito fundido a foto, o motor pede a caixa ao DA."
+  },
+  {
+   "id": "ds.silhueta_celulas",
+   "valor": 256,
+   "unidade": "celulas da grade da silhueta de uma base no lado longo do asset",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "199 (3), a forma e medida pelo desenho dela, com a diagonal"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Resolucao da silhueta de cada base (a tinta da forma que sangra) que o preparo grava a partir do alfa do asset do laudo, no limiar ds.sujeito_limiar_alfa (etapa E3 do desenho da familia; a derivacao le so o JSON). A conferencia das relacoes da familia (livre da tinta, dentro da tinta) usa esta grade. Origem: INFERENCIA. No caso de 18/11 a folga entre a assinatura e a diagonal no 1080x1920 fica entre 5 e 18 px; 256 celulas num lado de 1920 px dao 7,5 px por celula. A calibrar com o KV sintetico da diagonal e o caso real; a grade das previas de 384 px do laudo foi recusada por ser grossa demais. Medida da E3 (testes/sinteticos/kv_diagonal.py): o azul de 1180 x 2000 px vira uma grade de 152 x 256 (7,8 px por celula; a celula com ao menos metade dos pixels no limiar conta como tinta), e a folga da assinatura medida pela grade cai para 1,0 px, contra 5,3 px da diagonal verdadeira (o erro chega a meia celula). Mesmo assim a copia do 300x600 sai igual ao aprovado, sem ajuste."
+  },
+  {
+   "id": "ds.ampliacao_raster_max",
+   "valor": null,
+   "unidade": "vezes o tamanho original do raster",
+   "fonte": {
+    "arquivo": "pesquisa/corpus-testes.md",
+    "secao": "4, item 18"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Ampliacao de raster acima disto avisa. Sem valor: o proprio KV ja amplia raster (foto a 145%, fotos de 2,04 a 2,39 vezes na pesquisa), entao a ampliacao do PSD e so referencia e nunca vira piso."
+  },
+  {
+   "id": "specs.fator_abertura_max",
+   "valor": 64,
+   "unidade": "vezes o tamanho do arquivo da folha",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "7.1 (o processo principal nunca parseia dado de cliente)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Parte do orcamento de memoria do filho que le a folha de spec (PDFium, html.parser, csv). Origem: o mesmo valor de fontes.fator_abertura_max, sem medicao propria. Estourado, a folha e recusada com o motivo memoria."
+  },
+  {
+   "id": "specs.tempo_max_s",
+   "valor": 120,
+   "unidade": "segundos",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "7.1 (timeout de relogio no pai)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Tempo maximo do filho que le uma folha de spec. Origem: o mesmo valor de fontes.tempo_max_s; o valor so evita filho preso."
+  },
+  {
+   "id": "specs.recorte_escala",
+   "valor": 2,
+   "unidade": "pixels por ponto do PDF",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "4.8 (folha sem camada de texto: o DA digita o valor ao lado do recorte)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Escala do PNG da pagina sem texto que o DA le para digitar o valor (2 da 144 pixels por polegada). So legibilidade; nao decide nada."
+  },
+  {
+   "id": "specs.fator_incoerencia_unidade",
+   "valor": 10,
+   "unidade": "vezes, entre a area total e a area util da mesma entrada",
+   "fonte": {
+    "arquivo": "pesquisa/v1-estatico-sintese.md",
+    "secao": "5 (unidade errada na folha PME)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "A area total maior que a area util por este fator, na mesma unidade, vira o alerta unidade_incoerente nas duas (o \"120m x 175m\" contra \"1,17m x 1,71m\" da PME). So alerta: o valor continua rascunho e quem decide e o DA."
+  },
+  {
+   "id": "specs.peso_reprova_acima_da_leitura_binaria",
+   "valor": "binaria",
+   "unidade": "leitura de KB, MB e GB",
+   "fonte": {
+    "arquivo": "pesquisa/v1-estatico-sintese.md",
+    "secao": "5 (nenhuma folha diz se MB e decimal ou binario)"
+   },
+   "situacao": "medido",
+   "efeito": "reprova",
+   "nota": "Peso sem base declarada: o arquivo so reprova acima da leitura mais folgada (5 MB = 5.242.880 bytes), como o validar_entrega.py do BB (divide por 1.048.576)."
+  },
+  {
+   "id": "specs.peso_avisa_acima_da_leitura_decimal",
+   "valor": "decimal",
+   "unidade": "leitura de KB, MB e GB",
+   "fonte": {
+    "arquivo": "pesquisa/v1-estatico-sintese.md",
+    "secao": "5 (nenhuma folha diz se MB e decimal ou binario)"
+   },
+   "situacao": "medido",
+   "efeito": "avisa",
+   "nota": "Peso sem base declarada: o export mira a leitura mais estrita (5 MB = 5.000.000 bytes); entre as duas leituras, a validacao avisa."
+  },
+  {
+   "id": "specs.trechos_max",
+   "valor": 20000,
+   "unidade": "trechos de texto por folha",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "7.1 (o processo principal nunca parseia dado de cliente)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Teto de trechos que o filho devolve por folha. A maior folha real (a pagina de orientacoes gerais da Globo) tem perto de mil; acima disto a folha e recusada (trechos_demais), para o processo principal nunca montar o modelo sobre texto sem limite."
+  },
+  {
+   "id": "specs.trecho_caracteres_max",
+   "valor": 4000,
+   "unidade": "caracteres por trecho",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "7.1 (o processo principal nunca parseia dado de cliente)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Teto do tamanho de um trecho. O maior paragrafo das folhas reais tem menos de mil caracteres; acima disto a folha e recusada (trecho_longo)."
+  },
+  {
+   "id": "specs.digitado_lado_min_px",
+   "valor": 16,
+   "unidade": "px por lado",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "formatos digitados na tela, sem folha de spec (0.9.2, pedido do dono do produto em 16/11/2026)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "INFERENCIA: menor lado de um formato digitado pelo DA na tela (vapt.specs.digitados). Abaixo disto nenhum formato de midia; o menor IAB comum tem 88 x 31. A tela recusa o formato menor na hora, sem gravar."
+  },
+  {
+   "id": "specs.digitado_lado_max_px",
+   "valor": 16384,
+   "unidade": "px por lado",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "formatos digitados na tela, sem folha de spec (0.9.2, pedido do dono do produto em 16/11/2026)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "INFERENCIA: maior lado de um formato digitado pelo DA na tela, o maior lado de captura do Chromium headless. Conferir com o teto de memoria do render e do isolador: um painel muito grande pode passar na tela e cair no render."
+  },
+  {
+   "id": "specs.digitados_max",
+   "valor": 50,
+   "unidade": "formatos digitados por job",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "formatos digitados na tela, sem folha de spec (0.9.2, pedido do dono do produto em 16/11/2026)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "INFERENCIA: quantos formatos o DA pode digitar no mesmo job. O maior job sintetico tem menos de 20 formatos."
+  },
+  {
+   "id": "specs.digitado_texto_max_caracteres",
+   "valor": 2000,
+   "unidade": "caracteres por pedido",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "formatos digitados na tela, sem folha de spec (0.9.2, pedido do dono do produto em 16/11/2026)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "INFERENCIA: teto do texto que o DA cola de uma vez no campo dos formatos (cerca de 150 formatos de 13 caracteres). O texto maior e recusado antes de qualquer leitura."
+  },
+  {
+   "id": "specs.pdf_trechos_por_pagina_max",
+   "valor": 1000,
+   "unidade": "pedacos de texto por pagina de PDF",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "7.1 (o processo principal nunca parseia dado de cliente)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Teto de pedacos de texto por pagina de PDF (a folha PME tem ate 26). A colagem dos pedacos e a busca do valor ao lado do rotulo comparam os pedacos da pagina entre si; o teto mantem esse custo limitado."
+  },
+  {
+   "id": "render.supersample",
+   "valor": 8,
+   "unidade": "fator de supersample do PDFium por eixo (pixels do dispositivo por pixel do canvas)",
+   "fonte": {
+    "arquivo": "pesquisa/render-local-pesquisa.md",
+    "secao": "8"
+   },
+   "situacao": "medido",
+   "efeito": "registra",
+   "nota": "O PDFium rasteriza o PDF do texto em escala 96/72 x 8 e a cobertura e a media de blocos 8 x 8. Foi o valor do teste do caminho PDF + PDFium que deu a linha de base de erro de borda (arquitetura-v1.md, 4.11)."
+  },
+  {
+   "id": "render.corpo_sharp_pequeno_px",
+   "valor": 256,
+   "unidade": "pixels de corpo no dispositivo",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "29/10, respostas a pesquisa de render local, 3"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "Texto Sharp ate este corpo no dispositivo e o caso Sharp pequeno: mesmo caminho PDF + PDFium, com tolerancia de borda maior. O render.json e a medicao do corpus reportam esse caso a parte."
+  },
+  {
+   "id": "render.margem_regiao_px",
+   "valor": 16,
+   "unidade": "pixels do canvas em volta da caixa da camada de texto",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Folga da pagina do texto em volta da caixa gravada pelo Photoshop, para a letra do Chromium que passa da caixa. Valor herdado da pesquisa (gama/g_comum.py, MARGEM), sem medicao propria."
+  },
+  {
+   "id": "render.pagina_multiplo_px",
+   "valor": 32,
+   "unidade": "pixels",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "A pagina do PDF de cada camada de texto tem largura e altura arredondadas para cima neste multiplo, como no teste da pesquisa (teste do caminho PDF da pesquisa, pagina em multiplo de 32). A pagina maior que a regiao nao muda o desenho; o valor fica registrado porque veio da pesquisa sem medicao."
+  },
+  {
+   "id": "render.bytes_por_px_canvas",
+   "valor": 192,
+   "unidade": "bytes por pixel do canvas",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Parcela do orcamento de memoria do filho do render que cresce com o canvas: canvas em float64 pre-multiplicado (32 bytes por pixel), saida e conversao de cor, e as matrizes da camada de texto, que no pior caso cobre o canvas inteiro. Estimativa do codigo, sem medicao. Parada por memoria nao reprova: o render para e diz o que fazer."
+  },
+  {
+   "id": "render.bytes_banda_pdfium",
+   "valor": 268435456,
+   "unidade": "bytes",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Parcela fixa do orcamento do filho do render para a faixa do PDFium (ate 8 milhoes de pixels do dispositivo por faixa, com as copias em float64 da media de blocos). Estimativa do codigo, sem medicao."
+  },
+  {
+   "id": "render.tempo_max_s",
+   "valor": 600,
+   "unidade": "segundos de relogio do filho do render",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Timeout de relogio no pai para o filho que rasteriza o texto e compoe o formato. Igual ao isolador.tempo_max_s, sem medicao propria. Parada por tempo nao reprova: o render para e diz o que fazer."
+  },
+  {
+   "id": "render.autoteste_media_max",
+   "valor": 0.5,
+   "unidade": "nivel de 0 a 255, media da diferenca absoluta por canal",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Limiar do autoteste do caminho PDF + PDFium no doctor (decisoes-v1.md, 01/11, 36): a pagina de referencia desenhada com a fonte gerada pelo motor contra a imagem gravada no pacote. Na maquina que gravou a imagem a diferenca e 0. O valor e da ordem do autoteste Arial da pesquisa (media ate 0,3), sem medicao em outra maquina; acima dele o doctor avisa."
+  },
+  {
+   "id": "render.autoteste_max_abs",
+   "valor": 8,
+   "unidade": "nivel de 0 a 255, maior diferenca absoluta num canal",
+   "fonte": null,
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Limiar da maior diferenca do autoteste do caminho PDF + PDFium no doctor. Sem medicao em outra maquina ou em outro build; acima dele o doctor avisa."
+  },
+  {
+   "id": "render.tolerancia_borda_smooth",
+   "valor": 55,
+   "unidade": "nivel de 0 a 255, erro medio de borda por camada de texto",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "01/11, decisoes do M4, 62"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "Tolerancia de borda do texto Smooth (e Strong, Crisp e Sharp acima de render.corpo_sharp_pequeno_px) na comparacao automatica com a peca aprovada (decisoes-v1.md, render n. 3; arquitetura-v1.md, 10.2, pergunta 6). Fixada pelo Duda em 01/11 sobre a medicao do M4: a pior camada do corpus que passa no portao de fontes dava 51,7, e a media das 10 camadas, 19,4. Camada com faux bold fica fora da comparacao automatica e vai para o DA conferir no master."
+  },
+  {
+   "id": "render.tolerancia_borda_sharp_pequeno",
+   "valor": 60,
+   "unidade": "nivel de 0 a 255, erro medio de borda por camada de texto",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "01/11, decisoes do M4, 62"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "Tolerancia de borda do texto Sharp ate render.corpo_sharp_pequeno_px no dispositivo, maior que a do Smooth (decisoes-v1.md, render n. 3). Fixada pelo Duda em 01/11 sobre a medicao do M4: a pior das 8 camadas do KV A dava 54,8, e a media, 43,2."
+  },
+  {
+   "id": "derivacao.faixa_familia_razao_max",
+   "valor": 2.0,
+   "unidade": "fator entre a proporcao do formato e a da mestre (a maior sobre a menor), medidas na base do calculo",
+   "fonte": {
+    "arquivo": "pesquisa/corpus-testes.md",
+    "secao": "4, itens 15 a 17"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Proposta do M5 para a faixa de familia, parametro do job ate o Duda fixar (arquitetura-v1.md, 10.2, pergunta 7). No corpus, a escala dos grafismos e das marcas segue uma regra so (residuo de 0,0002 a 0,0016 com contain nos grafismos) do KV vertical 0,5625 para 0,333 e 0,667 (fatores 1,69 e 1,19), e o titulo do KV horizontal deixa de seguir regra no 1248x250 (fator 2,8, residuo 0,24 com constante). O fator 2 cobre o primeiro caso e deixa o segundo para uma mestre propria."
+  },
+  {
+   "id": "derivacao.grupo_proporcao_dif_max",
+   "valor": 0.3,
+   "unidade": "diferenca entre a maior e a menor proporcao (lado longo sobre lado curto) das composicoes de um grupo da tela, dentro da orientacao",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela, revisao da 163"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "A tela calcula os grupos sozinha, dentro de cada orientacao, por ligacao completa: a amplitude do grupo inteiro fica ate o limite, e a cadeia de vizinhos nao passa dele. Exemplos do Duda: 960x192 (5,00) com 1248x250 (4,99); 1280x720 (1,778) com 960x576 (1,667). Revisa o 0,2 da 163 original."
+  },
+  {
+   "id": "derivacao.alinhamento_intencao_tolerancia",
+   "valor": 0.01,
+   "unidade": "fracao do lado maior da peca: diferenca de borda ou de centro entre dois elementos abaixo da qual a edicao do DA vira alinhamento",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 168 (o motor entende a intencao de alinhamento e normaliza; tolerancia proporcional ao tamanho da peca, a calibrar)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Depois de cada edicao no palco, as bordas (esquerda, direita, topo, base) e os centros de dois elementos de conteudo que ficam a menos disto viram o mesmo valor (vapt.tela.edicao.normalizar); acima disto a diferenca e intencao do DA e fica. Origem: INFERENCIA sobre o exemplo do Duda (x=40 e x=43 ficam iguais; numa peca de 1920 a tolerancia e de 19,2 px, e 30 px de diferenca ficam), sem medicao."
+  },
+  {
+   "id": "tela.previa_latencia_alvo_ms",
+   "valor": 1000,
+   "unidade": "milissegundos para o motor levar a edicao a todos os membros de uma familia depois de uma edicao no palco",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 167 (cada edicao levada a cada formato da familia, com a miniatura de cada um; o encaixe refeito saiu na 0.9.5, decisao do Duda em 17/11: o que o DA nao mexeu fica parado); proposta do M7, secao 3, linha Alvo de latencia da previa"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "O teste de desempenho confere uma edicao numa familia de 5 membros abaixo deste tempo, e a resposta da previa registra o tempo gasto. Origem: o 1 s por familia proposto no M7 (INFERENCIA), a medir com e sem quebras na fatia a6d."
+  },
+  {
+   "id": "derivacao.galeria_variantes_max",
+   "valor": 4,
+   "unidade": "variantes por formato na galeria",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Teto de variantes que a galeria mostra por formato (o Duda pediu de 3 a 4). Valor do prototipo da galeria de 05/11 (scratchpad/m7/galeria, revisado), sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_duplicada_distancia_max",
+   "valor": 0.03,
+   "unidade": "media, sobre o conteudo, do deslocamento do centro de cada elemento entre duas variantes, em fracao da diagonal do formato",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Variante a menos disto de uma anterior da galeria e quase igual a ela e sai. Valor do prototipo da galeria de 05/11 (scratchpad/m7/galeria, revisado), sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_conteudo_fracao",
+   "valor": 0.6,
+   "unidade": "fracao do lado maior do quadro",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Nas variantes de imagem livre, o conteudo fica reunido nesta parte do lado maior e a imagem fica livre no resto. Valor do prototipo da galeria de 05/11 (scratchpad/m7/galeria, revisado), sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_arte_area_min",
+   "valor": 0.25,
+   "unidade": "fracao de 0 a 1 da area do canvas da mestre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Base que sangra em parte dos lados e cobre pelo menos isto da mestre e a arte que vira bloco na parte livre das variantes de imagem livre. Valor do prototipo da galeria de 05/11 (scratchpad/m7/galeria, revisado), sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_fundo_visivel_min",
+   "valor": 0.3,
+   "unidade": "fracao de 0 a 1 da caixa do fundo que aparece no formato",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Fundo que sangra com menos disto da caixa dentro do formato avisa na variante (fundo_pouco_visivel); nunca bloqueia. Valor do prototipo da galeria de 05/11 (scratchpad/m7/galeria, revisado), sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_grafismo_sobre_regra_max",
+   "valor": 2.0,
+   "unidade": "escala do grafismo sobre a escala da regra dele",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Grafismo que sangra e cresce mais que isto da regra para continuar sangrando avisa na variante (grafismo_acima_da_regra); nunca bloqueia. Valor do prototipo da galeria de 05/11 (scratchpad/m7/galeria, revisado), sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_penalidade_estrutura",
+   "valor": 0.1,
+   "unidade": "fracao da escala do conteudo por passo de distancia a estrutura da mestre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Pontuacao de uma particao em trilhas: a escala do conteudo, menos isto por trilha a mais ou a menos que a mestre e pela troca de colunas por linhas (desempata para o que a mestre ja faz). Valor do fluxo B do prototipo aprender-referencias (04/11), herdado pela galeria de 05/11, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_atomo_min_lado_curto",
+   "valor": 0.02,
+   "unidade": "fracao do lado curto da mestre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Atomo de conteudo com o menor lado abaixo disto junta ao vizinho mais perto (uma linha fina nao vira bloco sozinha). Valor do fluxo B do prototipo aprender-referencias (04/11), herdado pela galeria de 05/11, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_linha_vao_lado_curto",
+   "valor": 0.15,
+   "unidade": "fracao do lado curto da mestre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Na mestre vertical, itens lado a lado na mesma linha, separados por menos disto, formam um atomo so. Valor do fluxo B do prototipo aprender-referencias (04/11), herdado pela galeria de 05/11, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_colado_margem_max",
+   "valor": 0.05,
+   "unidade": "fracao do eixo da mestre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Legal com a margem ate uma borda abaixo disto (e fino, derivacao.galeria_colado_espessura_max) fica colado a essa borda em todas as variantes. Valor do fluxo B do prototipo aprender-referencias (04/11), herdado pela galeria de 05/11, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_colado_espessura_max",
+   "valor": 0.05,
+   "unidade": "fracao do eixo da mestre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Espessura maxima, atraves da borda, do legal que fica colado a ela (derivacao.galeria_colado_margem_max). Valor do fluxo B do prototipo aprender-referencias (04/11), herdado pela galeria de 05/11, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_vao_padrao_lado_curto",
+   "valor": 0.04,
+   "unidade": "fracao do lado curto da mestre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Vao entre atomos quando a mestre tem um atomo so (sem vao para medir). Valor do fluxo B do prototipo aprender-referencias (04/11), herdado pela galeria de 05/11, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_margem_min_lado_curto",
+   "valor": 0.05,
+   "unidade": "fracao do lado curto do formato",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "05/11, comentarios do Duda sobre a tela (sem regra fixa de rediagramacao; galeria de variantes) e a revisao da 164"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Margem minima do quadro das variantes; vale a da mestre quando ela e maior. Valor do fluxo B do prototipo aprender-referencias (04/11), herdado pela galeria de 05/11, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_variantes_min",
+   "valor": 3,
+   "unidade": "versoes por formato na galeria",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "164 (de 3 a 4 versoes por formato devolvido) e a calibracao da galeria de 19/11"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Minimo de versoes que a galeria mostra por formato. As versoes com falha obrigatoria so entram para chegar a este minimo: com tantas versoes limpas quanto isto, nenhuma com falha aparece. Valor da decisao 164, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_fundo_max",
+   "valor": 1,
+   "unidade": "versoes com a figura de fundo antes das com a figura numa banda, por formato na galeria",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 202 (20/11: no KV deitado com a figura, no formato em pe ou quadrado, a foto pode virar fundo; as versoes com a figura numa banda ficam como antes; o Duda confirmou a versao de fundo em segundo lugar)"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "A versao com a foto de fundo e uma opcao a mais na galeria, nunca o lugar das versoes com a foto numa banda: a melhor versao com a foto numa banda abre a galeria (a partida de quem ainda nao escolheu versao fica como antes), e so este tanto de versoes de fundo entra antes das outras com banda (as limpas primeiro, depois as com falha, como sempre); as demais de fundo so ocupam a vaga que sobrar. As versoes de fundo nao contam para o minimo de versoes limpas (derivacao.galeria_variantes_min), entao as com banda vao ao solver como antes. Valor escolhido para a 0.11.0 (uma versao basta para o DA ver a foto de fundo), a confirmar com o Duda, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_candidatas_ao_solver",
+   "valor": 10,
+   "unidade": "candidatas por lote que vao ao solver e a conferencia",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "164 e 166 (previa de um formato em menos de 2 s); calibracao da galeria de 19/11, prototipo fluxo"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Todas as candidatas ganham a nota antes do solver; as de melhor nota e diferentes vao ao solver em lotes deste tamanho, e outro lote vai so enquanto faltar versao para o minimo. Valor escolhido para o orcamento de 2 s por formato (o KV do cartaz leva de 0,2 a 0,4 s), sem medicao em pecas humanas."
+  },
+  {
+   "id": "derivacao.galeria_teto_sobre_regra",
+   "valor": 3.5,
+   "unidade": "escala do conteudo sobre a escala da regra de referencia",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "166 e a calibracao da galeria de 19/11 (metas do Duda no KV do cartaz, testes/sinteticos/kv_cartaz.py)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "O conteudo cresce para ocupar o espaco livre ate esta vezes a regra (nenhum bloco passa disto, nem com a hierarquia). Nas metas do cartaz de 19/11, o conteudo das faixas chega de 2 a 3,5 vezes a regra. A calibrar com mais pecas."
+  },
+  {
+   "id": "derivacao.galeria_expoente_titulo",
+   "valor": 1.5,
+   "unidade": "expoente do crescimento do titulo sobre o do conteudo",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 200 (19/11: na galeria, o titulo pode crescer mais que os outros textos) e as metas do KV do cartaz"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Quando o conteudo cresce g vezes sobre a regra, o titulo cresce g elevado a isto (limitado por derivacao.galeria_titulo_sobre_outros_max). Nas metas do cartaz de 19/11, o titulo cresce de 1,5 a 2,3 vezes o crescimento dos grafismos, em log. A calibrar."
+  },
+  {
+   "id": "derivacao.galeria_titulo_sobre_outros_max",
+   "valor": 1.6,
+   "unidade": "escala do titulo sobre a dos outros textos, cada uma relativa a sua regra",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 200 (19/11: o titulo pode crescer mais que os outros textos) e as metas do KV do cartaz"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Teto do crescimento a mais do titulo: ele fica no maximo isto vezes os outros textos. Na nota, o titulo satura em derivacao.galeria_nota_satura vezes isto. Nas metas do cartaz de 19/11, titulo sobre texto de apoio de 1,4 a 1,6 nas faixas. Vem do prototipo zonas, enxertado pelo juiz. A calibrar."
+  },
+  {
+   "id": "derivacao.galeria_expoente_secundario",
+   "valor": 0.8,
+   "unidade": "expoente do crescimento de marcas, logos, selo, assinatura, contato e legal sobre o do conteudo",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "calibracao da galeria de 19/11 (metas do Duda no KV do cartaz)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Quando o conteudo cresce g vezes sobre a regra, a marca, os logos, o selo, a assinatura, o contato e o legal crescem g elevado a isto (crescem menos). Nas metas do cartaz de 19/11, logos e marca crescem de 0,5 a 0,9 do crescimento dos grafismos, em log. A calibrar."
+  },
+  {
+   "id": "derivacao.galeria_serie_tolerancia",
+   "valor": 0.15,
+   "unidade": "fracao da maior largura (e altura) entre dois itens",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "calibracao da galeria de 19/11, prototipo fluxo"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Itens consecutivos de um elemento so, da mesma funcao e com largura e altura a menos disto um do outro formam uma lista, que a galeria pode girar para o outro eixo. Os itens da lista do cartaz de 19/11 variam ate 8%. A calibrar."
+  },
+  {
+   "id": "derivacao.galeria_faixa_distancia_max",
+   "valor": 0.06,
+   "unidade": "fracao da altura do KV",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "calibracao da galeria de 19/11 (a faixa de contato no topo do KV do cartaz)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Faixa de borda: o bloco que abre ou fecha a leitura a menos disto do topo ou da base do KV (e fino, derivacao.galeria_faixa_espessura_max, e largo, derivacao.galeria_faixa_largura_min) pode ficar preso a essa borda no formato. No cartaz de 19/11, o contato fica a 0,024 do topo. Valor com folga, a calibrar."
+  },
+  {
+   "id": "derivacao.galeria_faixa_espessura_max",
+   "valor": 0.06,
+   "unidade": "fracao da altura do KV",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "calibracao da galeria de 19/11 (a faixa de contato no topo do KV do cartaz)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Espessura maxima da faixa de borda (derivacao.galeria_faixa_distancia_max). No cartaz de 19/11, o contato tem 0,028 da altura. Valor com folga, a calibrar."
+  },
+  {
+   "id": "derivacao.galeria_faixa_largura_min",
+   "valor": 0.6,
+   "unidade": "fracao da largura do KV",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "calibracao da galeria de 19/11 (a faixa de contato no topo do KV do cartaz)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Largura minima da faixa de borda (derivacao.galeria_faixa_distancia_max). No cartaz de 19/11, o contato cobre 0,93 da largura. Valor com folga, a calibrar."
+  },
+  {
+   "id": "derivacao.galeria_figura_area_min",
+   "valor": 0.08,
+   "unidade": "fracao de 0 a 1 da area do canvas do KV",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "n 201 (19/11: o sujeito fica do lado em que esta no KV, preso a borda que toca) e o prototipo fluxo"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "O sujeito recortado que cobre ao menos isto do KV vira a figura: uma banda num lado do formato, e o conteudo vai para o resto. Abaixo disto ele segue de fundo. No cartaz de 19/11, o sujeito cobre 37%. Julgamento do prototipo, a calibrar."
+  },
+  {
+   "id": "derivacao.galeria_figura_banda_max",
+   "valor": 0.5,
+   "unidade": "fracao do lado do formato em que a banda da figura corre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "calibracao da galeria de 19/11 (metas do Duda no KV do cartaz)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "A banda da figura ocupa no maximo isto do lado do formato. Nas metas do cartaz de 19/11, o sujeito ocupa de 16% a 49% da largura. A calibrar."
+  },
+  {
+   "id": "derivacao.galeria_figura_teto_sobre_regra",
+   "valor": 2.5,
+   "unidade": "escala da figura sobre a escala da regra dela",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "calibracao da galeria de 19/11 (metas do Duda no KV do cartaz)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Teto do crescimento da figura na banda (e da parte dela na nota). Nas metas do cartaz de 19/11, o sujeito fica de 1,25 a 1,65 vezes a regra; o valor tem folga. A calibrar."
+  },
+  {
+   "id": "derivacao.galeria_figura_reducao_passo",
+   "valor": 0.9,
+   "unidade": "fator de reducao da figura por volta",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "133 (piso da escala do conteudo) e a calibracao da galeria de 19/11, prototipo zonas"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Piso por bloco: quando o conteudo so caberia abaixo do piso da 133, a figura cede primeiro, encolhendo por este fator a cada volta (ate derivacao.galeria_figura_reducao_min). Julgamento do prototipo zonas, enxertado pelo juiz em 19/11, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_figura_reducao_min",
+   "valor": 0.6,
+   "unidade": "fracao do tamanho da figura que enche a banda",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "133 (piso da escala do conteudo) e a calibracao da galeria de 19/11, prototipo zonas"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "A figura cede ao conteudo ate isto do tamanho que enche a banda (derivacao.galeria_figura_reducao_passo); nunca abaixo do piso da 133 da regra dela. Se o conteudo ainda nao couber, ele fica no piso e a conferencia diz o que falha. Julgamento do prototipo zonas, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_sujeito_sangria_extra",
+   "valor": 0.03,
+   "unidade": "fracao do lado curto do formato",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "calibracao da galeria de 19/11 (metas do Duda no KV do cartaz: 300x150 e 1280x720)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "A figura presa a borda que sangra passa dela por isto do lado curto. Nas metas do cartaz de 19/11, o sujeito passa 3% da base no 300x150 e no 1280x720. Vem do prototipo zonas. A calibrar."
+  },
+  {
+   "id": "derivacao.galeria_figura_visivel_min",
+   "valor": 0.85,
+   "unidade": "fracao de 0 a 1 da caixa da figura dentro do formato",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "calibracao da galeria de 19/11 (metas do Duda no KV do cartaz: 970x250)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Na nota, a figura com menos disto da caixa dentro do formato perde pontos (peso cobre de derivacao.galeria_nota_pesos). Na meta do 970x250 de 19/11, o sujeito passa 12% da base e fica com 0,89 da caixa a vista. Vem do prototipo zonas. A calibrar."
+  },
+  {
+   "id": "derivacao.galeria_nota_satura",
+   "valor": 2.0,
+   "unidade": "escala sobre a regra a partir da qual a nota nao melhora",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "calibracao da galeria de 19/11 (metas do Duda no KV do cartaz)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Na nota, crescer alem disto da regra nao melhora a legibilidade (o titulo satura em isto vezes derivacao.galeria_titulo_sobre_outros_max). Nas metas do cartaz de 19/11, fora o titulo, o conteudo das faixas fica de 1,2 a 2,3 vezes a regra. Vem do prototipo zonas. A calibrar."
+  },
+  {
+   "id": "derivacao.galeria_folga_135",
+   "valor": 0.1,
+   "unidade": "fracao a mais sobre o piso da 135 (derivacao.distancia_entre_linhas_min)",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "135 (distancia minima entre conteudo) e a calibracao da galeria de 19/11, prototipo fluxo"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "O fluxo abre o vao entre dois blocos vizinhos no KV com esta folga sobre o piso da 135, para a conferencia contra a mestre verdadeira nao reprovar por arredondamento nem pelo ajuste do solver. Folga numerica do prototipo, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_margem_max_lado_curto",
+   "valor": 0.12,
+   "unidade": "fracao do lado curto do formato",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "164 (de 3 a 4 versoes por formato devolvido) e a revisao da galeria de 19/11"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Teto da margem do quadro das variantes, que vem da menor distancia de um item do KV a borda. Sem teto, o conteudo pequeno no meio do KV (um titulo so, centrado) virava margem de um terco do lado curto, o quadro do formato ficava do tamanho do conteudo e as versoes saiam iguais (menos que o minimo). Valor logo acima da maior margem dos KVs sinteticos da calibracao (0,11 do KV A do juiz), sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_ordem_tolerancia",
+   "valor": 0.01,
+   "unidade": "fracao do lado do formato",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "calibracao da galeria de 19/11, prototipo fluxo"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Na nota, dois centros a menos disto um do outro contam como lado a lado (nem antes nem depois) ao medir a ordem do KV invertida. O solver mexe alguns px. Julgamento do prototipo, sem medicao."
+  },
+  {
+   "id": "derivacao.galeria_nota_pesos",
+   "valor": [{"termo": "falha", "peso": 1.0}, {"termo": "escala", "peso": 1.0}, {"termo": "menor", "peso": 0.6},
+             {"termo": "razao", "peso": 0.5}, {"termo": "figura", "peso": 0.5}, {"termo": "cobre", "peso": 2.0},
+             {"termo": "lado", "peso": 0.3}, {"termo": "espelho", "peso": 0.15}, {"termo": "vazio", "peso": 0.4},
+             {"termo": "ordem", "peso": 2.0}, {"termo": "serie_partida", "peso": 0.3}],
+   "unidade": "peso de cada termo da nota de uma versao (log da escala sobre a regra, fracao ou contagem)",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "97 (razao de corpo), 166 (a escolha e pela nota) e a calibracao da galeria de 19/11 (metas do Duda no KV do cartaz)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Pesos da nota da galeria: falha (cada falha obrigatoria, prevista antes do solver ou da conferencia, e cada bloco que o solver esmagou), escala (media do log da escala do conteudo sobre a regra, saturada), menor (log do menor corpo sobre a regra, sem corte no piso), razao (espalhamento das escalas, 97), figura (log da escala da figura), cobre (fracao do conteudo sobre a figura e a parte da figura fora do formato), lado (figura no lado oposto ao do KV), espelho (ordem espelhada), vazio (fracao vazia do quadro do conteudo), ordem (fracao dos pares com a ordem do KV invertida), serie_partida (lista quebrada entre trilhas). Calibrados em 19/11 no KV do cartaz (prototipo fluxo; menor vem do prototipo busca e razao do zonas). Com os enxertos, o peso da ordem passou de 1 para 2: com 1, no 970x250 as quatro versoes perdiam a do contato no topo e o deslocamento medio da melhor versao subia de 0,094 para 0,105. A recalibrar com mais pecas."
+  },
+  {
+   "id": "derivacao.base_calculo",
+   "valor": "area_util",
+   "unidade": "base das proporcoes e das regras de escala: arquivo, composicao ou area_util",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "10.2, pergunta 7"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Proposta da arquitetura: pela area util (nos formatos girados, arquivo e composicao tem proporcoes inversas, pesquisa/v1-estatico-sintese.md, 6). Parametro do job ate o Duda fixar."
+  },
+  {
+   "id": "derivacao.mestres_max",
+   "valor": 3,
+   "unidade": "mestres que o DA desenha por job (a do KV conta como uma)",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "10.2, pergunta 7"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Proposta do M5: uma mestre por orientacao (horizontal, quadrada e vertical). Parametro do job ate o Duda fixar; acima dele, o formato sem mestre volta ao DA com o motivo."
+  },
+  {
+   "id": "derivacao.quadrado_ln_max",
+   "valor": 0.05,
+   "unidade": "modulo do logaritmo natural da proporcao (largura sobre altura) ate o qual o formato e quadrado",
+   "fonte": {
+    "arquivo": "pesquisa/corpus-testes.md",
+    "secao": "4, item 16"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Mesma banda que a analise de escala da pesquisa usou para separar o quadrado das duas orientacoes. Troca forte de orientacao e de horizontal para vertical ou o contrario; para ou de quadrado tambem e troca, e as duas pedem mestre propria."
+  },
+  {
+   "id": "derivacao.mesma_proporcao_px",
+   "valor": 1.0,
+   "unidade": "px de diferenca na outra dimensao depois da escala pela largura",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "4.10"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Mesma proporcao vira transform de saida (so a escala da peca inteira muda). O limiar 0,02 do predecessor, sem fonte, saiu (pesquisa/v1-estatico-sintese.md, 6); 1 px e o arredondamento do pixel."
+  },
+  {
+   "id": "derivacao.alinhamento_tolerancia_px",
+   "valor": 2.0,
+   "unidade": "px na mestre entre bordas ou centros para contar como alinhados",
+   "fonte": {
+    "arquivo": "pesquisa/v1-estatico-sintese.md",
+    "secao": "6"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Alinhamentos da mestre viram restricao forte. Valor de partida do M5, sem medida."
+  },
+  {
+   "id": "derivacao.colisao_tolerancia_px",
+   "valor": 1.0,
+   "unidade": "px de sobreposicao tolerada entre caixas que nao se tocam na mestre",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "9.6"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Validacao de colisao nova contra a origem e restricao de nao sobreposicao (relacao que a mestre ja satisfaz). 1 px e o arredondamento."
+  },
+  {
+   "id": "derivacao.enquadramento_tolerancia_px",
+   "valor": 1.0,
+   "unidade": "px de folga no enquadramento, na area util e nas faixas",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "9.6"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Arredondamento do pixel na conferencia das restricoes obrigatorias depois do solver."
+  },
+  {
+   "id": "derivacao.escala_min",
+   "valor": 0.01,
+   "unidade": "menor escala de um elemento em relacao a mestre",
+   "fonte": {
+    "arquivo": "arquitetura-v1.md",
+    "secao": "4.10"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "So impede escala zero ou negativa no solver. Valor de partida do M5, sem medida."
+  },
+  {
+   "id": "derivacao.tolerancia_regra_escala",
+   "valor": 0.001,
+   "unidade": "modulo do logaritmo natural da razao entre a escala do layout e a da regra",
+   "fonte": {
+    "arquivo": "pesquisa/corpus-testes.md",
+    "secao": "4, itens 15 e 17"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Acima disso, a validacao registra que outra restricao (obrigatoria ou forte) mexeu na escala da regra. So registra: a regra de escala e fraca (arquitetura-v1.md, 4.10)."
+  },
+  {
+   "id": "derivacao.residuo_regra_aviso",
+   "valor": 0.6931,
+   "unidade": "modulo do logaritmo natural da razao entre a escala do layout e a da regra (0,6931 e o fator 2)",
+   "fonte": {
+    "arquivo": "pesquisa/corpus-testes.md",
+    "secao": "4, item 15"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Acima disso, uma obrigatoria levou a escala do elemento para longe da regra (no corpus do M5, um logo de parceiro a 1% no 360x1080 do KV C). So avisa: a regra e fraca e o limite nao tem medida. Na pesquisa, titulo, imagem e sujeito ficam acima de 0,30 no pior caso, abaixo do fator 2."
+  },
+  {
+   "id": "derivacao.bloco_sobreposicao_min",
+   "valor": 0.01,
+   "unidade": "fracao de 0 a 1 da area da menor das duas caixas que precisa estar sobreposta",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "02/11, decisoes do M5, 95"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Dois elementos de base que se sobrepoem pelo menos isto na mestre entram no mesmo bloco rigido. Valor de partida: na cena do KV B os elementos do aglomerado se sobrepoem muito mais que isto; 1% so tira encostos de borda."
+  },
+  {
+   "id": "derivacao.bloco_fundo_fracao",
+   "valor": 0.95,
+   "unidade": "fracao de 0 a 1 da area do canvas da mestre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "02/11, decisoes do M5, 95"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Elemento de cena que cobre pelo menos isto do canvas e fundo de cena: nao junta os outros num bloco so por sobreposicao. Em mesclagem, ele so puxa o que pega embaixo dele (no KV B, uma luz em tela do canvas inteiro puxava os icones de cima)."
+  },
+  {
+   "id": "derivacao.margem_minima_lado_curto",
+   "valor": 0.05,
+   "unidade": "fracao do lado curto do formato",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "02/11, decisoes do M5, 98"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Minimo obrigatorio da margem de texto e marca ate a borda (ou a margem da mestre na escala de contain, se for menor). Proposta: a menor margem de texto e marca nas mestres do corpus do M5 (KV A, KV B e KV C tela 3) e 0,050 do lado curto; mediana 0,066 (16 elementos)."
+  },
+  {
+   "id": "laudo.preparo_minimo_camadas",
+   "valor": 3,
+   "unidade": "soma de ajustes com mascara, mesclagens e cores solidas mascaradas sobre imagem",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "02/11, decisoes do M5, 99"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "A partir disto (ou com um aglomerado sobreposto), a esteira recomenda ao DA preparar o PSD antes da rotulagem: juntar luz, cor e liquido num smart object ou grupo. Medido no corpus em 02/11 (aglomerados por prancheta desde a revisao 2): KV com cena de produto soma 28 (13 ajustes com mascara, 5 mesclagens, 10 cores solidas mascaradas sobre imagem) e tem 1 aglomerado de 20 camadas; KV DOOH de tres telas soma 3, com 3 aglomerados (um por tela) de 34 camadas ao todo; KV institucional soma 0, com 1 aglomerado de 3 camadas."
+  },
+  {
+   "id": "derivacao.bloco_fundo_faixa_ambigua",
+   "valor": 0.05,
+   "unidade": "fracao de 0 a 1 da area do canvas da mestre, abaixo de derivacao.bloco_fundo_fracao",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "02/11, decisoes do M5, 95; revisao 2 do M5, M2"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Elemento de cena que cobre de (bloco_fundo_fracao - isto) ate bloco_fundo_fracao do canvas esta na faixa ambigua: o motor o trata como cena comum (junta por sobreposicao) e cada formato derivado avisa (fundo_de_cena_ambiguo), para o DA conferir se ele e o fundo. Proposta: 0,05 (uma faixa de 10 px num canvas de 200 px de altura ja tira o fundo do limiar)."
+  },
+  {
+   "id": "derivacao.cobertura_nova_cena_sobre_conteudo_max",
+   "valor": 0.01,
+   "unidade": "fracao de 0 a 1 da area da caixa do conteudo",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "02/11, decisoes do M5, 96 (cena pode passar sobre conteudo); proposta da revisao 2, M4, a registrar"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Cena opaca (base, mesclagem normal) acima de texto, marca ou sujeito na pilha que passa a cobrir mais que isto da caixa do conteudo, alem do que ja cobria na mestre, reprova o formato. Proposta: 1%, da ordem da tolerancia de colisao; a revisao nao achou caso real no corpus."
+  },
+  {
+   "id": "derivacao.corpo_minimo_legal_px",
+   "valor": 8.0,
+   "unidade": "px de corpo no formato",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "02/11, decisoes do M5, 97 (razao de corpo prende o legal); proposta da revisao 2, B5, a registrar"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Texto legal com corpo abaixo disto no formato avisa (corpo_minimo_do_legal). Proposta: 8 px, a ordem do menor corpo legivel em tela; sem medida no corpus nem nas folhas ainda. Medir com o Duda."
+  },
+  {
+   "id": "derivacao.proximidade_max",
+   "valor": 0.05,
+   "unidade": "fracao do lado curto da mestre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "03/11, avaliacao da rodada 2 da fatia (titulo longe dos icones no 800x600); proposta da rodada 3, a registrar"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Conteudo (texto, marca, sujeito) e objeto solto (base opaca que nao sangra), empilhados (as projecoes no outro eixo se tocam) e separados na mestre por ate isto do lado curto, mantem a distancia da mestre na escala deles (forte); o grupo anda pela ancora do maior. Entre textos nao vale: a razao de corpo e as ancoras ja dao o espaco. Proposta: 0,05; no KV de produto, titulo e icones estao a 25 px (0,023 de 1080)."
+  },
+  {
+   "id": "derivacao.quebra_razao_aviso",
+   "valor": 0.405465,
+   "unidade": "|ln| da razao entre as proporcoes (largura / altura) do formato e da mestre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "02/11, decisoes do M5, 77 (quebras na mestre propria); estendida as familias na rodada 3, a registrar"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Texto de mais de uma linha sem quebra aprovada para a familia do formato avisa (quebras_sem_aprovacao) quando a proporcao do formato fica a mais que isto da mestre. Proposta: fator 1,5 (ln 1,5); pega o 2048x720 contra um KV 1920x1080 (fator 1,6) e deixa o 800x600 (fator 1,33)."
+  },
+  {
+   "id": "derivacao.objeto_solto_opacidade_min",
+   "valor": 0.9,
+   "unidade": "fracao de 0 a 1 (opacidade x preenchimento da camada x opacidade dos grupos acima)",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "03/11, revisao 3 do M5 (scratchpad/m5/revisao3/achados.md); proposta, a registrar"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Objeto solto (entra no nao sobrepor e na colisao contra conteudo) so com alguma camada de mesclagem normal e opacidade efetiva de pelo menos isto: um brilho em NORMAL com opacidade baixa e luz, nao objeto. Proposta: 0,9."
+  },
+  {
+   "id": "render.tolerancia_tinta_texto",
+   "valor": 0.05,
+   "unidade": "fracao do maior lado da caixa validada do texto",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "03/11, revisao 3 do M5 (scratchpad/m5/revisao3/achados.md); proposta, a registrar"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "No formato derivado, a tinta real do texto (medida no filho do render) pode passar da caixa validada pela derivacao ate isto; acima, o render reprova (tinta_fora_da_caixa_validada). Tinta que encosta na borda da regiao da pagina (cortada) tambem reprova. Proposta: 5%, a diferenca entre a tinta do PSD e a do Chromium nao foi medida no corpus ainda."
+  },
+  {
+   "id": "render.tolerancia_tinta_texto_min_px",
+   "valor": 3,
+   "unidade": "px no formato",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "03/11, revisao 3 do M5 (scratchpad/m5/revisao3/achados.md); proposta, a registrar"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Piso da tolerancia da tinta do texto contra a caixa validada (antialias e arredondamento). Proposta: 3 px."
+  },
+  {
+   "id": "derivacao.escala_conteudo_forte_da_regra",
+   "valor": 0.9,
+   "unidade": "fracao da escala da regra",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "03/11, avaliacao do KV C, 132"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "Texto, marca e sujeito com escala de pelo menos isto da regra, como forca forte (desigualdade): os alinhamentos e as razoes fortes nao podem mais se cumprir encolhendo o conteudo (no Globo 1080x1920 do KV C, texto e marca saiam a 1% da regra)."
+  },
+  {
+   "id": "derivacao.escala_conteudo_min_da_regra",
+   "valor": 0.5,
+   "unidade": "fracao da escala da regra",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "03/11, avaliacao do KV C, 133"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Piso obrigatorio da escala de texto, marca e sujeito, em fracao da regra: quando nao fecha com a folha e as relacoes da mestre, o formato volta ao DA com o nome (escala_minima_de_conteudo) e a fonte. Proposta: 0,5."
+  },
+  {
+   "id": "derivacao.distancia_entre_linhas_min",
+   "valor": 0.5,
+   "unidade": "fracao da distancia da mestre vezes a escala do conteudo",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "03/11, avaliacao do KV DOOH de tres telas (Globo 1080x1920), 135"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Entre um elemento de conteudo e o vizinho de conteudo mais perto num eixo (sem sobreposicao na mestre), a distancia no formato e pelo menos isto da distancia da mestre na escala media dos dois (obrigatoria; a distancia inteira e forte). No Globo 1080x1920, o cta e a linha de logos tinham ficado encostados (-1 px, eram 69 na mestre). Proposta: 0,5."
+  },
+  {
+   "id": "derivacao.familia_ajuste_escala_min",
+   "valor": 0.85,
+   "unidade": "fracao do tamanho copiado do arquivo de edicao (a escala unica s da familia), no bloco que a escada diminui",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "199 (3), o menor ajuste: diminuir o bloco ate o piso, a calibrar"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Piso do passo F3 da escada do menor ajuste (vapt.derivacao.familia.ajustar_minimo): o bloco diminui em volta da ancora ate isto do tamanho copiado, e nunca abaixo do piso da 133 (derivacao.escala_conteudo_min_da_regra). Abaixo disto o arquivo pede ajuste com o valor. Origem: o caso do Duda de 18/11 (familia vertical 1080x1920 e 300x600): na ponta larga da faixa (1080x1600), a sonda do desenho 1 pedia 0,854 para a assinatura caber no branco, e a reducao que o Duda esperava no 300x600 era 46/53 = 0,87. Sem medicao em pecas humanas."
+  },
+  {
+   "id": "derivacao.familia_crescimento_max",
+   "valor": 1.5,
+   "unidade": "vezes o tamanho copiado do arquivo de edicao (a escala unica s da familia), na forma que sangra",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "199 (2), a base que sangra cresce so o necessario para continuar sangrando; limite escolhido pelo Duda em 18/11, a calibrar"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "A forma que sangra (papel base) que precisa crescer mais que isto, em volta do ponto fixo, para continuar sangrando deixa o arquivo copiado em pede_ajuste, com a frase e o valor (vapt.derivacao.familia.ajustar_minimo). O fundo puro nunca entra: ele cresce o quanto precisar para cobrir o arquivo. Origem: o caso do Duda de 18/11 (testes/familia_geometria.caso_diagonal). No aprovado, o maior crescimento da faixa de 0,3 e o do azul no 1080x1600, 1,42, e o da faixa verde no 900x1870, 1,19; com a assinatura sobre o azul (o hospede do azul passa a ser o texto, longe da diagonal), o azul cresce 1,8 no 1080x1600. Resposta do Duda: 1,5. Sem medicao em pecas humanas."
+  },
+  {
+   "id": "entrega.peso_reprova_acima_da_leitura_decimal",
+   "valor": "decimal",
+   "unidade": "leitura de KB, MB e GB",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, 136"
+   },
+   "situacao": "decidido",
+   "efeito": "reprova",
+   "nota": "Na entrega, o teto e a leitura estrita (alvo_bytes do valor da folha: 250 KB = 250.000 bytes). O encoder mira esse numero e o arquivo acima dele vai para entrega/reprovados. O 'vapt validar' continua avisando entre as duas leituras (specs.peso_avisa_acima_da_leitura_decimal)."
+  },
+  {
+   "id": "entrega.jpeg_subamostragem",
+   "valor": "4:4:4",
+   "unidade": "subamostragem de croma do JPEG",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, parâmetros aprovados no bloco (proposta-m6, seção 3)"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "JPEG sem subamostragem de croma (no Pillow, subsampling=0; arquitetura-v1.md, 4.12 e 9.7)."
+  },
+  {
+   "id": "entrega.jpeg_progressivo",
+   "valor": "nao",
+   "unidade": "sim ou nao",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, parâmetros aprovados no bloco (proposta-m6, seção 3)"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "JPEG baseline: o progressivo nao e entregue (arquitetura-v1.md, 9.7)."
+  },
+  {
+   "id": "entrega.jpeg_optimize",
+   "valor": "sim",
+   "unidade": "sim ou nao",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, parâmetros aprovados no bloco (proposta-m6, seção 3)"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "Tabelas de Huffman otimizadas (optimize do Pillow). Com optimize, o libjpeg precisa do arquivo inteiro no buffer: ver entrega.jpeg_buffer_bytes."
+  },
+  {
+   "id": "entrega.jpeg_buffer_bytes",
+   "valor": 4194304,
+   "unidade": "bytes (ImageFile.MAXBLOCK do Pillow durante o save)",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, parâmetros aprovados no bloco (proposta-m6, seção 3)"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "Buffer de 4 MiB: com o padrao do Pillow (64 KiB ou largura x altura), o optimize quebra numa imagem pequena de muita entropia (400x300 de ruido, q90: broken data stream). Arquivo maior que o buffer recusa com jpeg_buffer_insuficiente, sem trocar de parametro."
+  },
+  {
+   "id": "entrega.jpeg_qualidade_max",
+   "valor": 95,
+   "unidade": "qualidade do JPEG no Pillow (1 a 100)",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, parâmetros aprovados no bloco (proposta-m6, seção 3)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Teto da busca de qualidade. INFERENCIA: nao ha fonte de qualidade; o Pillow dobra o buffer a partir de 95, o que so diz respeito a memoria. Sem teto de peso na folha, o JPEG sai nesta qualidade."
+  },
+  {
+   "id": "entrega.jpeg_qualidade_min",
+   "valor": 1,
+   "unidade": "qualidade do JPEG no Pillow (1 a 100)",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, parâmetros aprovados no bloco (proposta-m6, seção 3)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Piso da busca de qualidade. INFERENCIA. Quando nem esta qualidade cabe no teto, o arquivo sai nela e fica marcado fora do teto (vai para reprovados na entrega)."
+  },
+  {
+   "id": "entrega.jpeg_qualidade_piso_aviso",
+   "valor": null,
+   "unidade": "qualidade do JPEG no Pillow (1 a 100)",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, parâmetros aprovados no bloco (proposta-m6, seção 3)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Qualidade abaixo da qual o arquivo final avisa o DA. Sem valor ate a medicao do corpus: enquanto isso, a qualidade escolhida so aparece no aprovar."
+  },
+  {
+   "id": "entrega.png_nivel_compressao",
+   "valor": 9,
+   "unidade": "nivel do zlib (0 a 9)",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, parâmetros aprovados no bloco (proposta-m6, seção 3)"
+   },
+   "situacao": "decidido",
+   "efeito": "registra",
+   "nota": "PNG sem perda no nivel 9. Escolhido quando cabe no teto estrito e a folha aceita PNG; senao, JPEG. PNG quantizado fica fora da v1."
+  },
+  {
+   "id": "entrega.tolerancia_area_px",
+   "valor": 0,
+   "unidade": "px de folga na area segura, na area util e nas faixas, na validacao final da entrega",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, 141 e parâmetros aprovados no bloco (proposta-m6, seção 3)"
+   },
+   "situacao": "decidido",
+   "efeito": "reprova",
+   "nota": "Tolerancia zero na entrega: a tinta medida de cada texto (render.json) e a caixa do logo no layout (derivacao/<formato>.json) ficam inteiras dentro da area segura e da area util e fora das faixas. Um pixel dentro da area segura manda o arquivo para entrega/reprovados. A derivacao continua com a folga de derivacao.enquadramento_tolerancia_px."
+  },
+  {
+   "id": "entrega.encoder_build_referencia",
+   "valor": ["pillow=13.0.0", "libjpeg_turbo=3.2.0", "zlib=1.3.1.zlib-ng"],
+   "unidade": "biblioteca=versao do Pillow e das bibliotecas de JPEG e de PNG da build",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M6, parâmetros aprovados no bloco (proposta-m6, seção 3: o build do encoder vai para o relatório)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "avisa",
+   "nota": "Build de referencia do encoder da entrega: os mesmos parametros dao os mesmos bytes so com as mesmas bibliotecas. Origem: versoes lidas do Pillow do requirements.lock (pillow 13.0.0, roda cp314 do Windows) no ambiente de desenvolvimento em 04/11, sem medicao em Mac. O doctor avisa quando a build e outra e falha so com o libimagequant (GPLv3, fora da v1, arquitetura-v1.md 9.7) ou sem suporte a JPEG; o relatorio da entrega grava as versoes de cada entrega."
+  },
+  {
+   "id": "humano.profundidade_max_ancestrais",
+   "valor": 32,
+   "unidade": "niveis de processo pai conferidos acima do processo do motor",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "04/11/2026: decisões do M7, 160 (medição do shell do painel de terminal do app do Claude, scratchpad/m7/painel-medicao.json)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Teto da subida pela cadeia de processos pais na conferencia do disparo humano (vapt.humano, processo pai claude.exe recusa). Medido em 04/11: no shell do painel, o claude.exe esta 1 nivel acima do powershell.exe (2 acima do motor) e a cadeia inteira tem 7 niveis ate o wininit.exe. O 32 e folga sobre a cadeia medida, sem medicao de cadeia maior; so limita o laco, e a subida tambem para no pai que ja terminou e em ciclo de pid."
+  }
+ ]
+}

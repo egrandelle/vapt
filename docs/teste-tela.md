@@ -7,7 +7,7 @@ As três formas:
 | Forma | Como sobe | O que a documentação garante |
 |---|---|---|
 | A. Processo em segundo plano pela skill | a skill manda o Claude rodar o comando pelo Bash com `run_in_background: true` | o comando vira uma tarefa em segundo plano, listada e parada por `/tasks`; numa sessão local do terminal, do app desktop ou do VS Code, ela não tem limite de tempo; com `-p`, o limite padrão é de 30 min, ou de 10 min com o prompt passado como texto (https://code.claude.com/docs/en/tools-reference.md, Background commands) |
-| B. Servidor MCP stdio do plugin | `.mcp.json` na raiz do plugin, com `command` e `args` | o Claude Code inicia os servidores do plugin ao abrir a sessão e os desliga ao fechar; no Windows, fecha a entrada padrão do servidor e encerra a árvore de processos 300 ms depois; as ferramentas se chamam `mcp__plugin_desdobra_<servidor>__<ferramenta>` (https://code.claude.com/docs/en/mcp.md, Plugin-provided MCP servers e How Claude Code stops a stdio server; https://code.claude.com/docs/en/plugins/components.md, MCP servers) |
+| B. Servidor MCP stdio do plugin | `.mcp.json` na raiz do plugin, com `command` e `args` | o Claude Code inicia os servidores do plugin ao abrir a sessão e os desliga ao fechar; no Windows, fecha a entrada padrão do servidor e encerra a árvore de processos 300 ms depois; as ferramentas se chamam `mcp__plugin_vapt_<servidor>__<ferramenta>` (https://code.claude.com/docs/en/mcp.md, Plugin-provided MCP servers e How Claude Code stops a stdio server; https://code.claude.com/docs/en/plugins/components.md, MCP servers) |
 | C. Monitor do plugin | `monitors/monitors.json` com `when: "on-skill-invoke:<skill>"` | o monitor nasce na primeira vez que a skill roda e fica até o fim da sessão; o comando roda num shell, com as permissões do usuário, fora do sandbox; cada linha impressa chega ao Claude como notificação; não sobe com `-p`; não recebe `${user_config.*}` nem `CLAUDE_PLUGIN_OPTION_<KEY>`; desligar o plugin no meio da sessão não para o monitor (https://code.claude.com/docs/en/plugins/components.md, Monitors; https://code.claude.com/docs/en/plugins/manifest-reference.md, monitors) |
 
 ## A sonda
@@ -25,20 +25,20 @@ O rascunho da sonda está fora do repositório, na pasta de trabalho do M1 (`m1/
 ## Montagem, num ramo de teste
 
 Nada disto entra no `main`. Num ramo `teste-tela`:
-1. Copie a sonda para `plugins/desdobra/dev-tela/sonda_tela.py`.
+1. Copie a sonda para `plugins/vapt/dev-tela/sonda_tela.py`.
 2. Mude `version` em `plugin.json` para `0.1.1`, para a atualização criar uma pasta nova no cache.
 3. Monte as três formas:
    - **A:** `skills/teste-tela-processo/SKILL.md`, que manda rodar, com `run_in_background: true`:
      ```
      python -I -B "${CLAUDE_PLUGIN_ROOT}/dev-tela/sonda_tela.py" --forma processo --dados "${CLAUDE_PLUGIN_DATA}"
      ```
-   - **B:** `plugins/desdobra/.mcp.json`:
+   - **B:** `plugins/vapt/.mcp.json`:
      ```json
      {"mcpServers": {"tela": {"command": "python",
        "args": ["-I", "-B", "${CLAUDE_PLUGIN_ROOT}/dev-tela/sonda_tela.py", "--forma", "mcp", "--dados", "${CLAUDE_PLUGIN_DATA}"]}}}
      ```
-     e `skills/teste-tela-mcp/SKILL.md`, que manda chamar a ferramenta `mcp__plugin_desdobra_tela__abrir_tela`.
-   - **C:** `plugins/desdobra/monitors/monitors.json`:
+     e `skills/teste-tela-mcp/SKILL.md`, que manda chamar a ferramenta `mcp__plugin_vapt_tela__abrir_tela`.
+   - **C:** `plugins/vapt/monitors/monitors.json`:
      ```json
      [{"name": "tela", "description": "Sonda da tela de briefing",
        "command": "python -I -B \"${CLAUDE_PLUGIN_ROOT}/dev-tela/sonda_tela.py\" --forma monitor --dados \"${CLAUDE_PLUGIN_DATA}\"",
@@ -46,7 +46,7 @@ Nada disto entra no `main`. Num ramo `teste-tela`:
      ```
      e `skills/teste-tela-monitor/SKILL.md`, que só diz que a tela vai avisar quando estiver pronta.
 4. Rode `claude plugin validate` na raiz e no plugin.
-5. Faça push do ramo e instale o plugin a partir dele, com `/plugin marketplace add https://github.com/egrandelle/desdobra.git#teste-tela`.
+5. Faça push do ramo e instale o plugin a partir dele, com `/plugin marketplace add https://github.com/egrandelle/vapt.git#teste-tela`.
 
 ## O que medir em cada forma
 
@@ -86,4 +86,4 @@ Vence a forma que:
 3. não põe a URL com o token no contexto do Claude;
 4. funciona sem depender de Git Bash.
 
-Empate entre A e B: fica a que não sobe em toda sessão. Se nenhuma cumprir os itens 2 e 3, a tela passa a ser aberta pelo DA no terminal (`desdobra tela abrir`), e a skill só explica o passo.
+Empate entre A e B: fica a que não sobe em toda sessão. Se nenhuma cumprir os itens 2 e 3, a tela passa a ser aberta pelo DA no terminal (`vapt tela abrir`), e a skill só explica o passo.

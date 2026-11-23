@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="dsd-csrf" content="">
+<link rel="icon" href="/icone.svg" type="image/svg+xml">
+<title>Vapt: briefing</title>
+<link rel="stylesheet" href="/tela.css">
+<link rel="stylesheet" href="/fontes.css">
+<link rel="stylesheet" href="/controle">
+<script src="/tela.js" defer></script>
+</head>
+<body>
+<header class="topo">
+  <div class="marca">
+    <svg class="marca-logo" viewBox="150 48 1580 562" role="img" aria-label="Vapt" focusable="false">
+      <path class="marca-v" d="M 558.876 478.677 C 568.889 478.897 580.396 481.124 586.426 471.303 L 788.061 142.917 Q 794.595 132.275 777.125 132.274 L 680.125 132.123 Q 663.643 132.030 658.594 142.730 L 560.518 350.560 Q 559.660 309.201 553.521 146.372 Q 552.990 132.268 535.625 132.262 L 296.625 132.173 L 177.375 133.024 Q 158.411 133.159 156.916 133.552 Q 155.588 133.901 179.734 137.943 C 247.724 149.324 315.908 159.874 383.994 170.656 L 463.685 183.275 Q 461.597 183.643 436.375 183.590 Q 344.957 183.397 286.626 184.260 C 284.099 184.298 267.400 183.687 278.619 185.584 L 523.131 226.928 C 525.206 227.279 539.601 228.939 529.876 228.902 L 433.375 228.528 C 421.809 228.483 426.476 238.444 427.686 246.413 L 459.073 453.123 C 461.107 466.523 459.055 479.126 476.376 478.894 Q 533.807 478.127 558.876 478.677 Z"></path>
+      <path class="marca-apt" fill-rule="evenodd" d="M 713.949 415.342 Q 722.039 476.246 794.629 484.511 Q 844.775 490.220 875.511 474.395 Q 900.340 461.612 921.396 427.474 C 919.375 443.692 900.584 479.361 931.127 479.386 L 1025.643 479.463 Q 1017.160 455.940 1024.347 424.817 L 1059.621 272.069 Q 1073.211 213.217 1047.542 177.316 Q 1013.113 129.163 929.375 129.606 C 874.327 129.897 818.496 148.708 779.505 188.651 Q 774.369 193.911 772.148 196.860 Q 833.147 246.830 835.715 248.524 Q 852.632 230.581 867.021 223.833 C 896.350 210.078 954.919 205.997 957.757 250.413 Q 958.112 255.968 956.386 265.686 C 889.695 269.157 813.322 261.187 757.608 305.730 Q 704.980 347.806 713.949 415.342 Z M 817.859 381.120 C 819.101 418.004 866.821 413.825 890.886 404.518 Q 933.961 387.860 940.849 335.774 L 874.873 337.246 C 848.781 337.829 816.813 350.079 817.859 381.120 Z M 1390.604 150.007 C 1338.652 114.471 1257.933 123.882 1225.843 181.651 Q 1219.819 192.497 1221.083 187.237 L 1234.386 131.891 L 1119.873 132.216 Q 1119.279 163.777 1114.360 188.671 Q 1102.635 247.995 1081.443 339.876 L 1036.650 534.083 Q 1023.775 589.906 1019.697 604.882 L 1030.625 603.716 Q 1078.218 598.641 1126.566 605.871 L 1164.115 438.339 Q 1165.414 440.336 1166.311 442.072 Q 1184.675 477.603 1237.082 484.322 C 1300.482 492.450 1360.103 457.545 1400.701 411.299 C 1432.269 375.339 1451.227 326.976 1452.384 279.124 Q 1454.448 193.678 1390.604 150.007 Z M 1213.368 251.280 C 1183.065 285.876 1169.293 358.114 1217.075 383.801 C 1237.494 394.777 1267.263 391.662 1288.020 382.681 C 1331.697 363.782 1356.508 306.403 1340.150 261.930 C 1320.860 209.482 1245.999 214.027 1213.368 251.280 Z M 1534.833 478.305 Q 1590.993 496.485 1660.373 469.814 L 1650.252 395.322 C 1631.301 401.637 1602.036 406.742 1590.488 385.408 C 1581.375 368.572 1586.939 347.544 1591.137 330.073 L 1618.576 215.899 L 1685.833 215.843 Q 1699.291 177.756 1722.347 133.422 L 1637.478 133.314 C 1643.422 106.638 1650.271 80.192 1656.815 53.689 Q 1606.251 59.892 1561.878 54.547 Q 1555.869 53.823 1551.760 53.567 C 1546.062 80.042 1539.118 106.321 1533.216 132.730 L 1484.092 132.917 L 1464.063 199.169 Q 1459.697 213.611 1459.282 215.644 L 1510.786 215.636 L 1478.747 353.364 Q 1472.932 378.362 1473.816 394.335 Q 1477.434 459.724 1534.833 478.305 Z"></path>
+    </svg>
+    <span class="marca-contexto">Briefing</span>
+  </div>
+  <nav id="passos" class="passos" role="tablist" aria-label="Passos do briefing">
+    <button type="button" role="tab" data-passo="lido">O que eu li</button>
+    <button type="button" role="tab" data-passo="funcoes">Funções</button>
+    <button type="button" role="tab" data-passo="design">Design system</button>
+    <button type="button" role="tab" data-passo="pecas">Famílias</button>
+    <button type="button" role="tab" data-passo="formatos">Render e aprovação</button>
+  </nav>
+  <div class="topo-direita">
+    <button type="button" id="faltam" class="faltam" aria-expanded="false" aria-controls="lista-faltam">Faltam 0</button>
+    <div id="tema" class="tema" role="group" aria-label="Tema">
+      <button type="button" id="tema-claro" data-tema="light" aria-pressed="false" aria-label="Tema claro" title="Tema claro">
+        <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="2.6" fill="currentColor"></circle><path d="M7 1v1.6M7 11.4V13M1 7h1.6M11.4 7H13M2.8 2.8l1.1 1.1M10.1 10.1l1.1 1.1M2.8 11.2l1.1-1.1M10.1 3.9l1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path></svg>
+      </button>
+      <button type="button" id="tema-escuro" data-tema="dark" aria-pressed="false" aria-label="Tema escuro" title="Tema escuro">
+        <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><path d="M11.8 8.6A5.2 5.2 0 015.4 2.2a5.2 5.2 0 106.4 6.4z" fill="currentColor"></path></svg>
+      </button>
+    </div>
+  </div>
+</header>
+<section id="lista-faltam" class="lista-faltam" aria-label="O que falta" hidden>
+  <div class="lista-faltam-topo">
+    <h2>O que falta</h2>
+    <p class="nota">Cada item leva ao lugar da tela onde ele se resolve.</p>
+  </div>
+  <ol id="itens-faltam"></ol>
+</section>
+<div id="avisos-tela" class="avisos-tela" role="status" aria-live="polite" hidden></div>
+<main>
+  <section id="passo-lido" class="passo passo-lido" aria-label="O que eu li">
+    <div class="lido-grade">
+      <div class="lido-coluna">
+        <header class="cabeca-passo">
+          <p class="sobretitulo">Passo 1</p>
+          <h1>O que eu li no arquivo</h1>
+          <p class="nota">Escolha o modo de dados e confira o que o Vapt encontrou no PSD, nas specs e nas fontes.</p>
+        </header>
+        <div id="faixa-lido" class="faixa-lido" role="status" aria-live="polite" hidden></div>
+        <section id="bloco-bloqueios" class="bloco" aria-labelledby="t-bloqueios" hidden><h2 id="t-bloqueios">Bloqueios</h2><div id="lido-bloqueios"></div></section>
+        <section class="bloco" aria-labelledby="t-modo">
+          <div class="bloco-cabeca"><h2 id="t-modo">Modo de dados</h2><p id="enviado-legenda" class="enviado-legenda"><span class="nivel nivel-legenda" aria-hidden="true"><span></span><span></span><span></span></span>Enviado ao Claude</p></div>
+          <div id="lido-modo"></div></section>
+        <section id="bloco-marca" class="bloco" aria-labelledby="t-marca"><h2 id="t-marca">Marca do job <span class="opcional">opcional</span></h2><div id="lido-marca"></div></section>
+        <section id="bloco-quadros" class="bloco" aria-labelledby="t-quadros" hidden><h2 id="t-quadros">Prancheta da peça</h2><p class="nota bloco-nota">O PSD tem mais de uma prancheta. Escolha de qual delas a peça sai; as outras ficam de fora.</p><div id="lido-quadros" class="quadros" role="group" aria-labelledby="t-quadros"></div></section>
+        <section class="bloco" aria-labelledby="t-linkados"><h2 id="t-linkados">Arquivos linkados</h2><div id="lido-linkados"></div></section>
+        <section id="bloco-specs" class="bloco" aria-labelledby="t-specs"><h2 id="t-specs">Valores de spec</h2><div id="lido-specs"></div>
+          <div id="digitados" class="digitados" aria-labelledby="t-digitados">
+            <h3 id="t-digitados" class="subtitulo">Formatos sem folha de spec</h3>
+            <p class="nota">Escreva a largura e a altura de cada formato em pixels. Para acrescentar vários de uma vez, separe por vírgula.</p>
+            <label for="digitados-campo" class="digitados-rotulo">Formatos em pixels, largura x altura</label>
+            <div class="digitados-linha">
+              <textarea id="digitados-campo" class="digitados-campo" rows="1" spellcheck="false" autocomplete="off" placeholder="1080x1920, 300x600" aria-describedby="digitados-previa"></textarea>
+              <button type="button" id="digitados-acrescentar" class="botao botao-primario" disabled>Acrescentar formatos</button>
+            </div>
+            <p class="ajuda digitados-ajuda">Enter acrescenta. Shift e Enter passa para a linha de baixo.</p>
+            <p id="digitados-previa" class="digitados-previa" aria-live="polite"></p>
+            <div id="digitados-erro" class="digitados-erro" role="alert"></div>
+            <div id="digitados-lista-bloco" hidden>
+              <h4 class="digitados-titulo-lista">Formatos que você escreveu</h4>
+              <ul id="digitados-lista" class="digitados-lista"></ul>
+            </div>
+          </div>
+          <div id="lido-specs-pendentes" class="pendentes"></div></section>
+        <section class="bloco" aria-labelledby="t-giro"><h2 id="t-giro">Formatos e giro</h2><p class="nota bloco-nota">Escolha o giro de cada formato, como ele vai para o veículo. Nada vem marcado. O que a folha de spec diz aparece só como referência.</p><div id="lido-formatos"></div></section>
+      </div>
+      <section class="lido-fontes" aria-labelledby="t-fontes">
+        <h2 id="t-fontes">Fontes do job</h2>
+        <div id="fontes"></div>
+      </section>
+    </div>
+  </section>
+  <section id="passo-funcoes" class="passo passo-funcoes" aria-label="Funções" hidden>
+    <div class="coluna-arvore">
+      <div class="arvore-ferramentas" role="search" aria-label="Procurar nas camadas">
+        <label for="arvore-busca" class="visualmente-oculto">Procurar camada</label>
+        <span class="busca-caixa">
+          <svg class="busca-lupa" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><circle cx="6" cy="6" r="4.3" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path d="M9.3 9.3L12.5 12.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>
+          <input type="search" id="arvore-busca" class="arvore-busca" placeholder="Procurar camada" autocomplete="off" spellcheck="false">
+        </span>
+        <div class="arvore-filtro">
+          <button type="button" id="arvore-so-falta" class="botao-vista" aria-pressed="false">Só as sem função</button>
+          <span id="arvore-conta" class="arvore-conta" aria-live="polite"></span>
+        </div>
+      </div>
+      <nav id="arvore" class="arvore" aria-label="Pastas e camadas"></nav>
+    </div>
+    <div class="mesa">
+      <div class="mesa-topo"><span class="selo selo-neutro">Mestre do KV</span><span class="medida">A camada escolhida fica marcada</span></div>
+      <div id="sugestoes-chegaram" class="chegaram" role="status" hidden><span class="chegaram-texto">Chegaram as sugestões do Claude. O que você já escolheu não muda.</span><button type="button" id="mostrar-sugestoes" class="botao">Mostrar</button></div>
+      <div id="palco-kv" class="area-palco" aria-label="KV"></div>
+    </div>
+    <aside id="detalhe" class="detalhe" aria-live="polite"></aside>
+  </section>
+  <section id="passo-design" class="passo passo-design" aria-label="Design system" hidden>
+    <div id="resumo-design" class="resumo design-lista"></div>
+    <div class="mesa">
+      <div class="mesa-topo"><span class="selo selo-neutro">Mestre do KV</span><span class="medida">O ponto mostra a âncora escolhida</span></div>
+      <div id="palco-ds" class="area-palco" aria-label="KV com a função escolhida"></div>
+    </div>
+  </section>
+  <section id="passo-pecas" class="passo passo-pecas" aria-label="Famílias" hidden>
+    <aside class="trilho" aria-label="Famílias do job">
+      <div id="orientacoes" class="segmentos" role="tablist" aria-label="Orientação"></div>
+      <div id="composicoes" class="miniaturas" role="tablist" aria-label="Famílias" aria-orientation="vertical"></div>
+    </aside>
+    <div class="mesa">
+      <section id="espera-familias" class="espera" aria-labelledby="t-espera" hidden>
+        <div class="espera-cartao">
+          <p class="sobretitulo">Famílias</p>
+          <h1 id="t-espera">As famílias ainda não podem ser montadas</h1>
+          <p id="espera-texto" class="espera-texto"></p>
+          <ol id="espera-checklist" class="espera-checklist" aria-label="O que as famílias pedem"></ol>
+          <button type="button" id="espera-ir" class="botao botao-primario" hidden></button>
+        </div>
+      </section>
+      <div class="mesa-topo">
+        <div class="mesa-info">
+          <span id="selo-palco" class="selo"></span>
+          <span id="nome-palco" class="nome-palco"></span>
+          <span id="medida-palco" class="medida"></span>
+        </div>
+        <div class="controles" role="toolbar" aria-label="Vista do palco">
+          <button type="button" id="ajustar" class="botao-vista">Ajustar</button>
+          <button type="button" id="um-por-um" class="botao-vista">1:1</button>
+          <button type="button" id="afastar" class="botao-vista botao-icone" aria-label="Afastar" title="Afastar">
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>
+          </button>
+          <button type="button" id="aproximar" class="botao-vista botao-icone" aria-label="Aproximar" title="Aproximar">
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M3.5 8h9M8 3.5v9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>
+          </button>
+          <span class="controles-divisor" aria-hidden="true"></span>
+          <button type="button" id="ver-nomes" class="botao-vista" aria-pressed="true" title="Mostra ou esconde o nome de cada elemento no palco. Sem os nomes fica mais fácil clicar quando há muitos elementos juntos. O elemento escolhido continua com o nome.">Nomes</button>
+          <button type="button" id="ver-limpo" class="botao-vista" aria-pressed="false">Ver limpo</button>
+        </div>
+      </div>
+      <div id="cabecalho-familia" class="cabecalho-familia" aria-label="Arquivo de edição desta família"></div>
+      <p id="devolucao" class="devolucao" hidden></p>
+      <p id="aviso-familia" class="devolucao" role="status" hidden></p>
+      <p id="aviso-passo-2" class="devolucao" role="status" hidden>As funções ou o Design system mudaram depois que a tela abriu. As famílias abaixo ainda mostram o que estava antes e passam a seguir o que você escolheu assim que as funções e o Design system estiverem completos.</p>
+      <div class="mesa-corpo">
+        <div class="mesa-palco">
+          <div id="variante-palco" class="variante-palco" aria-live="polite" hidden></div>
+          <div id="palco" class="area-palco" aria-label="Palco"></div>
+          <div id="texto-borda" class="faixa-quebra" role="status" hidden>
+            <p id="texto-borda-texto"></p>
+            <button type="button" id="ver-borda" class="botao">Ver o arquivo</button>
+          </div>
+          <div id="barra-edicao" class="barra-edicao" role="toolbar" aria-label="Edição do elemento escolhido" hidden>
+            <div class="linha-escolhido">
+              <p id="elemento-escolhido" class="elemento-escolhido">Clique num elemento do palco para mexer nele.</p>
+              <button type="button" id="ed-ajuda" class="botao-ajuda" aria-expanded="false" aria-controls="ed-ajuda-painel">Como editar</button>
+            </div>
+            <div id="ed-ajuda-painel" class="ajuda-painel" role="dialog" aria-labelledby="t-ajuda" hidden>
+              <p id="t-ajuda" class="ajuda-titulo">Como editar</p>
+              <ul class="ajuda-lista">
+                <li>Clique num elemento para escolher. Arraste para mover.</li>
+                <li>Puxe um canto para mudar o tamanho. Para um tamanho exato, digite a porcentagem em Tamanho e aperte Enter.</li>
+                <li>Clique duas vezes num texto para escrever nele no palco. Enter quebra a linha. Ctrl+Enter ou um clique fora aplica, e Esc desiste.</li>
+                <li>Para mexer em vários juntos, segure Shift e clique em cada um. O botão Escolher vários faz o mesmo.</li>
+                <li>Você também pode arrastar um retângulo em volta dos elementos. Comece o arraste num espaço livre do palco.</li>
+                <li>Para encostar na margem ou centralizar, use os botões de Alinhar.</li>
+                <li>Para alinhar as linhas de um texto à esquerda, ao centro ou à direita, use os três botões depois de Quebrar linha. A linha mais longa fica no lugar.</li>
+                <li>Pelo teclado, as setas movem, + e - mudam o tamanho, F2 abre o texto escolhido e Delete apaga.</li>
+                <li>Ctrl+Z ou Desfazer volta a última edição. Esc tira a escolha.</li>
+                <li>Você edita este arquivo. Os outros arquivos da família seguem o layout dele.</li>
+              </ul>
+              <button type="button" id="ed-ajuda-fechar" class="botao-vista">Fechar</button>
+            </div>
+            <div class="barra-grupo">
+              <button type="button" id="ed-desfazer" class="botao-vista" disabled>Desfazer</button>
+              <button type="button" id="ed-varios" class="botao-vista" aria-pressed="false" title="Com este botão ligado, cada clique põe ou tira um elemento do grupo. Shift+clique faz o mesmo.">Escolher vários</button>
+              <span class="controles-divisor so-com-escolha" aria-hidden="true"></span>
+              <button type="button" id="ed-diminuir" class="botao-vista" disabled>Diminuir</button>
+              <button type="button" id="ed-aumentar" class="botao-vista" disabled>Aumentar</button>
+              <div class="campo-tamanho" role="group" aria-labelledby="t-tamanho">
+                <label id="t-tamanho" for="ed-tamanho" class="barra-rotulo">Tamanho</label>
+                <span class="tamanho-caixa">
+                  <input type="text" id="ed-tamanho" inputmode="decimal" autocomplete="off" spellcheck="false" maxlength="8" aria-describedby="ed-mensagem" title="Digite o tamanho em porcentagem e aperte Enter ou Aplicar. 100% é o tamanho antes das suas edições." disabled>
+                  <span class="tamanho-unidade" aria-hidden="true">%</span>
+                </span>
+                <button type="button" id="ed-tamanho-aplicar" class="botao-vista" disabled>Aplicar</button>
+              </div>
+              <button type="button" id="ed-texto" class="botao-vista" disabled>Editar texto</button>
+              <button type="button" id="ed-quebra" class="botao-vista" aria-pressed="false" aria-controls="editor-quebra" disabled>Quebrar linha</button>
+              <div id="ed-alinhar-texto" class="segmentado alinhar-texto" role="group" aria-label="Alinhamento do texto">
+                <button type="button" id="ed-tx-esquerda" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto à esquerda" title="Alinhar o texto à esquerda" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M2.5 7h7M2.5 10h11M2.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+                <button type="button" id="ed-tx-centro" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto ao centro" title="Alinhar o texto ao centro" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M4.5 7h7M2.5 10h11M4.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+                <button type="button" id="ed-tx-direita" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto à direita" title="Alinhar o texto à direita" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M6.5 7h7M2.5 10h11M6.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+              </div>
+              <span class="controles-divisor so-com-escolha" aria-hidden="true"></span>
+              <button type="button" id="ed-apagar" class="botao-vista botao-apagar" disabled>Apagar</button>
+            </div>
+            <div id="barra-alinhar" class="barra-alinhar" role="group" aria-labelledby="t-alinhar">
+              <span id="t-alinhar" class="barra-rotulo">Alinhar pela</span>
+              <div class="segmentado" role="group" aria-label="Por onde alinhar">
+                <button type="button" id="ed-ref-margem" class="botao-vista" aria-pressed="true" title="A margem de cada arquivo da família.">Margem</button>
+                <button type="button" id="ed-ref-segura" class="botao-vista" aria-pressed="false" disabled title="Os arquivos desta família não têm área segura na folha.">Área segura</button>
+              </div>
+              <span class="controles-divisor" aria-hidden="true"></span>
+              <button type="button" id="ed-al-esquerda" class="botao-vista botao-alinhar" disabled title="Encostar à esquerda"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 2v12"/><rect x="5" y="4" width="8" height="3" rx="0.5"/><rect x="5" y="9" width="5" height="3" rx="0.5"/></svg><span class="rotulo-botao">À esquerda</span></button>
+              <button type="button" id="ed-al-centro" class="botao-vista botao-alinhar" disabled title="Pôr no centro da largura"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12"/><rect x="3.5" y="4" width="9" height="3" rx="0.5"/><rect x="5" y="9" width="6" height="3" rx="0.5"/></svg><span class="rotulo-botao">Centro da largura</span></button>
+              <button type="button" id="ed-al-direita" class="botao-vista botao-alinhar" disabled title="Encostar à direita"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 2v12"/><rect x="3" y="4" width="8" height="3" rx="0.5"/><rect x="6" y="9" width="5" height="3" rx="0.5"/></svg><span class="rotulo-botao">À direita</span></button>
+              <span class="controles-divisor" aria-hidden="true"></span>
+              <button type="button" id="ed-al-topo" class="botao-vista botao-alinhar" disabled title="Encostar no topo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2.5h12"/><rect x="4" y="5" width="3" height="8" rx="0.5"/><rect x="9" y="5" width="3" height="5" rx="0.5"/></svg><span class="rotulo-botao">No topo</span></button>
+              <button type="button" id="ed-al-meio" class="botao-vista botao-alinhar" disabled title="Pôr no meio da altura"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h12"/><rect x="4" y="3.5" width="3" height="9" rx="0.5"/><rect x="9" y="5" width="3" height="6" rx="0.5"/></svg><span class="rotulo-botao">Meio da altura</span></button>
+              <button type="button" id="ed-al-base" class="botao-vista botao-alinhar" disabled title="Encostar na base"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5h12"/><rect x="4" y="3" width="3" height="8" rx="0.5"/><rect x="9" y="6" width="3" height="5" rx="0.5"/></svg><span class="rotulo-botao">Na base</span></button>
+            </div>
+            <p id="ed-mensagem" class="ed-mensagem" role="status" aria-live="polite"></p>
+          </div>
+          <div id="editor-texto" class="editor-texto" hidden>
+            <label for="ed-campo-texto" class="editor-rotulo">Texto deste elemento, só nesta família</label>
+            <textarea id="ed-campo-texto" rows="3" spellcheck="false"></textarea>
+            <p class="nota">As linhas são as que você escrever. O Vapt não quebra o texto sozinho. Para mudar de linha, use Enter.</p>
+            <p id="ed-erro-texto" class="erro-campo" role="alert"></p>
+            <div class="editor-acoes">
+              <button type="button" id="ed-texto-cancelar" class="botao">Cancelar</button>
+              <button type="button" id="ed-texto-aplicar" class="botao botao-primario">Aplicar texto</button>
+            </div>
+          </div>
+          <div id="editor-quebra" class="editor-quebra" role="group" aria-labelledby="t-quebra" hidden>
+            <div class="quebra-topo">
+              <p id="t-quebra" class="editor-rotulo">Quebras de linha deste texto, só nesta família</p>
+              <p class="nota">Clique entre duas palavras para quebrar a linha ali. Clique na marca do fim da linha para juntar com a linha de baixo.</p>
+            </div>
+            <div id="quebra-linhas" class="quebra-linhas"></div>
+            <div class="quebra-pe">
+              <p id="quebra-situacao" class="quebra-situacao" role="status" aria-live="polite"></p>
+              <div class="editor-acoes">
+                <button type="button" id="ed-quebra-kv" class="botao" hidden>Voltar às quebras do KV</button>
+                <button type="button" id="ed-quebra-fechar" class="botao">Fechar</button>
+              </div>
+            </div>
+          </div>
+          <section id="membros" class="membros" aria-labelledby="t-membros" hidden>
+            <div class="membros-topo">
+              <h2 id="t-membros">Como fica em cada arquivo</h2>
+              <p id="resumo-edicao" class="resumo-edicao"></p>
+            </div>
+            <div id="membros-lista" class="membros-lista"></div>
+          </section>
+        </div>
+        <aside id="galeria" class="galeria" aria-labelledby="t-galeria" hidden>
+          <div class="galeria-topo">
+            <h2 id="t-galeria">Versões do Vapt</h2>
+            <p id="motivo-galeria" class="motivo-galeria"></p>
+            <p id="nota-galeria" class="nota">Escolha uma versão para começar. Nada é gravado nesta versão da tela.</p>
+          </div>
+          <div id="variantes" class="variantes" role="tablist" aria-orientation="vertical" aria-labelledby="t-galeria"></div>
+        </aside>
+      </div>
+    </div>
+  </section>
+  <section id="passo-formatos" class="passo passo-formatos" aria-label="Render e aprovação" hidden>
+    <div class="painel-coluna">
+      <header class="painel-cabeca">
+        <div class="painel-titulo">
+          <p class="sobretitulo">Passo 5</p>
+          <h1>Render e aprovação</h1>
+          <p id="painel-resumo" class="nota"></p>
+        </div>
+        <div class="painel-acoes">
+          <button type="button" id="renderizar-afetados" class="botao" disabled>Renderizar os afetados</button>
+          <button type="button" id="aprovar-marcados" class="botao botao-primario" disabled>Aprovar</button>
+        </div>
+      </header>
+      <div id="tarefa-painel" class="tarefa" role="status" aria-live="polite" hidden>
+        <div class="tarefa-topo">
+          <p id="tarefa-texto" class="tarefa-texto"></p>
+          <button type="button" id="tarefa-cancelar" class="botao botao-vista">Cancelar</button>
+        </div>
+        <div class="tarefa-trilho" aria-hidden="true"><span id="tarefa-barra" class="tarefa-barra"></span></div>
+        <p id="tarefa-detalhe" class="tarefa-detalhe"></p>
+      </div>
+      <p id="painel-mensagem" class="painel-mensagem" role="status" aria-live="polite" hidden></p>
+      <section id="registro-marca" class="registro-marca" hidden>
+        <div class="registro-textos">
+          <p id="registro-selo" class="registro-selo"></p>
+          <h2 id="registro-titulo"></h2>
+          <p id="registro-nota" class="nota registro-nota"></p>
+        </div>
+        <button type="button" id="registro-guardar" class="botao botao-acento registro-guardar" data-ato="marca_registrar" hidden>Guardar o padrão desta marca</button>
+      </section>
+      <div class="lista-formatos-topo" aria-hidden="true">
+        <span>Formato</span><span>Situação</span>
+      </div>
+      <div id="lista-formatos" class="lista-formatos" role="list" aria-label="Formatos do job"></div>
+      <section class="historico" aria-labelledby="t-historico">
+        <h2 id="t-historico">Versões do briefing</h2>
+        <p class="nota historico-nota">Só para consulta. Cada versão diz quando foi salva e quais formatos ela mudou.</p>
+        <ol id="historico-versoes" class="historico-versoes"></ol>
+      </section>
+    </div>
+    <aside id="formato-detalhe" class="formato-detalhe" aria-label="Formato escolhido" aria-live="polite"></aside>
+  </section>
+</main>
+<footer class="acoes" aria-label="Ações do briefing">
+  <div class="acoes-esquerda">
+    <span id="passos-trilho" class="passos-trilho" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>
+    <p id="passo-atual" class="passo-atual"></p>
+    <span class="acoes-divisor" aria-hidden="true"></span>
+    <p id="selo" class="selo-leitura" role="status" aria-live="polite" title="Só para ver, nada é gravado">Só para ver, nada é gravado</p>
+    <p id="salvo" class="salvo" role="status" tabindex="-1" hidden></p>
+  </div>
+  <p id="aviso-acoes" class="aviso-acoes" role="alert" hidden></p>
+  <div class="acoes-direita">
+    <p id="dica-acoes" class="dica-acoes" aria-live="polite"></p>
+    <button type="button" id="dica-ir" class="ir dica-ir" hidden>Ir até lá</button>
+    <button type="button" id="confirmar-familia" class="botao" disabled>Confirmar família</button>
+    <kbd id="tecla-salvar" class="tecla" aria-hidden="true">Enter</kbd>
+    <button type="button" id="salvar-seguir" class="botao botao-primario" disabled aria-describedby="dica-acoes" aria-keyshortcuts="Enter">Salvar e seguir</button>
+  </div>
+</footer>
+<dialog id="confirmacao" class="confirmacao" aria-labelledby="confirmacao-titulo" aria-describedby="confirmacao-texto">
+  <h2 id="confirmacao-titulo" tabindex="-1"></h2>
+  <p id="confirmacao-texto" class="confirmacao-texto"></p>
+  <div id="confirmacao-extra" class="confirmacao-extra" hidden></div>
+  <div class="confirmacao-acoes">
+    <button type="button" class="botao" data-resposta="nao"></button>
+    <button type="button" class="botao botao-primario" data-resposta="sim"></button>
+  </div>
+</dialog>
+<dialog id="ver-grande" class="confirmacao ver-grande" aria-labelledby="ver-grande-titulo" aria-describedby="ver-grande-nota">
+  <div class="ver-grande-topo">
+    <div class="ver-grande-textos">
+      <h2 id="ver-grande-titulo" tabindex="-1"></h2>
+      <p id="ver-grande-nota" class="nota">Só para ver. Para mudar o layout, edite o arquivo de edição no palco.</p>
+    </div>
+    <button type="button" id="ver-grande-por-cima" class="botao-vista" aria-pressed="false" title="Desenha, em linha tracejada, onde cada elemento do seu arquivo de edição cai neste arquivo pela cópia do Vapt. No arquivo igual ao seu, a linha fica em cima do elemento. No ajustado, ela mostra de onde o Vapt tirou o elemento.">Mostrar o seu por cima</button>
+  </div>
+  <div class="ver-grande-corpo">
+    <div id="ver-grande-palco" class="ver-grande-palco" aria-label="Este arquivo, em tamanho grande"></div>
+    <div class="ver-grande-lado">
+      <p id="ver-grande-selo" class="selo-copia"></p>
+      <ul id="ver-grande-frases" class="ver-grande-frases"></ul>
+      <div id="ver-grande-atos" class="ver-grande-atos"></div>
+    </div>
+  </div>
+  <div class="confirmacao-acoes">
+    <button type="button" class="botao botao-primario" data-resposta="fechar">Fechar</button>
+  </div>
+</dialog>
+<dialog id="sentido" class="confirmacao confirmacao-larga" aria-labelledby="sentido-titulo" aria-describedby="sentido-texto">
+  <h2 id="sentido-titulo" tabindex="-1">Para que lado o formato gira?</h2>
+  <p id="sentido-texto" class="confirmacao-texto"></p>
+  <div id="sentido-formatos" class="sentido-formatos"></div>
+  <div class="confirmacao-acoes">
+    <button type="button" class="botao" data-resposta="nao">Cancelar</button>
+    <button type="button" class="botao botao-primario" data-resposta="sim" disabled>Seguir</button>
+  </div>
+</dialog>
+</body>
+</html>

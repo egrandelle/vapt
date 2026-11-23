@@ -8,7 +8,7 @@ Uso (na raiz do repositorio, com o ambiente de desenvolvimento):
       --index-url https://pypi.org/simple --report rel_dev.json -r dev/requisitos-execucao.txt -r dev/requisitos-dev.txt
   .venv/Scripts/python.exe dev/gerar_lock.py rel_run.json rel_dev.json
 
-Grava plugins/desdobra/motor/requirements.lock (execucao) e requirements-dev.lock (so o que falta para os
+Grava plugins/vapt/motor/requirements.lock (execucao) e requirements-dev.lock (so o que falta para os
 testes, com -r para o lock de execucao). Cada linha leva o hash sha256 do arquivo exato que o pip escolheu
 nesta maquina. O relatorio fica fora do repositorio.
 """
@@ -17,7 +17,7 @@ import os
 import sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MOTOR = os.path.join(RAIZ, 'plugins', 'desdobra', 'motor')
+MOTOR = os.path.join(RAIZ, 'plugins', 'vapt', 'motor')
 
 CABECALHO = """# Lock gerado por dev/gerar_lock.py a partir de "pip install --dry-run --report".
 # Instalar com: python -m pip install --require-hashes --no-deps --only-binary=:all: -r {nome}

@@ -1,0 +1,790 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vapt:schema:rascunho-tela:1",
+  "title": "Rascunho da tela de briefing (rascunho-tela/1)",
+  "description": "briefing/rascunho.json, gravado so pelo servidor da tela (decisoes-v1.md, 164 e 167; proposta do M7, 164): as escolhas e as edicoes do DA por familia, salvas sozinhas a cada mudanca. Nunca e o briefing confirmado: o preparar e o portao de entrega leem so briefing/briefing-confirmado.json. A chave e o hash do laudo: o rascunho de outro laudo (PSD relido) nunca volta calado. O passo 2 (Funcoes) e o Design system gravam aqui as escolhas do DA (vapt.tela.funcoes): a funcao por grupo ou camada, a decisao das cobertas e a regra e a ancora por funcao e por elemento indeterminado, sem valor padrao; as opcoes sao as do esquema briefing/1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "esquema",
+    "job_id",
+    "laudo_sha256",
+    "origem",
+    "atualizado_em",
+    "familias"
+  ],
+  "properties": {
+    "esquema": {
+      "const": "rascunho-tela/1"
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "laudo_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "origem": {
+      "enum": [
+        "rascunho",
+        "fixture_de_teste"
+      ]
+    },
+    "atualizado_em": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+    },
+    "familias": {
+      "description": "Por id da familia da tela (orientacao e numero, por exemplo vertical-1). Desde a revisao do M7b, fase A, o id fica preso aos formatos da familia, e nao a posicao do grupo na aba: o numero nasce do menor livre na orientacao. O id que a tela nao mostra mais continua aqui, com as edicoes dele.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/familia"
+      }
+    },
+    "quadro": {
+      "description": "Prancheta de onde a peca sai (decisao 1; revisao do M7a): o id do quadro do laudo (q1...), escolhido pelo DA no passo 1; null enquanto ele nao escolheu. So o PSD com pranchetas tem o que escolher.",
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^q[0-9]+$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "rotacoes": {
+      "description": "Giro de cada formato (decisao 139; revisao do M7a), escolhido pelo DA no passo 1, pela chave do formato na folha (veiculador|circuito|LxA). O quarto de volta (90 e 270 graus) pede o sentido; 0 e 180 graus, nao.",
+      "type": "object",
+      "propertyNames": {
+        "minLength": 1,
+        "maxLength": 512
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/rotacao"
+      }
+    },
+    "funcoes": {
+      "description": "Funcao dada pelo DA a um grupo (passa para as camadas de dentro) ou a uma camada (vale sobre a do grupo), por layer_id. Indeterminado pede a observacao.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[0-9]{1,9}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/escolha_funcao"
+      }
+    },
+    "cobertas": {
+      "description": "Camada coberta no KV: o DA aceita ou inverte a funcao sugerida pela regra da decisao 10, por layer_id.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[0-9]{1,9}$"
+      },
+      "additionalProperties": {
+        "enum": [
+          "aceita",
+          "inverte"
+        ]
+      }
+    },
+    "design": {
+      "description": "Regra de escala e ancora por funcao, escolhidas no Design system; null enquanto o DA nao escolheu. M7c, M4: o valor posto pelo clique em \"Usar o padrao\" leva a origem padrao_marca por campo (regra, ancora), com o ref do perfil; o DA que muda o campo tira a origem dele.",
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/funcao"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/design_funcao"
+      }
+    },
+    "design_camadas": {
+      "description": "Regra de escala e ancora de cada elemento indeterminado (layer_id da raiz do elemento).",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[0-9]{1,9}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/design"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$"
+    },
+    "rotacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "graus",
+        "sentido"
+      ],
+      "properties": {
+        "graus": {
+          "enum": [
+            0,
+            90,
+            180,
+            270
+          ]
+        },
+        "sentido": {
+          "enum": [
+            "horario",
+            "anti_horario",
+            null
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "graus": {
+            "enum": [
+              90,
+              270
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "sentido": {
+            "enum": [
+              "horario",
+              "anti_horario"
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "sentido": {
+            "const": null
+          }
+        }
+      }
+    },
+    "familia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "versao",
+        "confirmada",
+        "edicoes"
+      ],
+      "properties": {
+        "versao": {
+          "description": "Versao da galeria escolhida pelo DA; null quando ele ainda nao escolheu.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confirmada": {
+          "type": "boolean"
+        },
+        "edicoes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/edicao"
+          }
+        },
+        "quebras": {
+          "description": "As quebras de linha que o DA pos ou tirou na familia (M7b, C1; decisoes-v1.md, 167 e 171), uma por texto: valem para todos os formatos da familia, como o texto editado. Vao ao briefing em quebras_por_familia, com a familia e os formatos dela. Ausente sem quebra mudada.",
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/quebra"
+          }
+        },
+        "formatos": {
+          "description": "Os formatos da familia na tela quando o DA mexeu nela pela ultima vez (escolheu a versao, editou ou confirmou; revisao do M7b, fase A). So o servidor grava; o que a pagina manda e jogado fora. A tela casa o id da familia com o grupo que divide mais formatos com esta lista, e a edicao nunca passa para um grupo sem formato em comum com ela. Ausente no rascunho de antes desta revisao.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cedidos": {
+          "description": "Os formatos desta lista que outra familia levou depois que o DA mexeu nesta: o DA mexeu na outra familia (ou a confirmou) com eles (revisao do M7b, fase A). So o servidor grava; o que a pagina manda e jogado fora, e o campo sai quando o DA mexe nesta familia ou a confirma. O formato cedido que volta para esta familia entrou de novo: a tela avisa e a confirmacao velha nao vale.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "arquivo_de_edicao": {
+          "description": "O arquivo de edicao da familia (decisao 199, 1; 0.10.0): o unico em que o DA edita no palco, e os outros arquivos copiam o layout aprovado nele. O servidor grava pela regra (o de maior area em pe; no empate, o sem giro, depois o primeiro da lista) na primeira gravacao da familia, e ele fica enquanto o arquivo estiver na familia: o arquivo maior que entra depois nao troca. So o ato Trocar arquivo de edicao da janela o troca, e so na familia sem edicao. O que a pagina manda e jogado fora. Ausente no rascunho de antes da 0.10.0: vale a regra.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "separados": {
+          "description": "Os arquivos que o DA separou desta familia em familia propria (decisao 199, 3; 0.10.0), pelo ato Separar em familia propria da janela. Cada um vira uma familia com ele de arquivo de edicao; o ato Juntar de volta o tira daqui. So o servidor grava; o que a pagina manda e jogado fora.",
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 500,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          }
+        },
+        "arquivo_trocado": {
+          "description": "O arquivo de edicao gravado saiu da familia (o DA tirou o formato no passo 1, ou a familia foi montada de novo) com a familia ja editada: as edicoes, em fracao do arquivo de edicao, passam a valer no arquivo da regra (revisao da 0.10.0). de: o arquivo que saiu; para: o de agora. A tela diz isso ate o DA confirmar a familia. So o servidor grava; o que a pagina manda e jogado fora.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["de", "para"],
+          "properties": {
+            "de": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+            "para": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}
+          }
+        },
+        "layout_mudou": {
+          "description": "Os arquivos da familia cujo layout saiu diferente do que o DA confirmou, quando o Salvar e seguir conferiu o hash de cada um (decisao 199, 5; revisao da 0.10.0). A confirmacao cai, a tela diz quais arquivos mudaram e pede a confirmacao de novo. So o servidor grava; o que a pagina manda e jogado fora, e o campo sai quando o DA confirma a familia.",
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 500,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          }
+        },
+        "confirmacao": {
+          "description": "Quem confirmou a familia e como (decisoes-v1.md, 167): so o ato Confirmar familia da janela grava; a pagina nunca manda. Some quando a familia muda depois da confirmacao.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "origem",
+            "meio",
+            "em"
+          ],
+          "properties": {
+            "origem": {
+              "enum": [
+                "da",
+                "fixture_de_teste"
+              ]
+            },
+            "meio": {
+              "enum": [
+                "tela",
+                "medicao"
+              ]
+            },
+            "em": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+            },
+            "formatos": {
+              "description": "Os formatos da familia quando o DA confirmou (revisao do M7a): a confirmacao nao passa para outro conjunto de formatos, mesmo com o id da familia igual.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "pecas": {
+              "description": "A impressao das pecas da familia quando o DA confirmou (revisao 3 da regra spec_por_confirmar): a medida, as faixas, a area util e a area segura de cada formato e as versoes da galeria. Outra impressao hoje e outra peca, e a confirmacao nao vale para ela.",
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "arquivo_de_edicao": {
+              "description": "O arquivo de edicao da familia quando o DA confirmou (decisao 199, 5; 0.10.0). A confirmacao sem este campo e de antes da 0.10.0 e cai uma vez, com a frase do motivo na tela.",
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]*$"
+            },
+            "layouts": {
+              "description": "O hash do layout de cada arquivo da familia como a janela mostrou na confirmacao (decisao 199, 5; 0.10.0): o sha256 do palco de cada arquivo na previa. O Salvar e seguir refaz a previa e recusa a familia cujo layout de algum arquivo saiu diferente do confirmado.",
+              "type": "object",
+              "maxProperties": 500,
+              "propertyNames": {
+                "pattern": "^[a-z0-9][a-z0-9-]*$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "confirmada": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "confirmacao"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "confirmacao"
+          ]
+        }
+      }
+    },
+    "quebra": {
+      "description": "A quebra de linha de um texto na familia (M7b, C1). As posicoes contam no texto de agora: o do KV ou o editado pelo DA nesta familia (a ultima edicao de texto do elemento, com CR LF e CR trocados por LF como o render desenha).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "elemento",
+        "layer_id",
+        "manter",
+        "inseridas",
+        "origem",
+        "aprovada"
+      ],
+      "properties": {
+        "elemento": {
+          "description": "O elemento do palco que tem o texto (el e o layer_id da raiz), para achar o texto editado na familia.",
+          "type": "string",
+          "pattern": "^el[0-9]{1,9}$"
+        },
+        "layer_id": {
+          "description": "A camada de texto do laudo.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "manter": {
+          "description": "Os indices das quebras gravadas do texto de agora que ficam (0 e a primeira); as outras viram espaco.",
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 2000,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "inseridas": {
+          "description": "As posicoes de espaco do texto de agora que viram quebra.",
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 2000,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "origem": {
+          "description": "da: o DA pos ou tirou a quebra, e o proprio ato aprova; proposta: o motor propos, e a quebra espera a aprovacao do DA.",
+          "enum": [
+            "da",
+            "proposta"
+          ]
+        },
+        "aprovada": {
+          "type": "boolean"
+        }
+      },
+      "if": {
+        "properties": {
+          "origem": {
+            "const": "da"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "aprovada": {
+            "const": true
+          }
+        }
+      }
+    },
+    "edicao": {
+      "description": "Uma edicao do DA no palco, valida para a familia inteira (decisoes-v1.md, 167 e 169). As medidas sao fracoes do lado da peca.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "elemento",
+        "acao"
+      ],
+      "properties": {
+        "elemento": {
+          "$ref": "#/$defs/id"
+        },
+        "acao": {
+          "enum": [
+            "mover",
+            "escalar",
+            "texto",
+            "apagar",
+            "alinhar",
+            "alinhar_texto"
+          ]
+        },
+        "alinhamento": {
+          "description": "0.12.0: o alinhamento das linhas do texto escolhido pelo DA (todas as linhas do elemento; a linha mais larga fica no lugar). So em alinhar_texto.",
+          "enum": [
+            "esquerda",
+            "centro",
+            "direita"
+          ]
+        },
+        "dx": {
+          "type": "number"
+        },
+        "dy": {
+          "type": "number"
+        },
+        "fator": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "texto": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "O texto novo do elemento (decisoes-v1.md, 169 e 171), valido so na familia onde foi editado; a quebra de linha do DA e \n."
+        },
+        "fx": {
+          "description": "Ponto fixo do escalar, em fracao da largura da caixa (0 e a esquerda); sem ele, o meio.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "fy": {
+          "description": "Ponto fixo do escalar, em fracao da altura da caixa (0 e o topo); sem ele, o meio.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "alvo": {
+          "description": "O alinhamento no quadro (M7b, D2): a linha da caixa do elemento, ou da caixa que junta o grupo, que encosta na mesma linha do quadro de cada membro da familia. So em alinhar.",
+          "enum": [
+            "margem_esquerda",
+            "centro_horizontal",
+            "margem_direita",
+            "topo",
+            "centro_vertical",
+            "base"
+          ]
+        },
+        "referencia": {
+          "description": "O quadro do alinhamento (M7b, D2): a margem de cada membro ou a area segura dele. So em alinhar.",
+          "enum": [
+            "margem",
+            "area_segura"
+          ]
+        },
+        "elementos": {
+          "description": "O grupo (M7b, D1 e D2): os elementos escolhidos juntos no palco, que andam, escalam ou alinham como um so; o elemento da edicao e o primeiro. Com ele, fx e fy sao fracoes da caixa que junta o grupo no formato. So em mover, escalar e alinhar.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 500,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "acao": {
+                "enum": [
+                  "texto",
+                  "apagar",
+                  "alinhar_texto"
+                ]
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "elementos"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "acao": {
+                "const": "alinhar_texto"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "alinhamento"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "alinhamento"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "acao": {
+                "const": "mover"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "dx",
+              "dy"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "acao": {
+                "const": "escalar"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "fator"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "acao": {
+                "const": "texto"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "texto"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "acao": {
+                "const": "alinhar"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "alvo",
+              "referencia"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "alvo"
+                  ]
+                },
+                {
+                  "required": [
+                    "referencia"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "funcao": {
+      "enum": [
+        "fundo",
+        "imagem",
+        "sujeito",
+        "veu_de_legibilidade",
+        "grafismo",
+        "titulo",
+        "texto_de_apoio",
+        "cta",
+        "icone_de_cta",
+        "url_ou_contato",
+        "texto_legal",
+        "informacao_de_evento",
+        "destaque_numerico",
+        "logo_principal",
+        "assinatura_institucional",
+        "selo",
+        "logo_de_parceiro",
+        "ajuste_global",
+        "estrutura",
+        "fora_da_peca",
+        "indeterminado"
+      ]
+    },
+    "regra": {
+      "enum": [
+        "largura",
+        "altura",
+        "lado_curto",
+        "lado_longo",
+        "raiz_area",
+        "constante",
+        "contain",
+        "cover"
+      ]
+    },
+    "ancora_x": {
+      "enum": [
+        "esquerda",
+        "centro",
+        "direita"
+      ]
+    },
+    "ancora_y": {
+      "enum": [
+        "topo",
+        "meio",
+        "base"
+      ]
+    },
+    "escolha_funcao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "funcao",
+        "observacao"
+      ],
+      "properties": {
+        "funcao": {
+          "$ref": "#/$defs/funcao"
+        },
+        "observacao": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        }
+      },
+      "if": {
+        "properties": {
+          "funcao": {
+            "const": "indeterminado"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "observacao": {
+            "type": "string",
+            "pattern": "\\S"
+          }
+        }
+      }
+    },
+    "design": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "regra",
+        "x",
+        "y"
+      ],
+      "properties": {
+        "regra": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/regra"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "x": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ancora_x"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "y": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ancora_y"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "design_funcao": {
+      "description": "A entrada do Design system por funcao (design), com a origem por item do M7c, M4.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "regra",
+        "x",
+        "y"
+      ],
+      "properties": {
+        "regra": {
+          "$ref": "#/$defs/design/properties/regra"
+        },
+        "x": {
+          "$ref": "#/$defs/design/properties/x"
+        },
+        "y": {
+          "$ref": "#/$defs/design/properties/y"
+        },
+        "origem": {
+          "description": "So o que veio do clique em \"Usar o padrao\" (padrao da marca, arquitetura-v1.md, 5.3 e 5.7). Sem a chave, o valor e escolha do DA.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "regra": {
+              "$ref": "#/$defs/origem_padrao"
+            },
+            "ancora": {
+              "$ref": "#/$defs/origem_padrao"
+            }
+          }
+        }
+      }
+    },
+    "origem_padrao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tipo",
+        "ref"
+      ],
+      "properties": {
+        "tipo": {
+          "const": "padrao_marca"
+        },
+        "ref": {
+          "description": "marca:<id do perfil>@v<versao>#job:<job de origem> (vapt.tela.funcoes.FORMA_DO_REF)",
+          "type": "string",
+          "pattern": "^marca:[0-9a-f]{32}@v[1-9][0-9]*#job:[0-9a-f]{8,64}$"
+        }
+      }
+    }
+  }
+}

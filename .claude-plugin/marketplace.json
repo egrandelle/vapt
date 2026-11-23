@@ -1,13 +1,13 @@
 {
-  "name": "desdobra",
-  "description": "Marketplace privado da Trezion com o plugin desdobra",
+  "name": "vapt",
+  "description": "Marketplace privado da Trezion com o plugin Vapt",
   "owner": {
     "name": "Trezion"
   },
   "plugins": [
     {
-      "name": "desdobra",
-      "source": "./plugins/desdobra",
+      "name": "vapt",
+      "source": "./plugins/vapt",
       "description": "Desdobra peças de mídia estática (OOH, DOOH e banner digital) a partir do PSD do KV"
     }
   ]

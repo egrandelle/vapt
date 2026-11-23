@@ -1,0 +1,260 @@
+# -*- coding: utf-8 -*-
+"""vapt tela abrir: abre a tela de briefing do job (M7a0, fatia a2; M7a, fatia 1, com o rascunho e os atos).
+
+    vapt tela abrir --job <pasta>
+
+Quem roda e o Claude, pela skill (decisoes-v1.md, n 159: o DA nunca roda nada num terminal). Por isso este comando
+nao e humano (fica fora de vapt.humano.COMANDOS e do gancho) e nao grava nada do job alem dos eventos. O que a
+tela grava (o rascunho, os atos que o DA confirma na janela e o cronometro da mestre em medicoes/tela.json) grava o
+processo de fundo, pelo servidor da tela (vapt.tela.servidor), nunca este comando. Ele:
+  - confere a pasta do job e o Chromium com janela fixado (doctor.chromium.verificar_chromium_janela);
+  - solta o processo de fundo (vapt.tela.processo), sem segredo na linha de comando, sem console visivel e fora
+    do grupo de processos de quem chamou, com o teto e a pasta da biblioteca da agencia (opcao global --biblioteca;
+    M7c, M1) na linha de comando quando vieram; a saida e o envelope nunca levam a pasta;
+  - espera a linha de aviso do fundo ("pronto" ou "recusado <motivo>") por no maximo tela.partida_max_s e volta. A
+    janela fica aberta com o DA; o fundo sai sozinho quando ele a fecha, e o perfil temporario e apagado.
+
+O token da entrada e a sessao do cookie nunca passam por aqui: nascem no processo de fundo e vao so ao Chromium que ele
+abre. A saida, o envelope e os eventos levam so fatos sem segredo (tela aberta, o job, o motivo da recusa).
+
+O fundo nasce com ambiente por lista de permissao (ambiente_do_fundo, revisao do M7a0): o ambiente de quem chama e do
+Claude, e o driver do Playwright copia o ambiente do processo inteiro. DEBUG e DEBUG_FILE gravariam a URL de entrada e
+os cabecalhos do protocolo num arquivo, NODE_OPTIONS rodaria codigo no driver que segura o Chromium; nada disso passa.
+No ambiente do plugin, a pasta dos navegadores e sempre a da pasta de dados do plugin, nunca a da variavel de quem
+chama (pasta_navegadores_da_tela). Risco declarado: o executavel do Chromium e conferido pelo layout e pelo manifesto
+da versao (doctor), sem hash; trocar os arquivos da pasta de dados do plugin e coisa de um processo do mesmo usuario.
+"""
+import os
+import subprocess
+import sys
+import threading
+from pathlib import Path
+
+from vapt import limites
+from vapt.resultado import Codigo, Resultado
+
+O_QUE_FAZER_ABERTA = ('A tela de briefing abriu numa janela do navegador do Vapt. O que o DA escolhe nela fica '
+                      'salvo sozinho no rascunho do job, que não vale como briefing confirmado. O modo de dados do '
+                      'job é escolhido pelo DA no passo 1 da tela; até lá, o job fica no modo c. Peça ao DA para '
+                      'trabalhar nas abas e fechar a janela quando terminar; ao fechar, o Vapt apaga a pasta '
+                      'temporária do navegador.')
+# o que o DA le quando a tela nao abre (M7c, K5): nada de comando de terminal; o DA pede ao Claude, que segue o job,
+# abre a tela de novo ou confere a instalacao pela skill doctor
+_SEGUIR_E_REABRIR = 'Peça ao Claude para seguir o job e abrir a tela de novo.'
+_DOCTOR = 'Peça ao Claude para conferir a instalação do Vapt (doctor)'
+O_QUE_FAZER_RECUSA = {
+    'nao_e_job': 'A pasta não é um job do Vapt. Confira a pasta ou peça ao Claude para criar o job.',
+    'job_ocupado': 'Outro comando do Vapt está usando este job. Espere ele terminar e abra a tela de novo.',
+    'sem_briefing': 'O job ainda não tem briefing para a tela mostrar. ' + _SEGUIR_E_REABRIR,
+    'briefing_rascunho': 'O briefing gravado é um rascunho, sem decisões, e a tela não o abre. ' + _SEGUIR_E_REABRIR,
+    'briefing_desatualizado': ('O briefing é de outra versão do laudo, das specs, do design system ou das fontes. '
+                               + _SEGUIR_E_REABRIR),
+    'briefing_com_problema': 'O briefing tem decisão pendente ou incompleta. ' + _SEGUIR_E_REABRIR,
+    'briefing_invalido': 'O briefing não segue o contrato briefing/1.',
+    'fases_desatualizadas': 'Uma fase do job está desatualizada. ' + _SEGUIR_E_REABRIR,
+    'entrada_alterada_fora_do_motor': 'Uma entrada congelada do job mudou fora do Vapt.',
+    'sem_chromium_com_janela': ('O navegador com janela do Vapt não está instalado. ' + _DOCTOR
+                                + ', que diz como pedir o seu aval para o download.'),
+    'chromium_nao_abriu': 'O navegador com janela não abriu. ' + _DOCTOR + ' e abrir a tela de novo.',
+    'tela_nao_respondeu': 'A tela não respondeu a tempo e foi fechada. ' + _DOCTOR + ' e abrir a tela de novo.',
+    'erro_interno': ('Erro interno do Vapt ao abrir a tela. ' + _DOCTOR + ' e mande o doctor.json para a Trezion '
+                     'se voltar.'),
+    'uso': 'Erro interno do Vapt ao abrir a tela (argumentos do processo de fundo).',
+}
+CODIGO_DA_RECUSA = {'tela_nao_respondeu': Codigo.ORCAMENTO, 'erro_interno': Codigo.ERRO_INTERNO,
+                    'uso': Codigo.ERRO_INTERNO, 'job_ocupado': Codigo.OCUPADO}
+
+
+# variaveis do ambiente de quem chama que o fundo recebe: so as do sistema, do usuario e das pastas que o Windows, o
+# Python, o driver do Playwright (node) e o Chromium leem. O resto (DEBUG*, NODE_*, PW*, PLAYWRIGHT_*, as do Claude,
+# tokens e configuracao do usuario) fica de fora
+VARIAVEIS_DO_FUNDO = ('SYSTEMROOT', 'SYSTEMDRIVE', 'WINDIR', 'TEMP', 'TMP', 'PATHEXT', 'COMSPEC', 'NUMBER_OF_PROCESSORS',
+                      'PROCESSOR_ARCHITECTURE', 'PROCESSOR_IDENTIFIER', 'OS', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA',
+                      'HOMEDRIVE', 'HOMEPATH', 'USERNAME', 'USERDOMAIN', 'COMPUTERNAME', 'PROGRAMDATA', 'PROGRAMFILES',
+                      'PROGRAMFILES(X86)', 'PROGRAMW6432', 'COMMONPROGRAMFILES', 'PUBLIC', 'ALLUSERSPROFILE',
+                      'HOME', 'USER', 'LOGNAME', 'TMPDIR', 'LANG', 'LC_ALL', 'DISPLAY', 'WAYLAND_DISPLAY',
+                      'XDG_RUNTIME_DIR', 'XAUTHORITY')
+
+
+def pasta_navegadores_da_tela():
+    """Pasta dos navegadores do Playwright que a tela usa: no ambiente do plugin, sempre DATA/ms-playwright; fora dele
+    (desenvolvimento e testes), a do motor (variavel ou padrao do Playwright)."""
+    from vapt import chromium
+    dados = chromium.pasta_dados_do_plugin()
+    if dados is not None:
+        return dados / chromium.PASTA_NAVEGADORES
+    return chromium.pasta_navegadores() or chromium.pasta_padrao_do_playwright()
+
+
+def _path_minimo():
+    """PATH do fundo: a pasta do Python e as pastas do sistema."""
+    pastas = [os.path.dirname(sys.executable)]
+    if sys.platform == 'win32':
+        raiz = os.environ.get('SYSTEMROOT') or os.environ.get('WINDIR') or 'C:\\Windows'
+        pastas += [os.path.join(raiz, 'System32'), raiz]
+    else:
+        pastas += ['/usr/bin', '/bin']
+    return os.pathsep.join(pastas)
+
+
+def ambiente_do_fundo():
+    """Ambiente do processo de fundo, montado do zero: VARIAVEIS_DO_FUNDO, o PATH minimo e a pasta dos navegadores."""
+    from vapt import chromium
+    env = {}
+    for k, v in os.environ.items():
+        if k.upper() in VARIAVEIS_DO_FUNDO:
+            env[k] = v
+    env['PATH'] = _path_minimo()
+    env[chromium.VARIAVEL_NAVEGADORES] = str(pasta_navegadores_da_tela())
+    return env
+
+
+def registrar(subparsers):
+    p = subparsers.add_parser('tela', help='Tela de briefing do job')
+    sub = p.add_subparsers(dest='acao_tela', metavar='ACAO', required=True)
+    a = sub.add_parser('abrir', help='Abre a tela do job numa janela do navegador do Vapt e volta')
+    a.add_argument('--job', required=True, help='Pasta do job')
+    a.set_defaults(executar=_abrir, nome_comando='tela abrir')
+
+
+def comando_do_filho(pasta, teto=None, biblioteca=None):
+    """A linha de comando do processo de fundo: so o modulo, a pasta, o teto do modo de dados e a pasta da biblioteca
+    da agencia (M7c, M1), nenhum segredo."""
+    argv = [sys.executable, '-I', '-B', '-m', 'vapt.tela.processo', '--job', str(pasta)]
+    if teto:
+        argv += ['--teto', teto]
+    if biblioteca:
+        argv += ['--biblioteca', str(biblioteca)]
+    return argv
+
+
+def _argumentos_do_filho(args):
+    """teto e biblioteca so quando vieram (os testes trocam comando_do_filho por uma funcao so da pasta)."""
+    extra = {}
+    teto = getattr(args, 'teto_modo_dados', None)
+    if teto:
+        extra['teto'] = teto
+    from vapt import biblioteca
+    pasta = biblioteca.normalizar(getattr(args, 'biblioteca', None))
+    if pasta is not None:
+        extra['biblioteca'] = str(pasta)
+    return extra
+
+
+def _janela_presente():
+    """O Chromium com janela fixado esta na pasta que o fundo vai usar (o doctor so avisa quando ele falta, porque o
+    download e opcional; a tela nao abre sem ele)."""
+    from vapt.doctor import chromium as vc
+    return vc.verificar_chromium_janela(pasta_navegadores_da_tela()).situacao == 'ok'
+
+
+def _espera_s():
+    return float(limites.valor('tela.partida_max_s'))
+
+
+def _soltar(argv):
+    """Processo de fundo solto de quem chamou: saida padrao num pipe so para a linha de aviso, entrada e erro no nulo,
+    sem console visivel e num grupo de processos proprio. No Windows, tenta sair do Job Object de quem chamou (o
+    terminal do Claude pode fechar a arvore dele no fim do comando); quando o job nao deixa, segue dentro dele."""
+    base = dict(stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, close_fds=True,
+                env=ambiente_do_fundo())
+    if sys.platform != 'win32':
+        return subprocess.Popen(argv, start_new_session=True, **base)
+    criacao = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+    try:
+        return subprocess.Popen(argv, creationflags=criacao | subprocess.CREATE_BREAKAWAY_FROM_JOB, **base)
+    except OSError:
+        return subprocess.Popen(argv, creationflags=criacao, **base)
+
+
+def _ler_aviso(proc, espera_s):
+    """A linha de aviso do fundo, ou None quando ela nao chega a tempo."""
+    caixa = []
+
+    def ler():
+        try:
+            caixa.append(proc.stdout.readline())
+        except (OSError, ValueError):
+            caixa.append(b'')
+
+    fio = threading.Thread(target=ler, daemon=True)
+    fio.start()
+    fio.join(espera_s)
+    if not caixa:
+        return None
+    return caixa[0].decode('ascii', 'replace').strip()
+
+
+def _encerrar(proc, pasta):
+    """Mata o processo de fundo e os descendentes dele. A morta forcada nao roda o __exit__ da trava do job
+    (job.nucleo.Trava): a trava que um dos mortos gravou (o PID dele dentro) sai aqui; a de outro processo fica."""
+    import signal
+
+    from vapt.chromium import processos
+    mortos = {int(proc.pid)}
+    for pid, _nome in reversed(processos.descendentes(proc.pid)):
+        mortos.add(int(pid))
+        try:
+            os.kill(pid, signal.SIGTERM)  # no Windows e TerminateProcess
+        except OSError:
+            pass
+    if proc.poll() is None:
+        proc.kill()
+    try:
+        proc.wait(timeout=_espera_s())
+    except subprocess.TimeoutExpired:
+        pass
+    _tirar_trava_dos_mortos(pasta, mortos)
+
+
+def _tirar_trava_dos_mortos(pasta, mortos):
+    from vapt.job import nucleo
+    trava = Path(pasta) / nucleo.ARQUIVO_TRAVA
+    try:
+        dono = int(trava.read_text(encoding='ascii').strip())
+    except (OSError, ValueError):
+        return
+    if dono in mortos:
+        try:
+            trava.unlink()
+        except OSError:
+            pass
+
+
+def _recusa(pasta, motivo, linhas=None):
+    codigo = CODIGO_DA_RECUSA.get(motivo, Codigo.RECUSADO)
+    situacao = 'recusado' if codigo == Codigo.RECUSADO or codigo == Codigo.OCUPADO else 'erro'
+    return Resultado(comando='tela abrir', codigo=int(codigo), situacao=situacao, fase='tela', pasta_job=pasta,
+                     o_que_fazer=O_QUE_FAZER_RECUSA.get(motivo, O_QUE_FAZER_RECUSA['erro_interno']),
+                     contagens={'recusa_%s' % motivo: 1},
+                     linhas_humanas=linhas or ['A tela não abriu (%s).' % motivo])
+
+
+def _abrir(args):
+    from vapt.job import nucleo
+    pasta = Path(args.job).resolve()
+    if not (pasta / nucleo.ARQUIVO_ESTADO).is_file():
+        return Resultado(comando='tela abrir', codigo=int(Codigo.USO), situacao='erro',
+                         o_que_fazer=O_QUE_FAZER_RECUSA['nao_e_job'], linhas_humanas=['A pasta não é um job.'])
+    if not _janela_presente():
+        return _recusa(pasta, 'sem_chromium_com_janela')
+    proc = _soltar(comando_do_filho(pasta, **_argumentos_do_filho(args)))
+    aviso = _ler_aviso(proc, _espera_s())
+    if not aviso:
+        # sem aviso a tempo (ou o fundo saiu calado): o fundo e encerrado com os filhos dele (o Python de verdade, sob
+        # o lancador do venv); a amarra dele leva o Chromium junto. O pipe fica com o fio de leitura, que e daemon:
+        # fechar o pipe aqui esperaria a leitura presa
+        _encerrar(proc, pasta)
+        return _recusa(pasta, 'tela_nao_respondeu')
+    try:
+        proc.stdout.close()
+    except OSError:
+        pass
+    if aviso == 'pronto':
+        return Resultado(comando='tela abrir', situacao='ok', fase='tela', pasta_job=pasta,
+                         o_que_fazer=O_QUE_FAZER_ABERTA, contagens={'tela_aberta': 1},
+                         linhas_humanas=['Tela de briefing aberta.'])
+    prefixo, _, motivo = aviso.partition(' ')
+    if prefixo != 'recusado' or motivo not in O_QUE_FAZER_RECUSA:
+        motivo = 'erro_interno'
+    return _recusa(pasta, motivo)

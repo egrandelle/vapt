@@ -219,7 +219,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# desdobra: material que nunca entra no repositorio
+# Vapt: material que nunca entra no repositorio
 *.psd
 *.psb
 *.ttf
@@ -254,7 +254,7 @@ __marimo__/
 *.ai
 *.eps
 # excecao: a imagem de referencia do autoteste do render, desenhada so com a fonte gerada pelo motor (decisao 36)
-!plugins/desdobra/motor/referencias/autoteste-render.png
+!plugins/vapt/motor/referencias/autoteste-render.png
 # saidas do leitor e da regressao gravadas fora de uma pasta de job
 laudo.json
 estrutura.json
@@ -265,7 +265,7 @@ pacote-modelo.json
 # relatorio da regressao (leva os slugs do corpus) e as pastas de saida dela; o contrato regressao-1.json fica
 regressao-*.json
 regressao-*.md
-!/plugins/desdobra/motor/schemas/regressao-1.json
+!/plugins/vapt/motor/schemas/regressao-1.json
 regressao-*/
 saida-regressao*/
 bruto/
@@ -273,7 +273,7 @@ miniaturas/
 assets/
 .trabalho/
 .tmp-*
-.desdobra.trava
+.vapt.trava
 .venv/
 # pastas de job e saidas de teste
 jobs/

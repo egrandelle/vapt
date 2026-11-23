@@ -1,0 +1,546 @@
+# -*- coding: utf-8 -*-
+"""O gravador do briefing confirmado pelo DA (M7a, fatia 5; decisoes-v1.md, 159, 164, 167, 169, 170 e 171).
+
+"Salvar e seguir" e um ato da janela da tela (vapt.tela.atos, com a confirmacao do DA na propria janela e o
+Disparo da tela) e o "desdobra briefing confirmar" do terminal fica so para os testes e para a Trezion (decisoes-v1.md,
+159; o Disparo do console). Os dois chamam este gravador, que:
+  - so grava quando todas as familias da tela estao confirmadas no rascunho (briefing/rascunho.json, pelo ato
+    "Confirmar familia"), com a confirmacao de mesma origem do Disparo, quando o DA escolheu o modo de dados na tela e
+    quando o briefing montado passa na conferencia do motor (pendencias). Nada tem valor inicial: as funcoes, as
+    cobertas, as regras e as ancoras sao as do rascunho (vapt.tela.funcoes.briefing_parcial), o modo e o de
+    briefing/modo-dados.json, e as familias levam a versao e as edicoes que o DA confirmou;
+  - a prancheta da peca (quadro) e o giro de cada formato sao escolhas do passo 1, no rascunho (escolhas_do_passo_1;
+    revisao do M7a); sem o giro de todos os formatos, nada e gravado;
+  - a quebra de linha que o DA pos ou tirou numa familia da tela (M7b, C1) vai do rascunho para quebras_por_familia,
+    com a familia e os formatos dela (quebras_da_familia);
+  - o que a tela ainda nao decide (formatos, mestres, parametros das familias, quebras por faixa e regras de bloco)
+    vem do briefing gravado, com a origem que cada decisao ja tinha; no job novo, sem briefing gravado, vem do
+    briefing de partida (vapt.briefing.modelo.partida: os formatos das specs do job, a mestre do KV e o quadro
+    pendente), e o primeiro briefing confirmado nasce aqui; com o gravado de outra versao dos arquivos do job, vem da
+    retomada (vapt.briefing.modelo.retomada: o de partida com o que ainda vale do gravado);
+  - o texto editado tem de ter todos os caracteres na fonte do job (a mesma conferencia da previa da tela);
+  - grava briefing/briefing-confirmado.json com a origem e o meio do Disparo (da e tela; da e terminal; no modo de
+    teste da tela, fixture_de_teste e medicao, que o entregar recusa), guarda a versao anterior em
+    briefing/historico/ e roda a derivacao, que parte das familias confirmadas (vapt.derivacao.proposta).
+"""
+import copy
+from pathlib import Path
+
+from vapt import contratos
+
+COMANDO = 'briefing confirmar'
+ORIGEM_DA = 'da'
+ORIGEM_FIXTURE = 'fixture_de_teste'
+REF_RASCUNHO = 'rascunho da tela'
+REF_MODO = 'briefing/modo-dados.json'
+TIPO_PADRAO = 'padrao_marca'
+CAMPOS_DO_RASCUNHO = ('funcoes', 'cobertas', 'regras_escala', 'regras_indeterminado', 'ancoras')
+PASTA_MUDANCAS = Path('briefing') / 'historico' / 'mudancas'
+ESQUEMA_MUDANCAS = 'historico-mudancas/1'
+
+
+class ErroSalvar(Exception):
+    """O briefing nao foi gravado. pendencias: [{'codigo', ...}] (codigos fixos do motor)."""
+
+    def __init__(self, mensagem, pendencias=()):
+        super().__init__(mensagem)
+        self.pendencias = list(pendencias)
+
+
+def _rascunho(pasta):
+    from vapt.tela import rascunho
+    return rascunho.ler(pasta, rascunho.laudo_sha256(pasta))
+
+
+def _modo(pasta, origem):
+    """O modo escolhido na tela para a origem pedida (da: so a escolha do DA, limitada pelo teto do job; fixture: a do
+    modo de teste tambem; None: qualquer escolha gravada), ou None."""
+    from vapt.job import modo_dados
+    reg = modo_dados.ler(pasta)
+    if reg is None:
+        return None
+    if origem == ORIGEM_DA:
+        if reg['origem'] != ORIGEM_DA:
+            return None
+        return modo_dados.efetivo(pasta, modo_dados.teto_do_job(pasta))
+    return reg['valor']
+
+
+def sugestoes_ref(pasta, conteudo=None):
+    """M7c, S4: o sha256 de sugestoes/sugestoes-validadas.json que a tela mostra agora (o mesmo arquivo, no modo
+    efetivo de agora e do KV de agora; vapt.tela.funcoes.sugestoes_na_tela), ou None. Vai ao briefing so como
+    referencia: a sugestao nunca e valor. Com o conteudo da tela, a mesma leitura da rota /api/sugestoes, com o teto
+    desta tela (o da linha de comando tambem; revisao do S4); sem ele, o teto do job."""
+    ler = (conteudo or {}).get('sugestoes')
+    if callable(ler):
+        return (ler() or {}).get('sha256')
+    from vapt.job import modo_dados
+    from vapt.tela import funcoes
+    return funcoes.sugestoes_na_tela(pasta, modo_dados.teto_do_job(pasta))['sha256']
+
+
+def padrao_da_marca(pasta, conteudo=None):
+    """M7c, M4: o padrao atual da marca escolhida no job (vapt.tela.funcoes.padrao_da_marca), lido da biblioteca
+    que a tela recebeu (conteudo['pasta_biblioteca']); None sem ela (o "briefing confirmar" do terminal, por exemplo)."""
+    from vapt.tela import funcoes
+    return funcoes.padrao_da_marca(pasta, (conteudo or {}).get('pasta_biblioteca'))
+
+
+def _com_origem(itens, tipo):
+    """As decisoes do rascunho com a origem do Disparo (da ou fixture_de_teste). M7c, M4: a origem padrao_marca que o
+    rascunho traz (o clique em "Usar o padrao") fica, com o ref; quem chama ja tirou a que nao bate com o perfil atual
+    (montar) ou recusa o salvar (pendencias)."""
+    saida = copy.deepcopy(itens)
+    for item in saida:
+        for v in item.values():
+            if isinstance(v, dict) and 'situacao' in v and (v.get('origem') or {}).get('tipo') != TIPO_PADRAO:
+                v['origem'] = {'tipo': tipo, 'ref': REF_RASCUNHO}
+    return saida
+
+
+def escolhas_do_passo_1(briefing, dados, laudo, tipo):
+    """O briefing (copia) com as escolhas do passo 1 do rascunho da tela por cima (revisao do M7a): a prancheta de onde
+    a peca sai (quadro, so entre os quadros do laudo; decisao 1) e o giro de cada formato (rotacoes, pela chave da
+    folha; decisao 139). O que o rascunho nao tem fica como estava no briefing. tipo: a origem das decisoes (da ou
+    fixture_de_teste)."""
+    novo = copy.deepcopy(briefing)
+    dados = dados or {}
+    quadros = {q['id'] for q in (laudo.get('documento') or {}).get('quadros') or []}
+    if dados.get('quadro') in quadros:
+        novo['quadro'] = {'valor': dados['quadro'], 'situacao': 'confirmado', 'origem': {'tipo': tipo, 'ref': REF_RASCUNHO}}
+    giro = dados.get('rotacoes') or {}
+    for f in novo['formatos']:
+        if f['chave'] in giro:
+            f['rotacao'] = {'graus': giro[f['chave']]['graus'], 'sentido': giro[f['chave']]['sentido']}
+    return novo
+
+
+def montar(pasta, conteudo, dados, *, origem, meio, por, quando, modo):
+    """O briefing/1 que o gravador grava: o rascunho da tela (passo 1, prancheta e giro; passo 2, Design system e
+    familias), o modo da tela e o resto do briefing gravado. Nao grava nada."""
+    from vapt.briefing import modelo as mb
+    from vapt.tela import funcoes
+    # no job novo, o briefing de partida (os formatos das specs, o quadro e o resto pendentes): o primeiro briefing
+    # confirmado nasce aqui; com o gravado de outra versao dos arquivos do job, a retomada (mb.base_da_tela)
+    base = mb.base_da_tela(pasta)
+    tipo = ORIGEM_DA if origem == ORIGEM_DA else ORIGEM_FIXTURE
+    laudo = contratos.ler(Path(pasta) / mb.ARQUIVO_LAUDO, 'laudo/1')
+    novo = escolhas_do_passo_1(base, dados, laudo, tipo)
+    quadro = novo['quadro']['valor'] if mb._decisao_valida(novo['quadro']) else None
+    # M7c, M4: so a origem padrao_marca que bate com o perfil atual da marca do job vai ao briefing (o gravador recusa
+    # antes a que nao bate: pendencias, padrao_marca_desatualizado)
+    parcial = funcoes.briefing_parcial(funcoes.sem_padrao_invalido(dados, padrao_da_marca(pasta, conteudo)), quadro)
+    for k in CAMPOS_DO_RASCUNHO:
+        novo[k] = _com_origem(parcial[k], tipo)
+    novo['modo_dados'] = {'valor': modo, 'situacao': 'confirmado' if modo else 'pendente',
+                          'origem': {'tipo': tipo, 'ref': REF_MODO}}
+    # M7c, S4: as sugestoes que a tela mostrava ao salvar, so pelo sha256 do arquivo validado
+    novo['sugestoes_ref'] = sugestoes_ref(pasta, conteudo)
+    novo['composicoes'] = []
+    for gid, fam in conteudo['familias'].items():
+        f = dados['familias'].get(gid) or {}
+        conf = f.get('confirmacao')
+        comp = {'familia': gid, 'formatos': list(fam['formatos']), 'versao': f.get('versao'),
+                'edicoes': copy.deepcopy(f.get('edicoes') or []), 'confirmada': bool(f.get('confirmada')),
+                'confirmacao': None if conf is None else
+                {k: v for k, v in conf.items() if k not in ('formatos', 'pecas', 'arquivo_de_edicao', 'layouts')}}
+        # decisao 199 (0.10.0): o arquivo de edicao como a tela mostra (a derivacao copia o layout dele para os
+        # outros) e, na familia separada pelo DA, a familia de onde ela saiu
+        if fam.get('arquivo_de_edicao'):
+            comp['arquivo_de_edicao'] = fam['arquivo_de_edicao']
+        if fam.get('separado_de'):
+            comp['separado_de'] = fam['separado_de']
+        novo['composicoes'].append(comp)
+    _quebras_das_familias(novo, conteudo, dados, tipo)
+    novo['cabecalho'] = dict(mb.hashes_atuais(pasta), origem=origem, meio=meio, por=dict(por), quando=quando)
+    return novo
+
+
+def quebras_da_familia(gid, formatos, f, tipo):
+    """As entradas de quebras_por_familia (briefing/1) das quebras de linha da familia gid do rascunho (M7b, C1): a
+    familia e os formatos dela, os indices que ficam como decisao do DA (com a origem do rascunho), as posicoes
+    inseridas, quem fez a quebra e a aprovacao."""
+    return [{'layer_id': q['layer_id'], 'familia': gid, 'formatos': list(formatos),
+             'quebras': {'valor': list(q['manter']), 'situacao': 'confirmado',
+                         'origem': {'tipo': tipo, 'ref': REF_RASCUNHO}},
+             'inseridas': list(q['inseridas']), 'origem': q['origem'], 'aprovada': bool(q['aprovada'])}
+            for q in (f or {}).get('quebras') or []]
+
+
+def _quebras_das_familias(novo, conteudo, dados, tipo):
+    """As quebras de linha das familias da tela no briefing novo (M7b, C1): as da faixa e da lista de formatos (M5),
+    que vem do gravado, ficam; as de familia da tela saem todas e entram as do rascunho de agora. Sem quebra nenhuma,
+    o campo fica como estava (o briefing sem quebra nao ganha campo vazio). Muda novo no lugar."""
+    antes = [q for q in novo.get('quebras_por_familia') or [] if q.get('familia') is None]
+    da_tela = []
+    for gid, fam in conteudo['familias'].items():
+        da_tela += quebras_da_familia(gid, fam['formatos'], dados['familias'].get(gid), tipo)
+    if da_tela or 'quebras_por_familia' in novo:
+        novo['quebras_por_familia'] = antes + da_tela
+
+
+def pendencias(pasta, conteudo, origem=None, detalhes=None):
+    """O que impede gravar: [{'codigo', ...}], vazio quando o briefing pode ser gravado. origem: a do Disparo (da ou
+    fixture_de_teste); None antes do dialogo (vale qualquer uma das duas). conteudo: o da tela
+    (vapt.tela.estado.montar), com as familias e a previa da edicao. detalhes: um dict que recebe o briefing montado
+    e os erros inteiros da conferencia, com as camadas (revisao 0.9.3: o motivo da recusa do "Salvar e seguir" diz o
+    nome delas ao DA)."""
+    from vapt.briefing import modelo as mb
+    from vapt.tela import rascunho
+    from vapt.tela import estado as mod_estado
+    pasta = Path(pasta).resolve()
+    # o formato da folha com duas medidas, sem a escolha do DA, nao tem chave nem peca: o briefing sem ele deixaria um
+    # formato da folha de fora em silencio (revisao dos becos, D2)
+    sem_medida = mod_estado.formatos_sem_medida(pasta)
+    antes = [{'codigo': 'formato_sem_medida', 'formatos': [x['texto'] for x in sem_medida]}] if sem_medida else []
+    dados, de_outro = _rascunho(pasta)
+    if dados is None:
+        return antes + [{'codigo': 'rascunho_de_outro_laudo' if de_outro else 'sem_rascunho'}]
+    origens = (origem,) if origem else (ORIGEM_DA, ORIGEM_FIXTURE)
+    saida = list(antes)
+    editar = conteudo.get('editar')
+    for gid, fam in conteudo['familias'].items():
+        f = dados['familias'].get(gid)
+        if fam.get('por_confirmar'):
+            # um formato da familia tem valor de spec a espera do DA, sem galeria: nenhuma confirmacao vale para ela
+            # (revisao da correcao dos becos)
+            saida.append({'codigo': 'formato_com_spec_por_confirmar', 'familia': gid,
+                          'formatos': list(fam['por_confirmar'])})
+            continue
+        # a confirmacao vale so para os formatos que a familia tinha quando o DA confirmou (revisao do M7a)
+        if not f or not rascunho.confirmada_para(f, fam['formatos'], fam.get('pecas'), fam.get('pecas_sem_edicao')) or \
+                (f.get('confirmacao') or {}).get('origem') not in origens:
+            saida.append({'codigo': 'familia_sem_confirmacao', 'familia': gid})
+            continue
+        if f['versao'] is not None and f['versao'] not in fam['versoes']:
+            saida.append({'codigo': 'versao_que_a_familia_nao_tem', 'familia': gid})
+            continue
+        if callable(editar):
+            # as edicoes sao as do rascunho gravado: o tamanho que ele ja tinha fora dos limites (a tela de antes do D3)
+            # passa, como na previa, e o job nunca trava; o teto de cada passo continua valendo (revisao 2 da fase D)
+            # decisao 199 (5; 0.10.0): a previa vai com as quebras de linha gravadas, como a janela a pediu, e o layout
+            # de cada arquivo tem de ser o que o DA confirmou (o hash da confirmacao, a impressao da 175)
+            from vapt.tela import edicao
+            r = edicao.previa_gravada(editar, gid, f)
+            layouts = (f.get('confirmacao') or {}).get('layouts')
+            if r is None:
+                saida.append({'codigo': 'edicao_invalida', 'familia': gid})
+            elif r['recusas']:
+                # 0.12.0: o alinhamento recusado (a recusa leva a acao) tem a frase propria; a do texto vence
+                so_alinhar = all(x.get('acao') == 'alinhar_texto' for x in r['recusas'])
+                saida.append({'codigo': 'alinhamento_recusado' if so_alinhar else 'texto_sem_caractere',
+                              'familia': gid})
+            elif layouts is not None and edicao.hash_dos_layouts(r) != layouts:
+                # os arquivos que mudaram vao junto: a tela diz quais foram (revisao da 0.10.0)
+                agora = edicao.hash_dos_layouts(r)
+                saida.append({'codigo': 'layout_diferente_do_confirmado', 'familia': gid,
+                              'formatos': sorted(f for f in set(agora) | set(layouts) if agora.get(f) != layouts.get(f))})
+    modo = _modo(pasta, origem)
+    if modo is None:
+        saida.append({'codigo': 'modo_dados_sem_escolha'})
+    # M7c, M4: o valor posto por "Usar o padrao" com o ref que nao bate com o perfil atual da marca do job (outra
+    # versao, outra marca, outro job de origem, valor trocado sem tirar a origem, ou sem a biblioteca na tela)
+    from vapt.tela import funcoes
+    velhos = funcoes.padrao_invalido(dados, padrao_da_marca(pasta, conteudo))
+    if velhos:
+        saida.append({'codigo': 'padrao_marca_desatualizado', 'funcoes': sorted({x['funcao'] for x in velhos})})
+    # o gravado de outra versao do laudo, das specs, do design system ou das fontes nao entra aqui: montar parte da
+    # retomada (mb.base_da_tela), com os formatos das specs de agora, e nunca carimba os formatos velhos como atuais
+    try:
+        b = montar(pasta, conteudo, dados, origem=origem or ORIGEM_DA, meio='tela', por={'usuario': None, 'maquina': None},
+                   quando=mb.agora(), modo=modo)
+        contratos.validar(b, mb.ESQUEMA)
+    except (contratos.ErroContrato, KeyError, TypeError, ValueError):
+        return saida + [{'codigo': 'briefing_invalido'}]
+    if not b['formatos']:
+        saida.append({'codigo': 'sem_formatos'})
+    # o giro de cada formato e decisao do DA no passo 1 (decisoes-v1.md, 139): sem ele a derivacao suporia 0 grau
+    for f in b['formatos']:
+        if f.get('rotacao') is None:
+            saida.append({'codigo': 'rotacao_sem_escolha', 'formato': f['id']})
+    laudo = contratos.ler(pasta / mb.ARQUIVO_LAUDO, 'laudo/1')
+    estado = contratos.ler(pasta / 'estado.json', 'estado/1')
+    erros = [e for e in mb.conferir(laudo, b, estado['job_id'])
+             if not (e['codigo'] == 'pendente_obrigatorio' and e.get('onde') == '/modo_dados')]
+    if erros:
+        saida.append({'codigo': 'briefing_com_problema', 'erros': sorted({e['codigo'] for e in erros})})
+    if detalhes is not None:
+        detalhes.update(briefing=b, erros=erros, laudo=laudo)
+    return saida
+
+
+def salvar(pasta, conteudo, disparo):
+    """Grava o briefing confirmado e deriva. disparo: o do ato "Salvar e seguir" da tela ou o do "briefing confirmar"
+    do terminal (comando COMANDO), de uso unico. ErroSalvar com as pendencias quando nao pode gravar; humano.ErroHumano
+    com disparo de outro comando. Devolve {'briefing', 'historico', 'derivado', 'motivo', 'devolucoes'}."""
+    from vapt import humano
+    humano.conferir(disparo, COMANDO)
+    try:
+        return _salvar(pasta, conteudo, disparo)
+    finally:
+        # de uso unico: gasto na gravacao (mb.gravar_com_historico) ou aqui, quando nada foi gravado
+        humano.gastar(disparo)
+
+
+def _salvar(pasta, conteudo, disparo):
+    from vapt.briefing import modelo as mb
+    from vapt.derivacao import nucleo as nd
+    from vapt.job import nucleo
+    pasta = Path(pasta).resolve()
+    pend = pendencias(pasta, conteudo, disparo.origem)
+    if pend:
+        raise ErroSalvar('O briefing não foi gravado.', pend)
+    dados, _de_outro = _rascunho(pasta)
+    reg = disparo.registro()
+    b = montar(pasta, conteudo, dados, origem=disparo.origem, meio=disparo.meio,
+               por={'usuario': reg['usuario'], 'maquina': reg['maquina']}, quando=reg['quando'],
+               modo=_modo(pasta, disparo.origem))
+    contratos.validar(b, mb.ESQUEMA)
+    derivado, motivo, devolucoes, sem_layout = True, None, None, []
+    with nucleo.Trava(pasta):
+        # o salvar seletivo (M7b, A6): a derivacao em memoria com o briefing novo diz os formatos afetados antes de
+        # gravar; sem ela (a derivacao nao roda), afetados fica None e todo formato e refeito, como antes
+        base = _base_das_mudancas(pasta, b)
+        mudancas = None if base is None else base['mudancas']
+        afetados = None if mudancas is None else sorted(mudancas)
+        guardada = mb.gravar_com_historico(pasta, b, disparo=disparo, afetados=afetados)
+        try:
+            r = nd.derivar(pasta, so=None if mudancas is None else
+                           [f['id'] for f in b['formatos'] if f['id'] in mudancas])
+            devolucoes = len(r['devolucoes'])
+            # 0.9.6: os formatos que ficaram sem layout depois do salvar; a tela os diz ao DA, com o motivo no passo 5
+            sem_layout = sorted(fid for fid, d in (r.get('formatos') or {}).items()
+                                if (d or {}).get('situacao') != 'derivado')
+            if base is not None:
+                # o "o que mudou" sai da derivacao gravada agora contra a gravada antes (correcao do D2 do E1)
+                mudancas = _mudancas_da_gravada(base, r['formatos'])
+        except nd.ErroDerivacao as e:
+            derivado, motivo = False, e.motivo
+        except Exception as e:  # noqa: BLE001 - 0.9.6: o briefing ja esta gravado; a falha da derivacao vai a tela
+            derivado, motivo = False, 'erro_no_motor:%s' % type(e).__name__
+        if mudancas is not None:
+            _gravar_mudancas(pasta, mudancas)
+    nucleo.registrar_evento(pasta, 'briefing_confirmado', origem=disparo.origem, meio=disparo.meio,
+                            familias=len(b['composicoes']), derivado=derivado, motivo=motivo, afetados=afetados)
+    _medir_sugestao(pasta, b, conteudo)
+    return {'briefing': b, 'historico': guardada, 'derivado': derivado, 'motivo': motivo, 'devolucoes': devolucoes,
+            'afetados': afetados, 'sem_layout': sem_layout}
+
+
+def _medir_sugestao(pasta, b, conteudo):
+    """M7c, S5: o acerto da sugestao que a tela mostrava contra o briefing que acabou de ser gravado, em
+    medicoes/sugestao.json (fora do briefing; vapt.sugestao.acerto). Toda falha e engolida: a medicao nunca
+    interrompe o salvar nem chega ao DA."""
+    try:
+        from vapt.sugestao import acerto
+        acerto.ao_salvar(pasta, b, conteudo)
+    except Exception:  # noqa: BLE001 - so registro
+        pass
+
+
+def _resolvido_gravado(pasta, laudo, specs):
+    """O briefing gravado agora (o de antes da gravacao), resolvido para a diferenca por formato; None sem briefing
+    gravado, ilegivel ou de outra versao dos arquivos do job (os formatos dele contam como novos)."""
+    from vapt.briefing import modelo as mb
+    from vapt.derivacao import impressao as mi
+    try:
+        b = mb.ler(pasta)
+    except contratos.ErroContrato:
+        return None
+    if b is None or mb.desatualizado(pasta, b):
+        return None
+    return mi.resolvido(b, mb.resolver(laudo, b)[0], specs)
+
+
+def _gravada(pasta, fid):
+    from vapt.derivacao import nucleo as nd
+    arq = Path(pasta) / nd.PASTA / ('%s.json' % fid)
+    if not arq.is_file():
+        return None
+    try:
+        return contratos.ler(arq, nd.ESQUEMA)
+    except contratos.ErroContrato:
+        return None
+
+
+def _mudancas(pasta, b):
+    """O salvar seletivo (M7b, A6): deriva em memoria com o briefing novo b, ainda nao gravado, e compara a impressao
+    de cada formato (vapt.derivacao.impressao) com a da derivacao gravada. Devolve {formato: itens da diferenca
+    (vapt.derivacao.diferenca)} so dos afetados: a impressao mudou, o formato nao tinha derivacao gravada (ou ela
+    nao se le) ou saiu do briefing. None quando a derivacao em memoria nao roda (a gravada diz o motivo depois)."""
+    base = _base_das_mudancas(pasta, b)
+    return None if base is None else base['mudancas']
+
+
+def _base_das_mudancas(pasta, b):
+    """_mudancas com o que a diferenca usou do lado de antes (as derivacoes gravadas, lidas antes de gravar, e o
+    briefing gravado resolvido) e o briefing novo resolvido: {'mudancas', 'gravadas', 'velho', 'de_antes', 'novo'}, ou
+    None. A derivacao em memoria confere contra b (nd.preparar com briefing): e a mesma que a gravada logo depois
+    (correcao do D2 do E1)."""
+    from vapt.derivacao import formatos as mf
+    from vapt.derivacao import impressao as mi
+    from vapt.derivacao import nucleo as nd
+    try:
+        ctx = nd.preparar(pasta, briefing=b)
+        specs, arquivo_specs = mf.specs_do_job(pasta)
+        r = nd.derivar_em_memoria(ctx, specs=specs, arquivo_specs=arquivo_specs, params=mf.parametros(pasta, b))
+    except (nd.ErroDerivacao, mf.ErroFormatos, contratos.ErroContrato):
+        return None
+    base = {'novo': mi.resolvido(b, ctx['resolvidas'], specs), 'velho': _resolvido_gravado(pasta, ctx['laudo'], specs),
+            'gravadas': {}, 'mudancas': {}}
+    base['de_antes'] = {f['id'] for f in base['velho']['briefing']['formatos']} if base['velho'] else set()
+    for fid in sorted(set(r['formatos']) | base['de_antes']):
+        depois = r['formatos'].get(fid)
+        base['gravadas'][fid] = antes = _gravada(pasta, fid)
+        if depois is not None and antes is not None and antes.get('impressao_formato') == depois['impressao_formato']:
+            continue
+        base['mudancas'][fid] = _itens(base, fid, depois)
+    return base
+
+
+def _itens(base, fid, depois):
+    """Os itens da diferenca (vapt.derivacao.diferenca) do formato fid entre a derivacao gravada antes e depois
+    (a derivacao do formato com o briefing novo; None quando ele saiu do briefing)."""
+    from vapt.derivacao import diferenca
+    antes = base['gravadas'].get(fid)
+    if depois is not None and antes is not None and antes.get('impressao_formato') == depois['impressao_formato']:
+        return []
+    if antes is None or fid not in base['de_antes']:
+        # sem a derivacao ou sem o briefing de antes do formato, ele entra no job (ou sai, sem nada gravado)
+        return diferenca.diferencas(None, {}) if depois is not None else diferenca.diferencas({}, None)
+    return diferenca.do_formato(antes, base['velho'], depois, base['novo'], fid)
+
+
+def _mudancas_da_gravada(base, derivados):
+    """O "o que mudou" de cada afetado refeito com a derivacao que este salvar gravou (derivados: {formato:
+    derivacao/1}), contra a gravada antes: uma fonte so para a lista que a tela mostra. O formato afetado que saiu do
+    briefing (sem derivacao nova) fica com os itens de antes."""
+    return {fid: _itens(base, fid, derivados[fid]) if fid in derivados else itens
+            for fid, itens in base['mudancas'].items()}
+
+
+def _gravar_mudancas(pasta, mudancas):
+    """Grava briefing/historico/mudancas/<seq>.json com a entrada que a gravacao acabou de por no indice."""
+    from vapt.briefing import historico
+    entrada = historico.ler(pasta)['entradas'][-1]
+    dados = {'esquema': ESQUEMA_MUDANCAS, 'seq': entrada['seq'], 'sha_anterior': entrada['sha_anterior'],
+             'sha_novo': entrada['sha_novo'], 'formatos': mudancas}
+    (Path(pasta) / PASTA_MUDANCAS).mkdir(parents=True, exist_ok=True)
+    contratos.gravar(Path(pasta) / PASTA_MUDANCAS / ('%d.json' % entrada['seq']), dados, ESQUEMA_MUDANCAS)
+
+
+def _decisoes(b):
+    """O briefing b sem o que muda a cada gravacao sem mudar decisao nenhuma: o cabecalho (hashes, quem, quando, meio)
+    e a hora da confirmacao de cada familia (a familia confirmada de novo com a mesma versao, as mesmas edicoes e as
+    mesmas quebras nao pede outro "Salvar e seguir"). A origem e o meio da confirmacao ficam: o portao da entrega pede
+    a confirmacao da janela do DA, e a familia confirmada de novo por outro caminho muda o briefing. As composicoes
+    ficam pela familia e as quebras em ordem fixa: a ordem das familias na tela nao e decisao."""
+    import json
+    saida = {k: copy.deepcopy(v) for k, v in b.items() if k not in ('cabecalho', 'composicoes', 'quebras_por_familia')}
+    saida['composicoes'] = {c['familia']: dict({k: v for k, v in c.items() if k != 'confirmacao'},
+                                               confirmacao=None if c.get('confirmacao') is None else
+                                               {k: v for k, v in c['confirmacao'].items() if k != 'em'})
+                            for c in b.get('composicoes') or []}
+    if 'quebras_por_familia' in b:
+        saida['quebras_por_familia'] = sorted(b['quebras_por_familia'] or [],
+                                              key=lambda q: json.dumps(q, sort_keys=True))
+    return saida
+
+
+def situacao_na_tela(pasta, familias, biblioteca=None):
+    """{'salvo', 'em'} para a tela: salvo quando "Salvar e seguir" nao mudaria o briefing gravado, que vale para os
+    arquivos do job e tem as familias da tela confirmadas. O briefing que o gravador montaria agora sai do mesmo montar
+    (o rascunho da tela: passo 1, passo 2 e Design system, familias com versao, edicoes e quebras; o modo de dados; o
+    resto do gravado), com a origem do gravado, e e comparado com ele fora do cabecalho e do carimbo das confirmacoes
+    (_decisoes): nenhum campo que o gravador escreve fica de fora (correcao do D1 do E1, a funcao trocada no passo 2
+    deixava a tela em "Briefing salvo"). familias: {id: [formatos]}. biblioteca: a pasta da biblioteca da
+    agencia que a tela recebeu (M7c, M4: a origem padrao_marca do rascunho so conta com o perfil atual)."""
+    from vapt.briefing import modelo as mb
+    nao = {'salvo': False, 'em': None}
+    try:
+        b = mb.ler(pasta)
+    except contratos.ErroContrato:
+        return nao
+    if b is None or not b.get('composicoes') or b['cabecalho']['origem'] not in (ORIGEM_DA, ORIGEM_FIXTURE):
+        return nao
+    if mb.desatualizado(pasta, b):
+        return nao
+    dados, _de_outro = _rascunho(pasta)
+    if dados is None:
+        return nao
+    comps = {c['familia']: c for c in b['composicoes']}
+    if set(comps) != set(familias):
+        return nao
+    for gid, fids in familias.items():
+        c, f = comps[gid], dados['familias'].get(gid) or {}
+        if c['formatos'] != list(fids) or not f.get('confirmada') or not c['confirmada']:
+            return nao
+    origem = b['cabecalho']['origem']
+    try:
+        novo = montar(pasta, {'familias': _com_a_estrutura(b, dados, familias), 'pasta_biblioteca': biblioteca},
+                      dados,
+                      origem=origem, meio=b['cabecalho'].get('meio'), por={}, quando=None, modo=_modo(pasta, origem))
+    except (contratos.ErroContrato, KeyError, TypeError, ValueError):
+        return nao
+    if _decisoes(novo) != _decisoes(b):
+        return nao
+    refazer, sem_layout = layouts_a_refazer(pasta, b, [x for fids in familias.values() for x in fids])
+    if refazer:
+        # 0.9.6: o briefing esta gravado, mas o layout de algum formato falta ou e de antes dele (a derivacao que
+        # quebrou depois de gravar, ou a devolucao gravada por uma versao de antes da aprovacao soberana): o "Salvar e
+        # seguir" volta ligado, e o salvar seletivo refaz esses formatos (a impressao deles mudou)
+        return {'salvo': False, 'em': b['cabecalho']['quando'], 'refazer_layout': refazer}
+    salvo = {'salvo': True, 'em': b['cabecalho']['quando']}
+    return dict(salvo, sem_layout=sem_layout) if sem_layout else salvo
+
+
+def _com_a_estrutura(b, dados, familias):
+    """{id: {'formatos', 'arquivo_de_edicao', 'separado_de'}} das familias da tela (decisao 199; 0.10.0), pela mesma
+    regra da tela (vapt.tela.estado.abas): o arquivo de edicao gravado no rascunho enquanto estiver na familia,
+    senao a regra; a familia de um arquivo so que o DA separou leva a familia de onde ele saiu."""
+    from vapt.derivacao import proposta
+    por_id = {f['id']: f for f in b.get('formatos') or []}
+    gravadas = dados.get('familias') or {}
+    saida = {}
+    for gid, fids in familias.items():
+        fs = [por_id[f] for f in fids if f in por_id]
+        fam = {'formatos': list(fids)}
+        # revisao da 0.10.0 (a migracao): sem escolha gravada, a regra vale entre os formatos que a familia ja tinha,
+        # como na tela (vapt.tela.estado.abas, com familias_conhecidas)
+        conhecidos = (gravadas.get(gid) or {}).get('formatos') or \
+            next((c['formatos'] for c in b.get('composicoes') or [] if c['familia'] == gid), None)
+        ref = proposta.arquivo_de_edicao(fs, (gravadas.get(gid) or {}).get('arquivo_de_edicao'), conhecidos) \
+            if fs else None
+        if ref:
+            fam['arquivo_de_edicao'] = ref
+        mae = next((m for m, f in sorted(gravadas.items()) if len(fids) == 1 and m != gid and
+                    fids[0] in (f.get('separados') or ())), None)
+        if mae:
+            fam['separado_de'] = mae
+        saida[gid] = fam
+    return saida
+
+
+def layouts_a_refazer(pasta, b, fids):
+    """0.9.6: ([formatos cujo layout o "Salvar e seguir" monta de novo], [formatos sem layout pelo motivo do motor de
+    agora]) do briefing gravado b. Refaz: sem derivacao gravada legivel; gravada com outro briefing ou outra folha (a
+    impressao de agora difere: a derivacao quebrou depois de gravar o briefing); ou devolvida por uma versao do motor
+    de antes desta. O devolvido pela versao de agora (a quebra sem medida, por exemplo) fica em sem_layout: salvar de
+    novo daria o mesmo, e o passo 5 diz o motivo."""
+    from vapt import __version__
+    from vapt.derivacao import nucleo as nd
+    refazer, sem_layout = [], []
+    for fid in fids:
+        d = _gravada(pasta, fid)
+        if d is None:
+            refazer.append(fid)
+            continue
+        if d.get('situacao') != 'derivado' and d.get('motor_versao') != __version__:
+            refazer.append(fid)
+            continue
+        imp = nd.impressao_de_agora(pasta, d, b)
+        if imp is not None and imp != d.get('impressao_formato'):
+            refazer.append(fid)
+        elif d.get('situacao') != 'derivado':
+            sem_layout.append(fid)
+    return refazer, sem_layout

@@ -1,0 +1,16 @@
+[build-system]
+requires = []
+build-backend = "construir"
+backend-path = ["_construcao"]
+
+[project]
+name = "vapt"
+dynamic = ["version"]
+description = "Motor do desdobramento de peças de mídia estática"
+requires-python = ">=3.14"
+
+[project.scripts]
+vapt = "vapt.cli:principal"
+
+[tool.pytest.ini_options]
+testpaths = ["../testes"]

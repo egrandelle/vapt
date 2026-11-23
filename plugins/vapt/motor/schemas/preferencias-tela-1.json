@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vapt:schema:preferencias-tela:1",
+  "title": "Preferencias da tela do DA (preferencias-tela/1)",
+  "description": "preferencias-tela.json, na pasta de dados do plugin (fora de todo job), gravado so pelo servidor da tela quando o DA clica no botao de tema claro ou escuro (vapt.tela.preferencias). A tela abre com o ultimo tema escolhido; sem o arquivo, ou com ele ilegivel, a tela segue o tema do Windows. Nao leva job, cliente, usuario, maquina nem data. Sobrevive a atualizacao do plugin e some na desinstalacao, com a pasta de dados.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["esquema", "tema"],
+  "properties": {
+    "esquema": {"const": "preferencias-tela/1"},
+    "tema": {"description": "O ultimo tema que o DA escolheu na tela.", "enum": ["claro", "escuro"]}
+  }
+}
