@@ -68,6 +68,9 @@ def test_opcoes_saem_do_esquema_do_briefing():
     assert o['regras'] == esq['$defs']['regra']['enum'] and set(o['regras']) == set(escala.REGRAS)
     assert o['ancora_x'] == ['esquerda', 'centro', 'direita'] and o['ancora_y'] == ['topo', 'meio', 'base']
     assert o['cobertas'] == ['aceita', 'inverte']
+    # 0.15.0: o empate das margens da ancora sugerida pelo KV e o limite da familia no motor
+    from vapt import limites
+    assert o['ancora_empate'] == limites.valor('derivacao.alinhamento_intencao_tolerancia')
     sem = {f['id'] for f in o['funcoes'] if not f['geometria']}
     assert sem == set(mb.SEM_GEOMETRIA)
 
@@ -447,6 +450,28 @@ def test_passo_2_e_design_system_no_chromium(job_palco):  # noqa: F811
                 assert _faltam(pg) == antes - 2
                 assert pg.evaluate('() => document.getElementById("palco-ds").dataset.ancoras') != '0'
                 assert _pressionados(pg, primeira) == 3
+                # 0.15.0: a funcao com ancora escolhida nao tem sugestao; cada outra tem um ponto tracejado, pelo
+                # terco do KV em que fica o meio do elemento, e o Usar grava esse ponto, sem marcar nada antes
+                assert pg.evaluate('(s) => document.querySelectorAll(s + " .ponto.sugerido").length', primeira) == 0
+                assert 'fica preso quando o formato muda' in pg.evaluate(
+                    '(s) => document.querySelector(s).innerText', primeira)
+                outras = pg.evaluate('() => Array.from(document.querySelectorAll("#resumo-design .funcao-ds"))'
+                                     '.filter((a) => a.querySelector(".ponto.sugerido")).map((a) => a.dataset.chave)')
+                assert outras and chave not in outras, outras
+                assert all(pg.evaluate('(k) => document.querySelectorAll(\'[data-chave="\' + k + \'"] .ponto.sugerido\')'
+                                       '.length', k) == 1 for k in outras)
+                if len(outras) > 1:
+                    assert pg.evaluate('() => document.querySelector("#resumo-design [data-usar-ancoras]")'
+                                       '.textContent') == 'Usar as %d âncoras sugeridas' % len(outras)
+                alvo = '#resumo-design [data-chave="%s"]' % outras[0]
+                sx, sy = pg.evaluate('(s) => { const b = document.querySelector(s + " .ponto.sugerido");'
+                                     ' return [b.dataset.x, b.dataset.y]; }', alvo)
+                assert _pressionados(pg, alvo + ' .grade-ancora') == 0
+                _clicar(pg, alvo + ' button[data-usar-ancora]')
+                r = _salvo(pg, job_palco)
+                feito = (r['design'] if outras[0][0] == 'f' else r['design_camadas'])[outras[0][1:]]
+                assert (feito['x'], feito['y']) == (sx, sy), feito
+                assert pg.evaluate('(s) => document.querySelectorAll(s + " .ponto.sugerido").length', alvo) == 0
                 texto = pg.evaluate('() => document.getElementById("passo-design").innerText')
                 assert not any(x in texto for x in PROIBIDOS), texto
                 # o "Faltam N" leva ao item

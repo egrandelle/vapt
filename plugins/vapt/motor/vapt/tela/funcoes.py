@@ -43,10 +43,14 @@ def opcoes():
     def valores(no):
         return _sem_nulo(no['allOf'][1]['properties']['valor']['enum'])
     ancora = props['ancoras']['items']['properties']
+    from vapt import limites
     return {'funcoes': [{'id': f, 'classe': mb.CLASSES.get(f), 'geometria': f not in mb.SEM_GEOMETRIA}
                         for f in esq['$defs']['funcao']['enum']],
             'regras': list(esq['$defs']['regra']['enum']),
             'ancora_x': valores(ancora['x']), 'ancora_y': valores(ancora['y']),
+            # 0.15.0 (decisoes-v1.md, 206): a ancora sugerida pelo KV segue a regra da familia (vapt.derivacao.familia.
+            # _ancora): a borda mais perto, ou o centro quando as duas margens empatam ate esta fracao do lado maior
+            'ancora_empate': limites.valor('derivacao.alinhamento_intencao_tolerancia'),
             'cobertas': valores(props['cobertas']['items']['properties']['decisao'])}
 
 

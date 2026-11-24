@@ -2,6 +2,14 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.16.0 (24/11/2026): a âncora vem sugerida pelo KV
+
+No Design system, a âncora ficou mais clara e mais rápida de escolher.
+
+- A âncora é o ponto do elemento que fica preso quando o formato muda. O lugar dele já vem do KV. A tela agora diz isso, e o ponto no KV "mostra onde o elemento fica preso".
+- A função sem âncora escolhida mostra uma sugestão tracejada na grade, tirada do lugar do elemento no KV: fica presa a borda mais perto da borda do KV, ou o centro quando as duas margens empatam. É a mesma regra que o Vapt usa ao copiar o layout da família. "Usar" grava a sugestão, e "Usar as N âncoras sugeridas" grava todas de uma vez. Nada fica gravado sem o seu clique, e o padrão da marca vem antes da sugestão.
+- A grade continua com 3 por 3. Uma grade 4 por 4 perderia o centro e não deixaria a posição mais precisa, porque a posição já vem do KV.
+
 ## 0.15.0 (23/11/2026): as versões deixam a arte do KV livre
 
 Correção do teste com o banner do próprio Vapt. Na troca grande de proporção, a galeria espalhava o conteúdo sobre a arte e tratava as etiquetas soltas como conteúdo. O DA tinha de mover quase tudo. Tudo foi conferido num KV sintético com a geometria do banner e com o layout que o DA deixou em cada formato.

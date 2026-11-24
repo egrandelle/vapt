@@ -104,6 +104,9 @@
   };
   const ANCORA_X = { esquerda: 'à esquerda', centro: 'no centro', direita: 'à direita' };
   const ANCORA_Y = { topo: 'No topo', meio: 'No meio', base: 'Na base' };
+  /* 0.15.0: a ancora dita como o ponto do elemento que fica preso, para nao ser lida como o lugar no quadro */
+  const PRESO_Y = { topo: 'pelo alto,', meio: 'pelo meio,', base: 'pela base,' };
+  const ANCORA_EXPLICA = 'O ponto do elemento que fica preso quando o formato muda. O lugar dele já vem do KV.';
   /* as classes do briefing (briefing/modelo.py CLASSES) como grupos de botoes do passo 2 */
   const CLASSES_FUNCAO = [['base', 'Imagem e fundo'], ['texto', 'Texto'], ['marca', 'Marca'],
     ['global', 'Da peça inteira'], ['fora', 'Fora da peça'], ['indeterminado', 'Outra função']];
@@ -2962,6 +2965,90 @@
     box.appendChild(pe);
     return box;
   }
+  /* 0.15.0 (decisoes-v1.md, 206): a ancora sugerida pelo lugar do elemento no KV. A ancora e o ponto do elemento que
+     fica preso quando o formato muda; o lugar dele ja vem do KV. A sugestao segue a regra da familia no motor
+     (vapt.derivacao.familia._ancora): em cada eixo, fica presa a borda do elemento mais perto da borda do KV; quando
+     as duas margens empatam (ate ancora_empate do lado maior, o limite do motor), o centro. A funcao com varios
+     elementos fica com o que vale para a maioria deles e, no empate, com o do maior. E sugestao, tracejada: so o
+     clique do DA em Usar grava, como no padrao da marca, que vem antes dela quando existe */
+  function ladoPelaBorda(c0, c1, total, nomes, empate) {
+    const antes = c0, depois = total - c1;
+    if (Math.abs(antes - depois) <= empate) return nomes[1];
+    return antes < depois ? nomes[0] : nomes[2];
+  }
+  function votoDaMaioria(votos) {
+    const conta = new Map();
+    votos.forEach(function (x) {
+      const c = conta.get(x.valor) || { n: 0, area: 0 };
+      c.n += 1;
+      c.area = Math.max(c.area, x.area);
+      conta.set(x.valor, c);
+    });
+    let melhor = null;
+    conta.forEach(function (c, valor) {
+      if (!melhor || c.n > melhor.n || (c.n === melhor.n && c.area > melhor.area)) melhor = { valor: valor, n: c.n, area: c.area };
+    });
+    return melhor ? melhor.valor : null;
+  }
+  function ancoraDoKv(v) {
+    const m = estado && estado.funcoes && estado.funcoes.palco_kv;
+    if (!m || !m.largura || !m.altura || !p2idx.opcoes) return null;
+    const quer = new Set(v.camadas.map(Number));
+    const caixas = new Map();
+    (m.pecas || []).forEach(function (p) {
+      if (!quer.has(p.camada) || !p.caixa) return;
+      // a caixa que o DA ve: a camada cortada pelo quadro do KV. A caixa da peca e a camada inteira e passa do canvas
+      // quando sangra; o motor mede a ancora na caixa visivel (familia._ancora)
+      const rc = p.recorte || [0, 0, m.largura, m.altura];
+      const vis = [Math.max(p.caixa[0], rc[0], 0), Math.max(p.caixa[1], rc[1], 0),
+        Math.min(p.caixa[2], rc[2], m.largura), Math.min(p.caixa[3], rc[3], m.altura)];
+      if (vis[2] <= vis[0] || vis[3] <= vis[1]) return;
+      const r = resolver(p2idx.por.get(p.camada));
+      const k = r ? r.raiz : 0;
+      const c = caixas.get(k);
+      caixas.set(k, c ? [Math.min(c[0], vis[0]), Math.min(c[1], vis[1]), Math.max(c[2], vis[2]),
+        Math.max(c[3], vis[3])] : vis);
+    });
+    if (!caixas.size) return null;
+    const xs = p2idx.opcoes.ancora_x || [], ys = p2idx.opcoes.ancora_y || [];
+    const fr = Number(p2idx.opcoes.ancora_empate);
+    if (xs.length !== 3 || ys.length !== 3 || !(fr >= 0)) return null; // numero-neutro: a grade de tres por tres
+    const empate = fr * Math.max(m.largura, m.altura);
+    const vx = [], vy = [];
+    caixas.forEach(function (c) {
+      const area = Math.max(0, c[2] - c[0]) * Math.max(0, c[3] - c[1]);
+      vx.push({ valor: ladoPelaBorda(c[0], c[2], m.largura, xs, empate), area: area });
+      vy.push({ valor: ladoPelaBorda(c[1], c[3], m.altura, ys, empate), area: area });
+    });
+    const x = votoDaMaioria(vx), y = votoDaMaioria(vy);
+    return x && y ? { x: x, y: y } : null;
+  }
+  /* a sugestao so aparece na funcao sem ancora escolhida e sem ancora no padrao da marca */
+  function ancoraSugerida(v, d) {
+    if (d && d.x && d.y) return null;
+    const pm = padraoDe(v);
+    if (pm && pm.ancora) return null;
+    return ancoraDoKv(v);
+  }
+  /* a ancora dita como o ponto que fica preso ("preso pelo alto, à esquerda"), nunca como lugar no quadro */
+  function nomeDoPreso(a) { return 'preso ' + (PRESO_Y[a.y] || a.y) + ' ' + (ANCORA_X[a.x] || a.x); }
+  function usarTodasAsAncoras(lista) {
+    lista.forEach(function (par) {
+      const v = par[0], a = par[1];
+      const alvo = v.funcao === 'indeterminado' ? p2.design_camadas : p2.design;
+      const k = v.funcao === 'indeterminado' ? String(v.raiz) : v.funcao;
+      const d = alvo[k] || { regra: null, x: null, y: null };
+      d.x = a.x;
+      d.y = a.y;
+      if (d.origem) { delete d.origem.ancora; if (!Object.keys(d.origem).length) delete d.origem; }
+      alvo[k] = d;
+    });
+    mudouDesign();
+    atualizarFaltam();
+    montarDesign();
+    const b = document.querySelector('#resumo-design .funcao-ds button');
+    if (b) b.focus();
+  }
   function montarDesign() {
     const s = document.getElementById('resumo-design');
     if (!s || !p2idx.opcoes) return;
@@ -2990,6 +3077,20 @@
       return;
     }
     if (!vistas.some(function (v) { return v.chave === p2idx.design; })) p2idx.design = vistas[0].chave;
+    // 0.15.0: as ancoras sugeridas pelo KV de uma vez, so nas funcoes ainda sem ancora
+    const sugeridas = vistas.map(function (v) { return [v, ancoraSugerida(v, designDe(v.chave))]; })
+      .filter(function (par) { return par[1]; });
+    if (sugeridas.length > 1) {
+      const todas = el('div', null, 'sugestao ancoras-do-kv');
+      todas.appendChild(el('p', 'O Vapt sugere a âncora de ' + sugeridas.length + ' funções pelo lugar de cada uma no KV. ' +
+        'Cada sugestão aparece tracejada na grade da função.', 'nota sugestao-nota'));
+      const b = botao('Usar as ' + sugeridas.length + ' âncoras sugeridas', 'botao usar');
+      b.dataset.usarAncoras = '1';
+      if (!escrita) b.disabled = true;
+      b.addEventListener('click', function () { usarTodasAsAncoras(sugeridas); });
+      todas.appendChild(b);
+      s.appendChild(todas);
+    }
     vistas.forEach(function (v, i) {
       const d = designDe(v.chave) || {};
       // revisao do M4: com a origem do padrao vencida, o servidor recusa salvar, entao o card nao se diz pronto
@@ -3025,22 +3126,43 @@
       corpo.appendChild(blocoRegra);
       const blocoAncora = el('div', null, 'bloco-ds');
       blocoAncora.appendChild(el('h3', 'Âncora', 'subtitulo'));
+      // 0.15.0: a ancora e o ponto do elemento que fica preso, nunca o lugar dele no quadro (o lugar vem do KV)
+      blocoAncora.appendChild(el('p', ANCORA_EXPLICA, 'nota explica ancora-explica'));
+      const sug = ancoraSugerida(v, d);
       const grade = el('div', null, 'grade-ancora');
       grade.setAttribute('role', 'group');
-      grade.setAttribute('aria-label', 'Âncora: ' + nomeDaVista(v));
+      grade.setAttribute('aria-label', 'Ponto que fica preso: ' + nomeDaVista(v));
       (p2idx.opcoes.ancora_y || []).forEach(function (y) {
         (p2idx.opcoes.ancora_x || []).forEach(function (x) {
           const b = botaoOpcao('', d.x === x && d.y === y, function () { gravarDesign(v, 'ancora', [x, y]); }, 'ponto');
           b.dataset.x = x;
           b.dataset.y = y;
-          b.setAttribute('aria-label', (ANCORA_Y[y] || y) + ' ' + (ANCORA_X[x] || x));
-          b.title = (ANCORA_Y[y] || y) + ' ' + (ANCORA_X[x] || x);
+          const nome = maiuscula(nomeDoPreso({ x: x, y: y }));
+          const eSug = !!sug && sug.x === x && sug.y === y;
+          if (eSug) b.classList.add('sugerido');
+          b.setAttribute('aria-label', nome + (eSug ? ', sugerido pelo KV' : ''));
+          b.title = nome;
           grade.appendChild(b);
         });
       });
       blocoAncora.appendChild(grade);
-      blocoAncora.appendChild(el('p', d.x && d.y ? (ANCORA_Y[d.y] || d.y) + ' ' + (ANCORA_X[d.x] || d.x) + '.' :
-        'Escolha um ponto.', 'nota explica'));
+      if (sug) {
+        const caixaSug = el('div', null, 'ancora-sugerida');
+        caixaSug.appendChild(el('p', 'Sugestão pelo lugar no KV: fica ' + nomeDoPreso(sug) + '.', 'nota explica'));
+        const usar = botao('Usar', 'botao usar');
+        usar.dataset.usarAncora = v.chave;
+        // o foco volta a celula marcada depois que o card e refeito (gravarDesign acha o botao por x e y)
+        usar.dataset.x = sug.x;
+        usar.dataset.y = sug.y;
+        usar.setAttribute('aria-label', 'Usar a âncora sugerida em ' + nomeDaVista(v) + ': ' + nomeDoPreso(sug));
+        if (!escrita) usar.disabled = true;
+        usar.addEventListener('click', function () { gravarDesign(v, 'ancora', [sug.x, sug.y]); });
+        caixaSug.appendChild(usar);
+        blocoAncora.appendChild(caixaSug);
+      } else {
+        blocoAncora.appendChild(el('p', d.x && d.y ? 'Fica preso ' + PRESO_Y[d.y] + ' ' + (ANCORA_X[d.x] || d.x) + '.' :
+          'Escolha um ponto.', 'nota explica'));
+      }
       corpo.appendChild(blocoAncora);
       art.appendChild(corpo);
       s.appendChild(art);

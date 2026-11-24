@@ -994,6 +994,16 @@ main { flex: 1; min-height: 0; display: flex; }
 .ponto[aria-pressed="true"]::after { background: var(--accent); opacity: 1; transform: scale(1.4); }
 .ponto:hover:not(:disabled)::after { opacity: 0.8; }
 .ponto:disabled { cursor: default; }
+/* 0.15.0: a ancora sugerida pelo KV, tracejada como as outras sugestoes (so o clique do DA grava) */
+.ponto.sugerido { outline: 1.5px dashed var(--accent); outline-offset: -3px; }
+.ponto.sugerido::after { background: var(--accent); opacity: 0.7; }
+/* o anel de foco do teclado vence o tracejado enquanto a celula tem foco */
+.ponto.sugerido:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ancora-explica { margin: 0 0 6px; }
+.ancora-sugerida { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin-top: 6px; }
+.ancora-sugerida .explica { margin: 0; flex: 1 1 18ch; }
+.ancoras-do-kv { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.ancoras-do-kv .sugestao-nota { margin: 0; flex: 1 1 28ch; }
 /* M7c, M4: o padrao da marca no card da funcao, no desenho da sugestao do Claude (borda tracejada: sugestao citada,
    nunca valor). Os dois campos lado a lado; o que ja esta em uso ganha o traco do acento */
 .padrao-marca { margin: 6px 0 4px; gap: 8px; }
