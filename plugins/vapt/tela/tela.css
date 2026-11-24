@@ -985,9 +985,25 @@ main { flex: 1; min-height: 0; display: flex; }
 .funcao-ds-topo:hover { background: var(--hover); }
 .funcao-ds.atual { box-shadow: 0 0 0 2px var(--accent); }
 .funcao-ds.feita .decisao-estado { color: var(--ok); }
-.funcao-ds-corpo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; padding-top: 8px; }
-.bloco-ds .subtitulo { color: var(--text2); font-size: 12px; font-weight: 600; }
-.regras { display: flex; flex-wrap: wrap; gap: 4px; }
+/* 0.17.2: Tamanho em cima, numa grade de duas colunas (as regras vêm em pares: largura e altura, lado menor e maior,
+   área e fixo, cabe e cobre), e Âncora embaixo, com a grade de pontos à esquerda e o texto à direita. Antes as duas
+   iam lado a lado, a coluna do texto da Âncora espremia os botões de Tamanho e o nome deles quebrava por cima */
+.funcao-ds-corpo { display: grid; gap: 14px; padding-top: 8px; }
+.bloco-ds .subtitulo { color: var(--text2); font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.regras { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.regras .opcao { justify-content: center; height: auto; min-height: 30px; padding: 4px 10px; line-height: 1.2; text-align: center; }
+.bloco-ancora {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: start;
+  padding-top: 12px;
+  border-top: 1px solid var(--sep);
+}
+.bloco-ancora > .subtitulo { grid-column: 1 / -1; }
+.bloco-ancora > .grade-ancora { grid-column: 1; grid-row: 2 / span 2; }
+.bloco-ancora > :not(.subtitulo):not(.grade-ancora) { grid-column: 2; }
+.bloco-ancora .explica { max-width: none; }
 .explica { font-size: 12px; margin-top: 6px; max-width: 40ch; }
 .grade-ancora {
   display: grid;

@@ -2,6 +2,10 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.17.2 (24/11/2026): o cartão do Design system respira
+
+- No Design system, cada função mostra Tamanho no alto, numa grade de duas colunas com as regras em pares (largura e altura, lado menor e maior, área e fixo, cabe e cobre), e Âncora embaixo, com a grade de pontos à esquerda e o texto e o Usar à direita. Antes o texto da Âncora espremia os botões de Tamanho e o nome deles quebrava por cima um do outro. Nada muda no que cada clique grava.
+
 ## 0.17.1 (24/11/2026): o desenvolvedor aparece como Trezion.io
 
 - A tela de plugins do Claude passa a mostrar Trezion.io como desenvolvedor do Vapt, com o endereço trezion.io. Nada muda no uso.

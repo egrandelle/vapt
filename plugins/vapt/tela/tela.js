@@ -3258,7 +3258,7 @@
       blocoRegra.appendChild(regras);
       blocoRegra.appendChild(el('p', d.regra ? (REGRAS_TEXTO[d.regra] || '') : 'Escolha uma regra.', 'nota explica'));
       corpo.appendChild(blocoRegra);
-      const blocoAncora = el('div', null, 'bloco-ds');
+      const blocoAncora = el('div', null, 'bloco-ds bloco-ancora');
       blocoAncora.appendChild(el('h3', 'Âncora', 'subtitulo'));
       // 0.15.0: a ancora e o ponto do elemento que fica preso, nunca o lugar dele no quadro (o lugar vem do KV)
       blocoAncora.appendChild(el('p', ANCORA_EXPLICA, 'nota explica ancora-explica'));
