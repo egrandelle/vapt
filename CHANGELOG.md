@@ -2,6 +2,10 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.17.1 (24/11/2026): o desenvolvedor aparece como Trezion.io
+
+- A tela de plugins do Claude passa a mostrar Trezion.io como desenvolvedor do Vapt, com o endereço trezion.io. Nada muda no uso.
+
 ## 0.17.0 (24/11/2026): quatro melhorias na tela antes do M8
 
 Pedidos do Duda antes dos testes finais: menos cliques no passo 1, um lugar só para a spec, o tipo e o giro, famílias que não encolhem o texto e uma barra de edição alinhada.
