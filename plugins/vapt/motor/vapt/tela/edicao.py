@@ -83,7 +83,9 @@ import time
 
 from vapt import limites
 
-ACOES = ('mover', 'escalar', 'texto', 'apagar', 'alinhar', 'alinhar_texto')
+# 0.15.0 (decisoes-v1.md, 204): devolver traz de volta o grafismo que a versao da galeria tirou. Ela so vale no
+# layout da familia (vapt.derivacao.proposta.edicoes_efetivas), que a troca pelos apagar dos tirados que ficam fora
+ACOES = ('mover', 'escalar', 'texto', 'apagar', 'alinhar', 'alinhar_texto', 'devolver')
 ACOES_DO_GRUPO = ('mover', 'escalar', 'alinhar')  # M7b, D1 e D2: as acoes que levam a lista do grupo
 # M7b, D2: o alinhamento no quadro do membro. alvo: (eixo, linha da caixa que encosta na mesma linha do quadro)
 ALVOS = {'margem_esquerda': ('x', 'esquerda'), 'centro_horizontal': ('x', 'centro'), 'margem_direita': ('x', 'direita'),
@@ -1055,8 +1057,13 @@ class Editor:
             alinhados_fam.extend(dict(a, formato=fid) for a in alinhados)
             no_quadro_fam.extend(dict(a, formato=fid) for a in lay['no_quadro'])
         nome = self._nome
+        # 0.15.0 (204): o grafismo que a versao tirou e o DA nao apagou sai com a origem 'vapt', e a tela oferece
+        # "Devolver"
+        do_vapt = set((lays.get(ref) or {}).get('tirados') or ()) - \
+            {e['elemento'] for e in aceitas if e['acao'] == 'apagar'}
         return {'familia': gid, 'versao': versao, 'membros': membros, 'arquivo_de_edicao': ref,
-                'apagados': [{'elemento': k, 'nome': nome(k), 'origem': origem} for k in apagados_fam],
+                'apagados': [{'elemento': k, 'nome': nome(k), 'origem': 'vapt' if k in do_vapt else origem}
+                             for k in apagados_fam],
                 'textos_editados': [{'elemento': k, 'nome': nome(k)} for k in textos_fam],
                 # 0.12.0: o alinhamento das linhas que muda o texto (o do KV escolhido de novo nao entra)
                 'alinhamentos_do_da': [{'elemento': k, 'nome': nome(k), 'alinhamento': v}

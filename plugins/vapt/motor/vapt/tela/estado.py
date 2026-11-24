@@ -676,8 +676,10 @@ def palco_kv(kv, laudo, base):
 # ------------------------------------------------------------------ galeria (so previa)
 def palco_da_variante(formato, W, H, v, laudo, base):
     """O palco de uma variante da galeria: os elementos dela (na forma dos elementos da derivacao) no mesmo modelo de
-    pecas do palco, sem fantasma (a variante posiciona todo elemento do KV)."""
-    itens = [(el, el['transformacao'], el['caixa'], False) for el in v['elementos']]
+    pecas do palco, sem fantasma (a variante posiciona todo elemento do KV). Os grafismos que a versao tirou (0.15.0;
+    decisoes-v1.md, 204) ficam fora do palco."""
+    fora = set(v.get('tirados') or ())
+    itens = [(el, el['transformacao'], el['caixa'], False) for el in v['elementos'] if el['id'] not in fora]
     return _montar_palco(formato, W, H, itens, base, SELO_VARIANTE, None, 'variante', None, _nomes(laudo))
 
 
@@ -689,7 +691,7 @@ def _variante_da_tela(v, ordem, palco_):
             'avisos': [{'codigo': a['codigo'], 'texto': a['texto']} for a in v['avisos']],
             'falhas': [{'codigo': f['codigo'], 'texto': f['texto']} for f in v['falhas_obrigatorias']],
             'estrutura': {'tipo': est.get('tipo'), 'trilhas': list(est.get('trilhas') or [])},
-            'palco': palco_}
+            'tirados': list(v.get('tirados') or []), 'palco': palco_}
 
 
 def galerias(ctx, kv, laudo, base, derivados, orientacoes, *, specs, arquivo_specs, params, brutos=None):
@@ -888,6 +890,30 @@ def formatos_sem_medida(pasta):
             continue
         leituras = [descricao_do_valor(lei) for lei in dim['leituras']]
         saida.append({'formato': f['id'], 'valor_id': dim['id'], 'leituras': leituras, 'texto': ' ou '.join(leituras)})
+    return saida
+
+
+TIPOS_NA_TELA = {'jpg': 'JPEG', 'png': 'PNG'}
+FALTA_TIPO_DE_ARQUIVO = ('A folha de spec não diz o tipo de arquivo deste formato. Escolha JPEG ou PNG em O que eu '
+                         'li, nos valores de spec, para poder aprovar.')
+
+
+def formatos_sem_tipo(pasta):
+    """0.15.0: os formatos do job cuja folha nao diz o tipo de arquivo (vapt.specs.confirmar.formatos_sem_tipo), com o
+    nome para o DA (a medida) e o que ele ja escolheu: [{'chave', 'nome', 'tipos', 'texto'}], na ordem da folha. Sem
+    o tipo, o arquivo final nao sai e o formato nao pode ser aprovado. Vazio sem rascunho legivel."""
+    from vapt.specs import confirmar as mod_confirmar
+    from vapt.specs import modelo as mod_modelo
+    doc = _ler(Path(pasta) / 'specs' / 'rascunho.json', 'spec/1')
+    if doc is None:
+        return []
+    por_chave = {f.get('chave'): f for f in doc.get('formatos') or []}
+    saida = []
+    for x in mod_confirmar.formatos_sem_tipo(doc):
+        medida = mod_modelo.medida_em_px(por_chave[x['chave']])
+        nome = '%sx%s' % medida if medida else x['id']
+        saida.append({'chave': x['chave'], 'nome': nome, 'tipos': list(x['tipos']),
+                      'texto': ' e '.join(TIPOS_NA_TELA[t] for t in x['tipos'])})
     return saida
 
 
@@ -1117,6 +1143,8 @@ def lido(pasta, estado_job, laudo, briefing, formatos, faces_servidas, teto=None
     specs['sem_formatos'] = '' if specs['formatos'] else \
         (SEM_MEDIDA_EM_PIXELS if specs['folhas'] else SEM_FOLHA_DE_SPEC)
     specs['digitados'] = mod_digitados.na_tela(pasta)
+    # 0.15.0: os formatos cuja folha nao diz o tipo de arquivo, com a escolha do DA (vazia quando falta)
+    specs['sem_tipo'] = formatos_sem_tipo(pasta)
     lf = _ler(pasta / 'laudo' / 'laudo-fontes.json', 'laudo/1')
     usadas = (lf or laudo).get('fontes_usadas') or []
     nomes = {c['identidade']['layer_id']: c.get('nome') or '' for c in laudo['camadas']}
@@ -2209,6 +2237,9 @@ def _painel_e_aprovacoes(pasta, lidas=None):
     mudancas = _mudancas_por_formato(pasta, entradas)
     linhas = []
     confirmados = {x for c in b.get('composicoes') or [] if c.get('confirmada') for x in c.get('formatos') or []}
+    # 0.15.0: o formato cuja folha nao diz o tipo de arquivo, sem a escolha do DA, nao tem arquivo final (o portao
+    # recusa com sem_tipos_aceitos_confirmados): o painel diz antes do clique em Aprovar
+    sem_tipo = {x['chave'] for x in formatos_sem_tipo(pasta) if not x['tipos']}
     for f in fs:
         fid, d, atual = f['id'], derivacoes[f['id']], hashes[f['id']]
         aprov = aprovacoes.get(fid) or {}
@@ -2229,10 +2260,14 @@ def _painel_e_aprovacoes(pasta, lidas=None):
                 mudou = None
         giro = (f.get('rotacao') or {}).get('graus') or 0
         sentido = ((params.get(fid) or {}).get('rotacao_sentido') or {}).get('valor')
+        falta_tipo = f.get('chave') in sem_tipo
+        pode = situacao in ('renderizado', 'aprovacao_caida') and em_dia
+        if falta_tipo and pode:
+            motivo = FALTA_TIPO_DE_ARQUIVO
         linhas.append({'id': fid, 'nome': nomes[fid], 'largura': f.get('largura'), 'altura': f.get('altura'),
                        'composicao': comp, 'giro': giro, 'sentido': sentido, 'situacao': situacao,
                        'rotulo': ROTULOS_DA_SITUACAO[situacao], 'motivo': motivo, 'pede_render': pede,
-                       'pode_aprovar': situacao in ('renderizado', 'aprovacao_caida') and em_dia,
+                       'pode_aprovar': pode and not falta_tipo, 'falta_tipo': falta_tipo,
                        'render_em_dia': em_dia, 'mudou': mudou, 'layout': _marca_do_layout(d),
                        # 0.9.6: os avisos que o DA aceitou ao confirmar a familia (aviso discreto no passo 5)
                        'avisos_aceitos': avisos_aceitos(d) if derivado else []})

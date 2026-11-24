@@ -416,13 +416,15 @@
           "$ref": "#/$defs/id"
         },
         "acao": {
+          "description": "0.15.0: devolver traz de volta o grafismo que a versao da galeria tirou (decisoes-v1.md, 204).",
           "enum": [
             "mover",
             "escalar",
             "texto",
             "apagar",
             "alinhar",
-            "alinhar_texto"
+            "alinhar_texto",
+            "devolver"
           ]
         },
         "alinhamento": {
@@ -497,7 +499,8 @@
                 "enum": [
                   "texto",
                   "apagar",
-                  "alinhar_texto"
+                  "alinhar_texto",
+                  "devolver"
                 ]
               }
             }

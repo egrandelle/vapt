@@ -130,11 +130,67 @@ def _lista_de_nomes(nomes):
     return nomes[0] if len(nomes) == 1 else '%s e %s' % (', '.join(nomes[:-1]), nomes[-1])
 
 
+# 0.15.0: o motivo de cada formato que o portao do aprovar recusou, em palavras do DA (o codigo e o de
+# vapt.entrega.portao e vapt.entrega.codificar). {codigo: (um formato, varios formatos)}, com {formatos} no lugar dos
+# nomes. O codigo sem frase aqui cai na frase geral (FALHA_DO_APROVAR)
+TEXTOS_DA_FALHA_DO_APROVAR = {
+    'sem_tipos_aceitos_confirmados': (
+        'A folha de spec não diz o tipo de arquivo do formato {formatos}. Escolha JPEG ou PNG em O que eu li, nos '
+        'valores de spec, e aprove de novo.',
+        'A folha de spec não diz o tipo de arquivo dos formatos {formatos}. Escolha JPEG ou PNG em O que eu li, nos '
+        'valores de spec, e aprove de novo.'),
+    'formato_sem_spec_confirmada': (
+        'O formato {formatos} não tem a medida confirmada na spec. Confirme em O que eu li e aprove de novo.',
+        'Os formatos {formatos} não têm a medida confirmada na spec. Confirme em O que eu li e aprove de novo.'),
+    'sem_tipo_com_encoder': (
+        'A folha de spec do formato {formatos} só aceita tipos de arquivo que o Vapt ainda não entrega. O Vapt '
+        'entrega JPEG e PNG.',
+        'A folha de spec dos formatos {formatos} só aceita tipos de arquivo que o Vapt ainda não entrega. O Vapt '
+        'entrega JPEG e PNG.'),
+    'contrato_desatualizado': (
+        'O formato {formatos} mudou depois do último render. Peça o render de novo e aprove depois.',
+        'Os formatos {formatos} mudaram depois do último render. Peça o render de novo e aprove depois.'),
+    'cor_de_achatamento_nao_definida': (
+        'O formato {formatos} tem partes transparentes, e o arquivo final não leva transparência. Falta dizer a cor '
+        'do fundo para ele.',
+        'Os formatos {formatos} têm partes transparentes, e o arquivo final não leva transparência. Falta dizer a cor '
+        'do fundo para eles.'),
+}
+FALHA_DO_APROVAR = (
+    'O formato {formatos} ainda não pode ser aprovado. Ele precisa de um render novo ou de um ajuste antes.',
+    'Os formatos {formatos} ainda não podem ser aprovados. Eles precisam de um render novo ou de um ajuste antes.')
+NADA_MUDOU = 'Nada mudou no job.'
+
+
+def texto_da_falha_do_aprovar(com_falha):
+    """0.15.0: o texto do aprovar que parou no portao, com os formatos e o motivo de cada grupo (os formatos com o
+    mesmo motivo juntos, na ordem do pedido), no singular ou no plural. com_falha: [{'id', 'nome', 'codigos'}]. None
+    sem formato."""
+    grupos = {}
+    for x in com_falha or []:
+        if not isinstance(x, dict):
+            continue
+        codigos = [c for c in x.get('codigos') or [] if c in TEXTOS_DA_FALHA_DO_APROVAR]
+        chave = codigos[0] if codigos else None
+        grupos.setdefault(chave, []).append(str(x.get('nome') or x.get('id')))
+    if not grupos:
+        return None
+    partes = []
+    for chave, nomes in grupos.items():
+        par = TEXTOS_DA_FALHA_DO_APROVAR.get(chave, FALHA_DO_APROVAR)
+        partes.append(par[0 if len(nomes) == 1 else 1].format(formatos=_lista_de_nomes(nomes)))
+    return ' '.join(partes + [NADA_MUDOU])
+
+
 def texto_do_motivo(motivo, resposta):
     """O texto para o DA da tarefa que parou pelo motivo, com o nome dos formatos quando a resposta os diz (0.9.4), ou
     None sem texto para o motivo."""
-    par = TEXTOS_POR_MOTIVO_COM_FORMATO.get(motivo)
     r = resposta if isinstance(resposta, dict) else {}
+    if motivo == 'formato_com_falha' and isinstance(r.get('com_falha'), list):
+        texto = texto_da_falha_do_aprovar(r['com_falha'])
+        if texto:
+            return texto
+    par = TEXTOS_POR_MOTIVO_COM_FORMATO.get(motivo)
     nomes = []
     if par is not None:
         if isinstance(r.get('formatos'), list):

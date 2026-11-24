@@ -320,9 +320,10 @@ def test_conteudo_no_meio_do_kv_nao_vira_margem():
 
 def test_aviso_diz_a_escala_que_a_versao_mostra():
     """Achado menor: o aviso dizia "o conteudo so cabe com 39%" numa versao que mostra o conteudo a 50%, porque o
-    piso por bloco o sobe. Agora diz que o conteudo ficou no minimo e passa do espaco livre."""
-    ctx, kv, fs = _kv_a([('v1080x1920', 1080, 1920)])
-    textos = [a['texto'] for v in mg.variantes(ctx, kv, fs['v1080x1920']) for a in v['avisos']
+    piso por bloco o sobe. Agora diz que o conteudo ficou no minimo e passa do espaco livre. Desde 23/11 (n 204) a
+    fileira de icones fica junta e o conteudo cabe no 1080 x 1920; o caso que nao cabe e o 300 x 1050."""
+    ctx, kv, fs = _kv_a([('v300x1050', 300, 1050)])
+    textos = [a['texto'] for v in mg.variantes(ctx, kv, fs['v300x1050']) for a in v['avisos']
               if a['codigo'] == 'conteudo_nao_cabe']
     assert textos
     for t in textos:
@@ -402,7 +403,8 @@ def test_legal_de_regra_constante_nao_prende_o_titulo():
 def test_fileira_empilhada_nao_vira_escada():
     """Achado 4 do revisor geral: ao empilhar a fileira de 3 icones, cada um guardava o x que tinha no KV e o conjunto
     virava uma diagonal (x 60, 129 e 210). Os itens que ficavam lado a lado no KV e agora vao um embaixo do outro
-    comecam no mesmo x."""
+    comecam no mesmo x. Desde 23/11 (n 204) a fileira do KV deitado fica junta (_atomos, mesma linha): os icones
+    seguem lado a lado, no mesmo y; se um dia forem empilhados, comecam no mesmo x."""
     ctx, kv, fs = _kv_a([('q1080', 1080, 1080)])
     cf = mg._contexto(ctx, kv, fs['q1080'])
     icones = [e['id'] for e in kv['elementos'] if e['funcao'] == 'grafismo']
@@ -411,12 +413,15 @@ def test_fileira_empilhada_nao_vira_escada():
         v = mg.gerar(cf, p)
         if v is None:
             continue
+        vistos += 1
         cx = [v['caixas'][k] for k in icones]
         # um embaixo do outro: nenhum par divide a mesma faixa de altura
         empilhados = all(a[3] <= b[1] or b[3] <= a[1] for k, a in enumerate(cx) for b in cx[k + 1:])
         if empilhados:
-            vistos += 1
             assert max(c[0] for c in cx) - min(c[0] for c in cx) <= FOLGA, (mg._id(p), cx)
+        else:
+            assert max(c[1] for c in cx) - min(c[1] for c in cx) <= FOLGA, (mg._id(p), cx)
+            assert all(a[2] <= b[0] + FOLGA for a, b in zip(cx, cx[1:])), (mg._id(p), cx)
     assert vistos
 
 

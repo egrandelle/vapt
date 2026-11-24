@@ -1325,6 +1325,48 @@
     });
     lerCampoDigitados();
   }
+  /* 0.15.0, tipo de arquivo: a folha que so traz a medida (uma planilha com a coluna do formato) nao diz se o arquivo
+     final sai em JPEG ou PNG, e sem isso o formato nao pode ser aprovado. O DA escolhe para todos de uma vez ou para
+     cada formato; o motor confere e grava na confirmacao da janela (ato spec_tipos) */
+  const TIPOS_DE_ARQUIVO = [['jpg'], ['png'], ['jpg', 'png']];
+  const NOMES_DOS_TIPOS = { jpg: 'JPEG', png: 'PNG' };
+  function nomeDosTipos(ts) { return ts.map(function (t) { return NOMES_DOS_TIPOS[t]; }).join(' e '); }
+  function montarTiposDeArquivo(lista) {
+    const bloco = document.getElementById('tipos-arquivo');
+    if (!bloco) return;
+    lista = lista || [];
+    bloco.hidden = !lista.length;
+    const todos = document.getElementById('tipos-arquivo-todos');
+    const ul = document.getElementById('tipos-arquivo-lista');
+    limpar(todos);
+    limpar(ul);
+    if (!lista.length) return;
+    const chaves = lista.map(function (x) { return x.chave; });
+    if (lista.length > 1) {
+      todos.appendChild(el('span', 'Todos em', 'digitados-rotulo'));
+      TIPOS_DE_ARQUIVO.forEach(function (ts) {
+        const b = botaoAto(nomeDosTipos(ts), 'spec_tipos', { formatos: chaves, tipos: ts });
+        b.setAttribute('aria-label', 'Todos os formatos da lista em ' + nomeDosTipos(ts));
+        todos.appendChild(b);
+      });
+    }
+    lista.forEach(function (x) {
+      const li = el('li', null, 'digitados-item');
+      const topo = el('div', null, 'digitados-item-topo');
+      topo.appendChild(el('span', x.nome, 'digitados-medida'));
+      topo.appendChild(el('span', x.tipos.length ? 'Escolhido por você: ' + x.texto : 'Falta escolher',
+        x.tipos.length ? 'opcao-detalhe' : 'chip chip-neutro'));
+      TIPOS_DE_ARQUIVO.forEach(function (ts) {
+        const igual = x.tipos.length === ts.length && ts.every(function (t) { return x.tipos.indexOf(t) >= 0; });
+        if (igual) return;
+        const b = botaoAto(nomeDosTipos(ts), 'spec_tipos', { formatos: [x.chave], tipos: ts });
+        b.setAttribute('aria-label', 'O formato ' + x.nome + ' em ' + nomeDosTipos(ts));
+        topo.appendChild(b);
+      });
+      li.appendChild(topo);
+      ul.appendChild(li);
+    });
+  }
   depoisDoAto.formatos_digitados = function (d) {
     const campo = document.getElementById('digitados-campo');
     if (d && d.acao === 'acrescentar') {
@@ -2033,6 +2075,7 @@
       sp.appendChild(n);
     }
     montarDigitados(s.digitados);
+    montarTiposDeArquivo(s.sem_tipo);
     // 0.9.2 (A3): sem formato nenhum, o bloco dos formatos escritos e o primeiro passo; com a folha, fica discreto
     const blocoDig = document.getElementById('digitados');
     const soDaFolha = s.formatos.length > 0 && !s.formatos.some(function (f) { return f.digitado; });
@@ -4563,7 +4606,11 @@
   function montarResumo(r) {
     const partes = [];
     if (r.textos_editados.length) partes.push('Texto editado nesta família: ' + nomes(r.textos_editados) + '.');
-    if (r.apagados.length) partes.push('Tirado desta família: ' + nomes(r.apagados) + '.');
+    /* 0.15.0 (decisao 204): o grafismo que a versao da galeria tirou vem com origem 'vapt' e ganha "Devolver" */
+    const doVapt = r.apagados.filter(function (x) { return x.origem === 'vapt'; });
+    const doDa = r.apagados.filter(function (x) { return x.origem !== 'vapt'; });
+    if (doDa.length) partes.push('Tirado desta família: ' + nomes(doDa) + '.');
+    if (doVapt.length) partes.push('O Vapt tirou desta versão: ' + nomes(doVapt) + '.');
     const quebras = quebrasDa(vista.familia).length;
     if (quebras) partes.push(quebras === 1 ? 'Quebra de linha mudada em 1 texto desta família.' :
       'Quebra de linha mudada em ' + quebras + ' textos desta família.');
@@ -4580,7 +4627,16 @@
           return m.falhas[0];
         })));
     }
-    document.getElementById('resumo-edicao').textContent = partes.join(' ');
+    const resumo = document.getElementById('resumo-edicao');
+    resumo.textContent = partes.join(' ');
+    doVapt.forEach(function (x) {
+      const b = botao('Devolver ' + (x.nome || 'o elemento'), 'botao-vista');
+      b.dataset.devolver = x.elemento;
+      if (!editavel()) b.disabled = true;
+      b.addEventListener('click', function () { devolver(x.elemento); });
+      resumo.appendChild(document.createTextNode(' '));
+      resumo.appendChild(b);
+    });
   }
   /* 0.9.6: o membro que a previa traz devolvido (sem versao da galeria, ou com a quebra sem medida): a confirmacao da
      familia nao monta o layout dele, e a marca nunca vira "Aprovado por você" */
@@ -4962,6 +5018,11 @@
     mostrarBorda();
     mensagem('O elemento saiu de todos os arquivos desta família. Desfazer traz de volta.');
     return novaEdicao({ elemento: id, acao: 'apagar' }, false);
+  }
+  /* 0.15.0 (decisao 204): traz de volta o grafismo que a versao da galeria tirou, preso a arte do fundo */
+  function devolver(id) {
+    mensagem('O elemento voltou a todos os arquivos desta família. Desfazer tira de novo.');
+    return novaEdicao({ elemento: id, acao: 'devolver' }, false);
   }
   function desfazer() {
     const f = familiaAtual();
@@ -6106,6 +6167,7 @@
   const PAINEL_SO_VER = 'Nesta janela a tela só mostra. O render e a aprovação ficam para a janela que o Vapt abre para você.';
   const PEDE_RENDER = 'Pede render';
   const PODE_APROVAR = 'Pode aprovar';
+  const FALTA_TIPO = 'Falta o tipo de arquivo'; // 0.15.0: a folha nao diz JPEG ou PNG (escolha no passo 1)
   const ESCOLHA_UM_FORMATO = 'Escolha um formato na lista para ver o que mudou nele.';
   const IMAGEM_RENDER = 'Último render';
   const IMAGEM_PREVIA = 'Prévia do layout, ainda sem render';
@@ -6238,6 +6300,7 @@
     marcas.appendChild(el('span', f.rotulo, 'chip chip-' + f.situacao));
     if (f.pede_render) marcas.appendChild(el('span', PEDE_RENDER, 'etiqueta-painel pede'));
     else if (f.pode_aprovar) marcas.appendChild(el('span', PODE_APROVAR, 'etiqueta-painel pode'));
+    else if (f.falta_tipo) marcas.appendChild(el('span', FALTA_TIPO, 'etiqueta-painel pede'));
     linha.appendChild(marcas);
     return linha;
   }
@@ -6541,7 +6604,8 @@
     }).catch(function () { return null; });
   }
   function nomesDaResposta(r) {
-    const lista = (r && (r.bloqueados || r.com_falha || r.recusados || r.mudaram)) || [];
+    /* 0.15.0: o texto do aprovar que parou no portao ja diz os formatos e o motivo de cada um (com_falha fica fora) */
+    const lista = (r && (r.bloqueados || r.recusados || r.mudaram)) || [];
     return lista.map(function (x) { return typeof x === 'string' ? nomeDoFormato(x) : x.nome; });
   }
   function textoDoFim(v) {

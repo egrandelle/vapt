@@ -109,6 +109,30 @@ def _lote_de_spec(pasta, dados):
     return alvos
 
 
+def _tipos_pedidos(pasta, dados):
+    """0.15.0: (formatos, tipos) do pedido de tipo de arquivo, ou None. dados: {'formatos': [chaves], 'tipos': ['jpg'
+    e/ou 'png']}, sem repeticao, cada formato a espera da escolha (a folha dele nao diz o tipo). formatos: os itens de
+    estado.formatos_sem_tipo, na ordem do pedido."""
+    from vapt.tela import estado
+    if not _chaves(dados, 'formatos', 'tipos'):
+        return None
+    fs, ts = dados['formatos'], dados['tipos']
+    if not isinstance(fs, list) or not fs or len(fs) > LOTE_MAX or not all(isinstance(f, str) for f in fs) or \
+            len(set(fs)) != len(fs):
+        return None
+    if not isinstance(ts, list) or not ts or not all(t in estado.TIPOS_NA_TELA for t in ts) or len(set(ts)) != len(ts):
+        return None
+    por_chave = {x['chave']: x for x in estado.formatos_sem_tipo(pasta)}
+    alvos = [por_chave.get(f) for f in fs]
+    if any(a is None for a in alvos):
+        return None
+    return alvos, [t for t in estado.TIPOS_NA_TELA if t in ts]
+
+
+def _lista_de_nomes(nomes):
+    return nomes[0] if len(nomes) == 1 else '%s e %s' % (', '.join(nomes[:-1]), nomes[-1])
+
+
 def atos_do_job(pasta, teto=None, conteudo=None):
     """{nome: Ato} do passo 1 para o servidor da tela do job. teto: o teto do modo de dados da linha de comando (o do
     estado.json entra sozinho, lido a cada pedido). conteudo: o da tela (vapt.tela.estado.montar); com ele entram
@@ -177,6 +201,24 @@ def atos_do_job(pasta, teto=None, conteudo=None):
         acoes = confirmar.confirmar_lote_da_tela(pasta, d['valor_ids'], disparo=disparo)
         return {'spec': acoes is not None, 'confirmados': len(acoes or [])}
 
+    def tipos_texto(d):
+        from vapt.tela import estado
+        alvos, tipos = _tipos_pedidos(pasta, d)
+        nomes = _lista_de_nomes([a['nome'] for a in alvos])
+        tipo = ' e '.join(estado.TIPOS_NA_TELA[t] for t in tipos)
+        um = len(alvos) == 1
+        partes = [('O formato %s pode sair em %s.' if um else 'Os formatos %s podem sair em %s.') % (nomes, tipo)]
+        if len(tipos) > 1:
+            # vapt.entrega.codificar: o PNG sem perda vale enquanto cabe no peso maximo; acima dele, o JPEG
+            partes.append('O Vapt entrega PNG e passa a JPEG só quando o PNG fica acima do peso máximo.')
+        partes.append('A folha de spec não diz o tipo de arquivo %s, e vale a sua escolha.' % ('dele' if um else 'deles'))
+        return ' '.join(partes)
+
+    def tipos_executar(disparo, d):
+        alvos, tipos = _tipos_pedidos(pasta, d)
+        acoes = confirmar.escolher_tipos_da_tela(pasta, [a['chave'] for a in alvos], tipos, disparo=disparo)
+        return {'spec': acoes is not None, 'tipos': len(acoes or [])}
+
     atos = {'marca': _ato_da_marca(pasta, conteudo), 'marca_registrar': _ato_de_registrar(pasta, conteudo),
             'texto_como_imagem': _ato_texto_como_imagem(pasta),
             'formatos_digitados': _ato_formatos_digitados(pasta)}
@@ -199,6 +241,10 @@ def atos_do_job(pasta, teto=None, conteudo=None):
         'spec_valores': Ato(comando=confirmar.COMANDO, titulo='Confirmar os valores de spec', texto=lote_texto,
                             sim=SIM, nao=NAO, executar=lote_executar,
                             validar=lambda d: _lote_de_spec(pasta, d) is not None),
+        # 0.15.0: o tipo de arquivo dos formatos cuja folha nao diz (uma janela, uma acao por formato)
+        'spec_tipos': Ato(comando=confirmar.COMANDO, titulo='Escolher o tipo de arquivo', texto=tipos_texto,
+                          sim=SIM, nao=NAO, executar=tipos_executar,
+                          validar=lambda d: _tipos_pedidos(pasta, d) is not None),
         # o render dos formatos afetados (M7b, B2): ato longo, com preparo e um selo por formato
         'render': ato_render.ato_de_render(pasta),
         # a aprovacao dos formatos marcados, com o sentido do giro que falta (M7b, B4): ato longo, com preparo

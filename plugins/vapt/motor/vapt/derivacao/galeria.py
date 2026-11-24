@@ -226,9 +226,13 @@ def analisar(kv):
 
 
 def _atomos(itens, vertical, curto):
-    """Itens que se sobrepoem (ou, na mestre vertical, lado a lado na mesma linha) formam um atomo; atomo fino demais
-    junta ao vizinho mais perto."""
+    """Itens que se sobrepoem (ou lado a lado na mesma linha) formam um atomo; atomo fino demais junta ao vizinho mais
+    perto. Na mestre vertical, lado a lado vale com a faixa das linhas se tocando e o vao ate
+    derivacao.galeria_linha_vao_lado_curto. Na deitada ou quadrada (23/11, n 204), so o conjunto da mesma linha: o
+    menor com ao menos metade da altura dentro da faixa do outro, a menos de derivacao.galeria_linha_vao_deitado_lado_curto
+    (o numero, o simbolo e o texto do destaque; a chamada e a linha dela). Colunas de verdade ficam separadas."""
     vao_linha = limites.valor('derivacao.galeria_linha_vao_lado_curto') * curto
+    vao_deitado = limites.valor('derivacao.galeria_linha_vao_deitado_lado_curto') * curto
     minimo = limites.valor('derivacao.galeria_atomo_min_lado_curto') * curto
     pai = list(range(len(itens)))
 
@@ -240,7 +244,8 @@ def _atomos(itens, vertical, curto):
     for i, j in itertools.combinations(range(len(itens)), 2):
         a, b = itens[i]['caixa'], itens[j]['caixa']
         ox, oy = _sobra(a[0], a[2], b[0], b[2]), _sobra(a[1], a[3], b[1], b[3])
-        if (ox > 0 and oy > 0) or (vertical and oy > 0 and -ox < vao_linha):
+        mesma_linha = oy > 0 and oy >= 0.5 * min(a[3] - a[1], b[3] - b[1]) and -ox < vao_deitado  # numero-neutro: metade
+        if (ox > 0 and oy > 0) or (vertical and oy > 0 and -ox < vao_linha) or (not vertical and mesma_linha):
             ri, rj = raiz(i), raiz(j)
             pai[max(ri, rj)] = min(ri, rj)
     grupos = {}
@@ -825,6 +830,113 @@ def _fundo_da_figura(e, bm, bf, W, H):
     return c, sg
 
 
+def arte_do_kv(an, fx):
+    """('inicio' | 'fim', fracao do lado maior do KV ate onde vai o conteudo) quando o KV sem figura tem o conteudo
+    todo de um lado e ao menos derivacao.galeria_arte_do_kv_livre_min do lado maior livre do outro: a arte do KV fica
+    desse outro lado (23/11, n 204). None no resto."""
+    if fx is not None or not an['atomos']:
+        return None
+    Wm, Hm = an['Wm'], an['Hm']
+    b = _uniao([an['bbox']] + [e['caixa'] for e, _l in an['colados']])
+    k0, k1, D = (0, 2, Wm) if _eixo_longo(Wm, Hm) == 'x' else (1, 3, Hm)
+    livre = limites.valor('derivacao.galeria_arte_do_kv_livre_min')
+    if (D - b[k1]) / D >= livre:
+        return 'fim', b[k1] / D
+    if b[k0] / D >= livre:
+        return 'inicio', 1.0 - b[k0] / D
+    return None
+
+
+def fracao_do_conteudo(cf):
+    """A parte do lado maior do quadro que o conteudo ocupa na versao com a imagem livre: derivacao.galeria_conteudo_fracao,
+    ou, no KV com a arte de um lado (arte_do_kv; 23/11, n 204), a media entre a parte do KV e a que mantem a proporcao
+    do bloco do conteudo do KV no formato, entre derivacao.galeria_conteudo_fracao_min_sobre_kv vezes a do KV e
+    derivacao.galeria_conteudo_fracao."""
+    teto = limites.valor('derivacao.galeria_conteudo_fracao')
+    arte = cf.get('_arte_do_kv')
+    if arte is None:
+        return teto
+    f = arte[1]
+    Wm, Hm = cf['bm']
+    W, H = cf['W'], cf['H']
+    Lk, Ck = max(Wm, Hm), min(Wm, Hm)
+    longo_f = _eixo_longo(W, H)
+    Lf, Cf = (W, H) if longo_f == 'x' else (H, W)
+    if longo_f == _eixo_longo(Wm, Hm):
+        a = f * Lk * Cf / (Ck * Lf)
+    else:
+        a = Ck * Cf / (f * Lk * Lf)
+    minimo = limites.valor('derivacao.galeria_conteudo_fracao_min_sobre_kv') * f
+    return min(max((f + a) / 2.0, minimo), max(teto, minimo))  # numero-neutro: media
+
+
+def tirados(kv):
+    """Os grafismos que a galeria tira das versoes (23/11, n 204; o DA devolve na tela com um clique): [(id, motivo)].
+    A caixa do conteudo e a que junta o texto e a marca do fluxo. Sai:
+      - 'solto': o grafismo que nao sangra e fica inteiro fora da caixa do conteudo (as etiquetas soltas sobre a arte);
+      - 'sob_o_conteudo': o grafismo que sangra num canto (um lado, ou dois lados vizinhos) e fica, em ao menos
+        derivacao.galeria_arte_sob_conteudo_min da area dele, dentro da caixa do conteudo (o brilho atras do texto).
+        O que sangra em dois lados opostos atravessa a peca (o filete entre o texto e a arte) e fica.
+    So a funcao grafismo: a imagem, o sujeito, o fundo e o veu nunca saem. Na calibracao de 23/11, o DA tirou esses
+    grafismos em todos os formatos que diagramou de novo."""
+    cont = [e for e in kv['elementos'] if mod_solver.conteudo(e) and em_fluxo(e)]
+    if not cont:
+        return []
+    cz = _uniao([e['caixa'] for e in cont])
+    frac = limites.valor('derivacao.galeria_arte_sob_conteudo_min')
+    saida = []
+    for e in kv['elementos']:
+        if e['funcao'] != 'grafismo' or mod_solver.conteudo(e):
+            continue
+        c, sg = e['caixa'], e['sangra']
+        a = _area(c)
+        if not a:
+            continue
+        if not any(sg.values()):
+            if not _inter(c, cz):
+                saida.append((e['id'], 'solto'))
+        elif not (sg['esq'] and sg['dir']) and not (sg['topo'] and sg['base']) and _inter(c, cz) >= frac * a:
+            saida.append((e['id'], 'sob_o_conteudo'))
+    return saida
+
+
+def _presos_ao_fundo(cf, caixas):
+    """As caixas com os grafismos tirados (tirados) presos a arte: a mesma transformacao do fundo do canvas inteiro
+    na versao (onde eles voltam quando o DA os devolve), ou a posicao de _fundo sem fundo."""
+    tir = cf.get('_tirados') or ()
+    if not tir:
+        return caixas
+    por = {e['id']: e for e in cf['kv_inteiro']['elementos']}
+    fundo = next((e for e in cf['kv']['elementos'] if e['funcao'] == 'fundo' and all(e['sangra'].values())
+                  and e['id'] in caixas), None)
+    saida = dict(caixas)
+    for k, _motivo in tir:
+        e = por[k]
+        if fundo is None:
+            saida[k] = _fundo(e, cf['bm'], cf['bf'], cf['W'], cf['H'])
+            continue
+        f, fc, c = fundo['caixa'], caixas[fundo['id']], e['caixa']
+        s = (fc[2] - fc[0]) / (f[2] - f[0]) if f[2] > f[0] else 1.0
+        saida[k] = [fc[0] + (c[0] - f[0]) * s, fc[1] + (c[1] - f[1]) * s, fc[0] + (c[2] - f[0]) * s,
+                    fc[1] + (c[3] - f[1]) * s]
+    return saida
+
+
+def frase_dos_tirados(cf):
+    """A frase da versao que tirou grafismos (tirados), ou None."""
+    tir = cf.get('_tirados') or ()
+    if not tir:
+        return None
+    soltos = sum(1 for _k, m in tir if m == 'solto')
+    partes = []
+    if soltos:
+        partes.append('o grafismo solto sobre a arte' if soltos == 1 else 'os %d grafismos soltos sobre a arte' % soltos)
+    sob = sum(1 for _k, m in tir if m == 'sob_o_conteudo')
+    if sob:
+        partes.append('o grafismo atrás do conteúdo' if sob == 1 else 'os %d grafismos atrás do conteúdo' % sob)
+    return 'O Vapt tirou %s desta versão. Para devolver, clique em "Devolver".' % _juntar(partes)
+
+
 def arte_parcial(kv):
     """A maior base que sangra em parte dos lados (nao em todos) e cobre derivacao.galeria_arte_area_min do canvas:
     a arte que vira bloco na faixa da imagem livre."""
@@ -863,6 +975,24 @@ def _arte_em_banda(e, banda, longo, W, H):
 
 
 # ------------------------------------------------------------------ contexto do formato
+def _contexto_da_galeria(ctx, kv, formato, specs=None, arquivo_specs=None, params=None):
+    """O contexto das versoes da galeria (variantes, variante_para_grupo): o de _contexto montado sem os grafismos
+    tirados (tirados; 23/11, n 204), que nao entram no fluxo, no solver, na nota nem na conferencia. kv_inteiro leva a
+    mestre toda, para a versao sair com todos os elementos; o esperado da validacao e o da mestre toda, com os tirados
+    como apagados."""
+    tir = tirados(kv)
+    if not tir:
+        return _contexto(ctx, kv, formato, specs, arquivo_specs, params)
+    fora = {k for k, _m in tir}
+    reduzida = dict(kv, elementos=[e for e in kv['elementos'] if e['id'] not in fora])
+    cf = _contexto(ctx, reduzida, formato, specs, arquivo_specs, params)
+    bm, bf = cf['bm'], cf['bf']
+    cf['regras'] = dict(cf['regras'], **{e['id']: mod_escala.escala(e['regra'], bm, bf) for e in kv['elementos']
+                                         if e['id'] in fora})
+    cf.update(kv_inteiro=kv, _tirados=tir, esperado=mod_nucleo._esperado(ctx, kv))
+    return cf
+
+
 def _contexto(ctx, kv, formato, specs=None, arquivo_specs=None, params=None):
     """O que a galeria precisa de um formato: composicao, areas da folha, base do calculo, regra de cada elemento,
     escala de referencia do conteudo, os blocos da mestre, a figura e as faixas de borda."""
@@ -887,7 +1017,8 @@ def _contexto(ctx, kv, formato, specs=None, arquivo_specs=None, params=None):
     copia = fam['na_faixa'] or abs(bm[1] * W / bm[0] - H) <= limites.valor('derivacao.mesma_proporcao_px')
     return {'ctx': ctx, 'kv': kv, 'formato': formato, 'W': W, 'H': H, 'areas': areas, 'bf': bf, 'bm': bm,
             'regras': regras, 'regra_ref': statistics.median(rc) if rc else 1.0, 'an': an, 'quadro': quadro,
-            'copia_do_kv': bool(copia), '_figura': figura(kv), '_faixas': faixas_de_borda(an)}
+            'copia_do_kv': bool(copia), '_figura': figura(kv), '_faixas': faixas_de_borda(an),
+            '_arte_do_kv': arte_do_kv(an, figura(kv))}
 
 
 # ------------------------------------------------------------------ uma candidata
@@ -1110,6 +1241,37 @@ def _gerar_135(cf, p, fator, forcada):
     return cumpre or v
 
 
+def _bloco_da_base(cf, p, fora=()):
+    """O indice do atomo que fecha a leitura perto da base do KV (a chamada para acao), que fica preso a base do formato
+    (_na_base; 23/11, n 204), ou None. So no KV deitado com a arte de um lado (arte_do_kv), no formato em pe e na
+    versao com a imagem livre embaixo: o conteudo fica em cima, a arte no meio e o bloco na base, como o DA fez no
+    banner de 23/11. O atomo e o mais baixo do KV, a menos de derivacao.galeria_faixa_distancia_max da base, com ao
+    menos tres atomos."""
+    an = cf['an']
+    at = an['atomos']
+    poucos = len(at) < 3  # numero-neutro: tres atomos
+    if cf.get('_arte_do_kv') is None or p.get('arte') != 'fim' or poucos or \
+            _eixo_longo(cf['W'], cf['H']) != 'y' or _eixo_longo(an['Wm'], an['Hm']) != 'x':
+        return None
+    i = max((k for k in range(len(at)) if k not in fora), key=lambda k: at[k]['caixa'][3], default=None)
+    if i is None or (an['Hm'] - at[i]['caixa'][3]) / an['Hm'] > limites.valor('derivacao.galeria_faixa_distancia_max'):
+        return None
+    return i
+
+
+def _na_base(cf, i, s, q):
+    """As caixas do atomo i (_bloco_da_base) presas a base do quadro, alinhadas a esquerda do conteudo (q), na escala do
+    fluxo sobre a regra dele, sem passar da largura do quadro."""
+    an, quadro = cf['an'], cf['quadro']
+    a = an['atomos'][i]
+    c = a['caixa']
+    rel = (an.get('rel_regra') or [1.0] * len(an['atomos']))[i]
+    sb = min(s * rel, (quadro[2] - q[0]) / (c[2] - c[0])) if c[2] > c[0] else s * rel
+    y0 = quadro[3] - (c[3] - c[1]) * sb
+    return {el['id']: [q[0] + (m[0] - c[0]) * sb, y0 + (m[1] - c[1]) * sb, q[0] + (m[2] - c[0]) * sb,
+                       y0 + (m[3] - c[1]) * sb] for el in a['els'] for m in (el['caixa'],)}
+
+
 def _gerar(cf, p, s_viz, fator, forcada):
     an, kv, W, H, quadro = cf['an'], cf['kv'], cf['W'], cf['H'], cf['quadro']
     r = cf['regra_ref']
@@ -1123,6 +1285,11 @@ def _gerar(cf, p, s_viz, fator, forcada):
     faixas = list(cf['_faixas']) if p['faixa'] else []
     for i, _lado in faixas:
         idx.remove(i)
+    # n 204: no formato em pe com a arte do KV embaixo, o bloco que fecha a leitura perto da base do KV fica preso a base
+    # do formato, abaixo da arte
+    base_i = _bloco_da_base(cf, p, [i for i, _l in faixas])
+    if base_i is not None:
+        idx.remove(base_i)
 
     def faixas_em(x0, x1, lim):
         """Coloca as faixas presas a borda delas na largura [x0, x1] e devolve lim sem elas (ou None)."""
@@ -1175,7 +1342,7 @@ def _gerar(cf, p, s_viz, fator, forcada):
     if p['arte'] is not None:
         k0, k1 = (0, 2) if longo == 'x' else (1, 3)
         L, D = q[k1] - q[k0], (W if longo == 'x' else H)
-        fr = limites.valor('derivacao.galeria_conteudo_fracao')
+        fr = fracao_do_conteudo(cf)
         if p['arte'] == 'fim':
             q[k1] = q[k0] + fr * L
             banda = (q[k1], D, 'fim')
@@ -1215,6 +1382,8 @@ def _gerar(cf, p, s_viz, fator, forcada):
         distrib = 'inicio' if p['arte'] == 'fim' else 'fim'
     if part:
         caixas.update(colocar(an2, prec, q, s, tipo, part, esp, p['espelhar'], distrib))
+    if base_i is not None:
+        caixas.update(_na_base(cf, base_i, s, q))
     bm = cf['bm']
     for e, lado in an['colados']:
         c = e['caixa']
@@ -1451,6 +1620,10 @@ def nota(cf, v, falhas):
     n -= P['serie_partida'] * serie_partida(cf, v)
     if v['espelhar']:
         n -= P['espelho']
+    # no KV com a arte de um lado (n 204), a versao que nao deixa a arte livre desse lado cobre a arte
+    arte = cf.get('_arte_do_kv')
+    if arte is not None and v['p'].get('arte') != arte[0]:
+        n -= P['arte']
     return n - P['falha'] * falhas
 
 
@@ -1989,10 +2162,14 @@ def _saida(cf, v, ordem):
     # a conferencia ve as caixas que a variante leva (arredondadas em _elementos), as mesmas que a derivacao da familia
     # confirmada grava e confere (vapt.derivacao.proposta.layout_do_membro): o par que o solver deixa a
     # exatamente a tolerancia da colisao nunca vira falha so na tela (previa igual ao Salvar, M7b)
-    elementos = _elementos(cf, v)
+    # os grafismos tirados (n 204) saem na versao com a caixa presa a arte e ficam fora da conferencia, como apagados
+    tir = [k for k, _m in cf.get('_tirados') or ()]
+    elementos = _elementos(dict(cf, kv=cf['kv_inteiro']) if tir else cf, v)
     caixas = {e['id']: [float(x) for x in e['caixa']] for e in elementos}
     fundo = _fundo_de(cf, v['p'])
-    falhas, avisos = _conferir(cf, caixas, v['sangra'], fundo=fundo)
+    falhas, avisos = _conferir(cf, caixas, v['sangra'], apagados=tir, fundo=fundo)
+    if tir:
+        avisos.append(_item('tirado_pelo_vapt', frase_dos_tirados(cf), tir))
     if v['falha_solver']:
         falhas.append(_item('solver_nao_fecha', 'As restrições da folha e do KV não fecham nesta versão.', [],
                              restricao=v['falha_solver']))
@@ -2008,7 +2185,7 @@ def _saida(cf, v, ordem):
                              list(v['esmagados'])))
     p = v['p']
     return {'id': v['id'], 'ordem': ordem, 'descricao': descrever(cf, v), 'elementos': elementos,
-            'avisos': avisos + _avisos_da_variante(cf, v), 'falhas_obrigatorias': falhas,
+            'avisos': avisos + _avisos_da_variante(cf, v), 'falhas_obrigatorias': falhas, 'tirados': tir,
             'estrutura': {'tipo': v['tipo'], 'trilhas': [len(t) for t in v['part']], 'espelhada': v['espelhar'],
                           'imagem_livre': v['lado_img'], 'figura': p['fig'] and p['fig'][1],
                           'faixa_de_borda': p['faixa'], 'serie_girada': p['serie'],
@@ -2107,6 +2284,8 @@ def _resolvida(cf, v):
     # sem figura de fundo, a chamada de antes (quem troca _resolver, como os testes, continua valendo)
     caixas, falha = _resolver(cf, v['caixas'], v['sangra'], fundo) if fundo else _resolver(cf, v['caixas'], v['sangra'])
     esc = _escalas(kv, caixas)
+    # os grafismos tirados (n 204) voltam presos a arte, no lugar em que o DA os ve quando os devolve
+    caixas = _presos_ao_fundo(cf, caixas)
     fx_id = (cf.get('_figura') or {}).get('id')
     deformado = limites.valor('derivacao.escala_conteudo_min_da_regra')
     esmagados = [e['id'] for e in kv['elementos'] if (em_fluxo(e) or e['id'] == fx_id) and
@@ -2173,7 +2352,7 @@ def variantes(ctx, kv, formato, limite=None, *, specs=None, arquivo_specs=None, 
     minimo = min(int(limites.valor('derivacao.galeria_variantes_min')), limite)
     lote = int(limites.valor('derivacao.galeria_candidatas_ao_solver'))
     duplicada = limites.valor('derivacao.galeria_duplicada_distancia_max')
-    cf = _contexto(ctx, kv, formato, specs, arquivo_specs, params)
+    cf = _contexto_da_galeria(ctx, kv, formato, specs, arquivo_specs, params)
     cands = []
     for so_imagem_livre in (False, True):
         # a figura que nao cabe em banda nenhuma (a foto que cobre quase o KV todo, a que sangra dos dois lados de um
@@ -2223,7 +2402,7 @@ def variante_para_grupo(ctx, kv, formatos, escolha, *, specs=None, arquivo_specs
     'membros_sem_falha', 'pior_escala_relativa', 'candidatas'}; ValueError quando nenhuma estrutura serve a todos. So
     previa: nao grava nada."""
     p = parametros_do_id(escolha)
-    cfs = [(f['id'], _contexto(ctx, kv, f, specs, arquivo_specs, params)) for f in formatos]
+    cfs = [(f['id'], _contexto_da_galeria(ctx, kv, f, specs, arquivo_specs, params)) for f in formatos]
     proprias = {fid: gerar(cf, p) for fid, cf in cfs}
     estruturas = []
     for fid, _cf in cfs:

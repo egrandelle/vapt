@@ -2,6 +2,23 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.15.0 (23/11/2026): as versões deixam a arte do KV livre
+
+Correção do teste com o banner do próprio Vapt. Na troca grande de proporção, a galeria espalhava o conteúdo sobre a arte e tratava as etiquetas soltas como conteúdo. O DA tinha de mover quase tudo. Tudo foi conferido num KV sintético com a geometria do banner e com o layout que o DA deixou em cada formato.
+
+- Quando o KV tem o conteúdo de um lado e a arte do outro, a versão que deixa a arte livre desse lado vem primeiro. O conteúdo fica numa coluna do tamanho da coluna do KV.
+- O número, o símbolo e o texto do destaque andam juntos, como a chamada e a linha dela.
+- No formato em pé, a chamada para ação fica na base, abaixo da arte.
+- As etiquetas soltas sobre a arte e o brilho atrás do texto saem das versões. A frase "O Vapt tirou desta versão" diz o que saiu, com um botão "Devolver" para cada um. O que você devolve volta preso à arte do fundo, e Desfazer o tira de novo.
+- A galeria nunca tira texto, imagem, foto nem fundo. O texto que você tira num formato e mantém em outro continua sendo decisão sua.
+- Na medida contra o layout do DA, a versão mais parecida ficou mais perto na posição (8% de distância, antes 13%). No tamanho, ficou um pouco mais longe (20%, antes 17%), porque o título do 1080x1920 cresce mais que o do DA. O cartaz de 19/11 não mudou.
+
+Também do mesmo teste: a folha de spec que só traz a medida (uma planilha com a coluna do formato) não diz se o arquivo final sai em JPEG ou PNG. Sem isso, o Aprovar recusava todos os formatos com "Um dos formatos ainda não pode ser aprovado", sem dizer o motivo.
+
+- Em O que eu li, nos valores de spec, o bloco "Tipo de arquivo" lista os formatos cuja folha não diz o tipo. Você escolhe JPEG, PNG ou os dois, para todos de uma vez ou para cada formato. Com os dois, o Vapt entrega PNG e só passa a JPEG quando o PNG fica acima do peso máximo.
+- No passo 5, o formato sem tipo de arquivo mostra "Falta o tipo de arquivo" no lugar de "Pode aprovar", e diz onde escolher.
+- Quando o Aprovar para, a mensagem diz cada formato, no singular ou no plural, e o motivo de cada um.
+
 ## 0.14.1 (23/11/2026): a trava do Claude erra menos
 
 A trava que impede o Claude de fazer o que só o DA faz recusava, por engano, alguns comandos comuns. Ela continua recusando tudo o que recusava de verdade.

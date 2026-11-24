@@ -623,6 +623,15 @@ def _base_passa_da_borda(modelo, est, sangra):
     return saida
 
 
+def edicoes_efetivas(tirados, edicoes):
+    """As edicoes que o layout aplica (0.15.0; decisoes-v1.md, 204): um apagar para cada grafismo que a versao da
+    galeria tirou e o DA nao devolveu, antes das edicoes do DA, e as edicoes do DA sem os devolver (o devolver so
+    cancela o apagar do tirado; o elemento volta para a caixa da versao, presa a arte)."""
+    devolvidos = {e['elemento'] for e in edicoes if e['acao'] == 'devolver'}
+    return [{'elemento': k, 'acao': 'apagar'} for k in tirados if k not in devolvidos] + \
+        [e for e in edicoes if e['acao'] != 'devolver']
+
+
 def layout_da_familia(ctx, kv, familia, *, derivados, versoes=None, tintas=None, cache=None, specs, arquivo_specs,
                       params):
     """{id do formato: layout} da familia inteira (decisao 199; etapa E4): a conta unica que a previa da tela
@@ -665,6 +674,9 @@ def layout_da_familia(ctx, kv, familia, *, derivados, versoes=None, tintas=None,
         return saida
     if elementos is None:
         return saida
+    # 0.15.0 (decisoes-v1.md, 204): os grafismos que a versao tirou saem como apagados, menos os que o DA devolveu
+    tir = list((versoes[ref][vid].get('tirados') or ()) if vid is not None else ())
+    edicoes = edicoes_efetivas(tir, edicoes)
     if ('mestre', ref) not in cache:
         # a mesma mestre da tela (Editor._contexto) e da derivacao: a da proposta, ou a da galeria
         cache[('mestre', ref)] = mestre_do_membro(ctx, kv, por_id[ref], d_ref)
@@ -685,7 +697,7 @@ def layout_da_familia(ctx, kv, familia, *, derivados, versoes=None, tintas=None,
     lay_ref = layout_do_membro(cf_ref, elementos, edicoes, tintas=tintas, fundo=fundo_ref,
                                alinhamentos=alinhamentos_do_da(ctx, kv, edicoes), **extra)
     lay_ref.update(cf=cf_ref, caminho=caminho, mestre=mestre, arquivo_de_edicao=ref, situacao='arquivo_de_edicao',
-                   frases=[], transferencia=None, versao=vid)
+                   frases=[], transferencia=None, versao=vid, tirados=[k for k in tir if k in lay_ref['apagados']])
     saida[ref] = lay_ref
     outros = [f for f in fids if f != ref and (derivados[f]['situacao'] == 'derivado' or usa_galeria(derivados[f]))]
     if not outros:

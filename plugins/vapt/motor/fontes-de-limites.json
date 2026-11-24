@@ -1123,6 +1123,54 @@
    "nota": "Na mestre vertical, itens lado a lado na mesma linha, separados por menos disto, formam um atomo so. Valor do fluxo B do prototipo aprender-referencias (04/11), herdado pela galeria de 05/11, sem medicao."
   },
   {
+   "id": "derivacao.galeria_arte_do_kv_livre_min",
+   "valor": 0.4,
+   "unidade": "fracao do lado maior do KV",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "23/11, n 204 (a galeria calibrada pelo banner do Vapt)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "O KV sem figura com o conteudo todo de um lado e ao menos esta fracao do lado maior livre do outro tem a arte do KV desse outro lado: a versao com a imagem livre desse lado vem primeiro e a parte do conteudo segue a do KV (derivacao.galeria_conteudo_fracao_min_sobre_kv). No banner de 23/11 o conteudo ia ate 42% da largura e o DA deixou a arte livre a direita em todos os formatos."
+  },
+  {
+   "id": "derivacao.galeria_conteudo_fracao_min_sobre_kv",
+   "valor": 0.8,
+   "unidade": "fracao da parte do conteudo no KV",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "23/11, n 204 (a galeria calibrada pelo banner do Vapt)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "No KV com a arte de um lado (derivacao.galeria_arte_do_kv_livre_min), a parte do conteudo na versao com a imagem livre e a media entre a do KV e a que mantem a proporcao do bloco do conteudo no formato, entre isto vezes a do KV e derivacao.galeria_conteudo_fracao. No banner de 23/11 o DA deu ao conteudo 36% da largura no 970x250 (a conta da 33%) e 57% no 1080x1080 (a conta da 58%)."
+  },
+  {
+   "id": "derivacao.galeria_arte_sob_conteudo_min",
+   "valor": 0.5,
+   "unidade": "fracao da area do grafismo",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "23/11, n 204 (a galeria calibrada pelo banner do Vapt)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "O grafismo que sangra em parte dos lados e fica com ao menos esta fracao da area dentro da caixa do conteudo do KV e arte atras do texto (o brilho): a galeria o tira das versoes, e o DA o devolve com um clique. No banner de 23/11 o brilho tinha 75% dentro da caixa do conteudo, e o DA o tirou em todos os formatos."
+  },
+  {
+   "id": "derivacao.galeria_linha_vao_deitado_lado_curto",
+   "valor": 0.06,
+   "unidade": "fracao do lado curto da mestre",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "23/11, n 204 (a galeria calibrada pelo banner do Vapt)"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "Na mestre deitada ou quadrada, itens lado a lado na mesma linha (o menor com ao menos metade da altura dentro da faixa do outro), separados por menos disto, formam um atomo so: o numero, o simbolo e o texto do destaque, a chamada e a linha dela. Na calibracao de 23/11 o DA manteve esses conjuntos juntos em todos os formatos; os vaos dele iam de 0,5% a 5% do lado curto."
+  },
+  {
    "id": "derivacao.galeria_colado_margem_max",
    "valor": 0.05,
    "unidade": "fracao do eixo da mestre",
@@ -1439,7 +1487,7 @@
    "valor": [{"termo": "falha", "peso": 1.0}, {"termo": "escala", "peso": 1.0}, {"termo": "menor", "peso": 0.6},
              {"termo": "razao", "peso": 0.5}, {"termo": "figura", "peso": 0.5}, {"termo": "cobre", "peso": 2.0},
              {"termo": "lado", "peso": 0.3}, {"termo": "espelho", "peso": 0.15}, {"termo": "vazio", "peso": 0.4},
-             {"termo": "ordem", "peso": 2.0}, {"termo": "serie_partida", "peso": 0.3}],
+             {"termo": "ordem", "peso": 2.0}, {"termo": "serie_partida", "peso": 0.3}, {"termo": "arte", "peso": 0.5}],
    "unidade": "peso de cada termo da nota de uma versao (log da escala sobre a regra, fracao ou contagem)",
    "fonte": {
     "arquivo": "decisoes-v1.md",
@@ -1447,7 +1495,7 @@
    },
    "situacao": "a_calibrar",
    "efeito": "registra",
-   "nota": "Pesos da nota da galeria: falha (cada falha obrigatoria, prevista antes do solver ou da conferencia, e cada bloco que o solver esmagou), escala (media do log da escala do conteudo sobre a regra, saturada), menor (log do menor corpo sobre a regra, sem corte no piso), razao (espalhamento das escalas, 97), figura (log da escala da figura), cobre (fracao do conteudo sobre a figura e a parte da figura fora do formato), lado (figura no lado oposto ao do KV), espelho (ordem espelhada), vazio (fracao vazia do quadro do conteudo), ordem (fracao dos pares com a ordem do KV invertida), serie_partida (lista quebrada entre trilhas). Calibrados em 19/11 no KV do cartaz (prototipo fluxo; menor vem do prototipo busca e razao do zonas). Com os enxertos, o peso da ordem passou de 1 para 2: com 1, no 970x250 as quatro versoes perdiam a do contato no topo e o deslocamento medio da melhor versao subia de 0,094 para 0,105. A recalibrar com mais pecas."
+   "nota": "Pesos da nota da galeria: falha (cada falha obrigatoria, prevista antes do solver ou da conferencia, e cada bloco que o solver esmagou), escala (media do log da escala do conteudo sobre a regra, saturada), menor (log do menor corpo sobre a regra, sem corte no piso), razao (espalhamento das escalas, 97), figura (log da escala da figura), cobre (fracao do conteudo sobre a figura e a parte da figura fora do formato), lado (figura no lado oposto ao do KV), espelho (ordem espelhada), vazio (fracao vazia do quadro do conteudo), ordem (fracao dos pares com a ordem do KV invertida), serie_partida (lista quebrada entre trilhas), arte (no KV com a arte de um lado, a versao sem a imagem livre desse lado; 23/11, n 204). Calibrados em 19/11 no KV do cartaz (prototipo fluxo; menor vem do prototipo busca e razao do zonas). Com os enxertos, o peso da ordem passou de 1 para 2: com 1, no 970x250 as quatro versoes perdiam a do contato no topo e o deslocamento medio da melhor versao subia de 0,094 para 0,105. A recalibrar com mais pecas."
   },
   {
    "id": "derivacao.base_calculo",

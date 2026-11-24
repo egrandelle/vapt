@@ -238,6 +238,36 @@ def valor_digitado_na_tela(ident, largura, altura, confirmacao):
             'texto_digitado': texto}
 
 
+# 0.15.0: o tipo de arquivo que o DA escolhe na tela quando a folha nao diz (acao escolher_tipos): o nome na acao e o
+# texto que o extrator da folha le (o mesmo caminho do valor da folha)
+TIPOS_DA_TELA = {'jpg': 'JPG', 'png': 'PNG'}
+
+
+def valor_tipos_escolhido_na_tela(ident, tipos, confirmacao):
+    """Os tipos de arquivo aceitos que o DA escolheu na tela para o formato cuja folha nao diz (0.15.0): o texto e o
+    nome de cada tipo (TIPOS_DA_TELA), e o valor sai dele pelo mesmo extrator da folha. Nasce confirmado, com quem e
+    quando (confirmacao: {'por', 'meio', 'em', 'leitura'})."""
+    texto = ', '.join(TIPOS_DA_TELA[t] for t in tipos)
+    lei = extrair.EXTRATORES[CAMPOS['tipos_aceitos'][1]](texto, None)
+    return {'id': ident, 'campo': 'tipos_aceitos', 'forma': lei['forma'], 'valor': lei['valor'],
+            'texto_original': texto, 'numeros_literais': lei['numeros_literais'], 'unidade': lei['unidade'],
+            'unidade_original': lei['unidade_original'], 'base_unidade': None, 'condicao': None, 'fonte': None,
+            'origem': ORIGEM_DIGITADO_NA_TELA, 'mapeamento': 'da', 'situacao': 'confirmado', 'alertas': [],
+            'confirmacao': dict(confirmacao), 'texto_digitado': texto}
+
+
+def sem_tipos_da_folha(doc, fmt):
+    """O formato cuja folha (nem o circuito nem o veiculador dele) nao diz os tipos de arquivo aceitos, nem em
+    leituras divergentes: so ele recebe a escolha do DA na tela (0.15.0). O valor que o proprio DA escolheu antes
+    tambem conta, para ele trocar a escolha."""
+    v = fmt['campos'].get('tipos_aceitos')
+    if v is not None and v.get('origem') == ORIGEM_DIGITADO_NA_TELA:
+        return True
+    if v is not None and v.get('leituras'):
+        return False
+    return resolver(doc, fmt, 'tipos_aceitos') is None
+
+
 def eh_digitado_na_tela(fmt):
     return (fmt.get('entrada') or {}).get('folha') == FOLHA_DIGITADA
 
@@ -974,12 +1004,26 @@ def aplicar_acoes(doc, acoes):
     """Aplica as acoes do DA (specs/confirmacoes.json, gravado so pelo "spec confirmar" no terminal e pelo botao do
     passo 1 da tela):
       - confirmar: o valor com a mesma impressao vira confirmado;
-      - escolher_leitura: num campo com fontes divergentes, a leitura escolhida vira o valor confirmado.
-    Acao que nao bate mais (a folha mudou e a impressao e outra) fica de fora e conta como ignorada."""
+      - escolher_leitura: num campo com fontes divergentes, a leitura escolhida vira o valor confirmado;
+      - escolher_tipos (0.15.0): no formato (pela chave) cuja folha nao diz os tipos de arquivo aceitos, os tipos que
+        o DA escolheu viram o valor confirmado. A escolha seguinte do mesmo formato troca a anterior.
+    Acao que nao bate mais (a folha mudou e a impressao e outra, ou a folha passou a dizer os tipos) fica de fora e
+    conta como ignorada."""
     aplicadas, ignoradas = 0, 0
     indice = indice_de_valores(doc)
+    por_chave = {f['chave']: f for f in doc['formatos'] if f.get('chave')}
     for acao in acoes:
         if acao['acao'] == 'digitar':
+            continue
+        if acao['acao'] == 'escolher_tipos':
+            fmt = por_chave.get(acao['formato'])
+            if fmt is None or not sem_tipos_da_folha(doc, fmt):
+                ignoradas += 1
+                continue
+            conf = {'por': acao.get('por', 'da'), 'meio': acao.get('meio', 'tela'), 'em': acao['em'], 'leitura': None}
+            fmt['campos']['tipos_aceitos'] = valor_tipos_escolhido_na_tela('%s/tipos_aceitos' % fmt['id'],
+                                                                           acao['tipos'], conf)
+            aplicadas += 1
             continue
         alvo = indice.get(acao['valor_id'])
         if alvo is None or impressao(alvo[2]) != acao['impressao']:

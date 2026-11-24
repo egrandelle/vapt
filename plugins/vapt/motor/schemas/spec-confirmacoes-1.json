@@ -16,7 +16,9 @@
         "required": ["n", "acao", "por", "meio", "em"],
         "properties": {
           "n": {"type": "integer", "minimum": 1},
-          "acao": {"enum": ["confirmar", "escolher_leitura", "digitar"]},
+          "acao": {"enum": ["confirmar", "escolher_leitura", "digitar", "escolher_tipos"], "description": "escolher_tipos (0.15.0): o tipo de arquivo que o DA escolhe na tela para o formato (pela chave) cuja folha nao diz os tipos aceitos."},
+          "formato": {"type": "string", "minLength": 1},
+          "tipos": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["jpg", "png"]}},
           "valor_id": {"type": "string"},
           "impressao": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
           "leitura": {"type": "integer", "minimum": 0},
@@ -32,7 +34,8 @@
         "allOf": [
           {"if": {"properties": {"acao": {"const": "confirmar"}}}, "then": {"required": ["valor_id", "impressao"]}},
           {"if": {"properties": {"acao": {"const": "escolher_leitura"}}}, "then": {"required": ["valor_id", "impressao", "leitura"]}},
-          {"if": {"properties": {"acao": {"const": "digitar"}}}, "then": {"required": ["folha", "recorte", "campo", "texto", "entrada"]}}
+          {"if": {"properties": {"acao": {"const": "digitar"}}}, "then": {"required": ["folha", "recorte", "campo", "texto", "entrada"]}},
+          {"if": {"properties": {"acao": {"const": "escolher_tipos"}}}, "then": {"required": ["formato", "tipos"]}}
         ]
       }
     }

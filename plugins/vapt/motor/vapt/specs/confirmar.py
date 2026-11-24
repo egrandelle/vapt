@@ -287,3 +287,57 @@ def confirmar_da_tela(pasta, valor_id, leitura=None, *, disparo):
         nucleo.registrar_evento(pasta, 'specs_confirmadas', n_acoes=1,
                                 n_confirmados=rascunho['resumo']['valores_confirmados'])
     return acao
+
+
+def formatos_sem_tipo(doc):
+    """Os formatos do rascunho que entram no job (chave e dimensao confirmada) e cuja folha nao diz os tipos de arquivo
+    aceitos (0.15.0): [{'chave', 'id', 'tipos'}], na ordem da folha. tipos: os que o DA ja escolheu na tela ([] sem
+    escolha). Sem os tipos confirmados, o arquivo final do formato nao sai (sem_tipos_aceitos_confirmados)."""
+    saida = []
+    for f in (doc or {}).get('formatos') or []:
+        dim = (f.get('campos') or {}).get('dimensao') or {}
+        if not f.get('chave') or dim.get('situacao') != 'confirmado' or not modelo.sem_tipos_da_folha(doc, f):
+            continue
+        v = f['campos'].get('tipos_aceitos') or {}
+        escolhidos = [t for t, mime in TIPOS_MIME if mime in (v.get('valor') or [])]
+        saida.append({'chave': f['chave'], 'id': f['id'], 'tipos': escolhidos})
+    return saida
+
+
+TIPOS_MIME = (('jpg', 'image/jpeg'), ('png', 'image/png'))
+
+
+def escolher_tipos_da_tela(pasta, chaves, tipos, *, disparo):
+    """0.15.0: o DA escolhe na tela o tipo de arquivo (JPEG, PNG ou os dois) dos formatos cuja folha nao diz, um ou
+    varios de uma vez. Um Disparo so, gasto aqui. Cada formato vira uma acao 'escolher_tipos' propria em
+    specs/confirmacoes.json (formato, tipos, por, meio, em), com a mesma hora. Quando algum formato deixou de esperar
+    a escolha (a folha mudou e passou a dizer os tipos), nada e gravado e devolve None. A fase specs segue a regra de
+    confirmar_da_tela. Devolve as acoes gravadas."""
+    from vapt import humano
+    from vapt.job import nucleo
+    humano.conferir(disparo, COMANDO, consumir=True)
+    pasta = Path(pasta).resolve()
+    chaves, tipos = list(chaves or []), list(tipos or [])
+    validos = [t for t, _m in TIPOS_MIME]
+    if not chaves or len(set(chaves)) != len(chaves) or not tipos or len(set(tipos)) != len(tipos) or \
+            any(t not in validos for t in tipos):
+        return None
+    tipos = [t for t in validos if t in tipos]
+    with nucleo.Trava(pasta):
+        em_dia = nucleo.fase_valida(pasta, 'specs')
+        rascunho, _formatos, _info = importar.importar(pasta)
+        if em_dia:
+            nucleo.renovar_fase(pasta, 'specs')
+        esperam = {x['chave'] for x in formatos_sem_tipo(rascunho)}
+        if any(c not in esperam for c in chaves):
+            return None
+        em = _agora()
+        acoes = [{'acao': 'escolher_tipos', 'formato': c, 'tipos': list(tipos), 'por': disparo.origem,
+                  'meio': disparo.meio, 'em': em} for c in chaves]
+        gravar_acoes(pasta, acoes)
+        rascunho, _formatos, _info = importar.importar(pasta)
+        if em_dia:
+            nucleo.renovar_fase(pasta, 'specs')
+        nucleo.registrar_evento(pasta, 'specs_confirmadas', n_acoes=len(acoes), tipos_de_arquivo=True,
+                                n_confirmados=rascunho['resumo']['valores_confirmados'])
+    return acoes

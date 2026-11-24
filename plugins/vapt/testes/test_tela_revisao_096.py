@@ -130,15 +130,10 @@ def test_familia_confirmada_com_sobreposicao_fica_derivada_e_chega_ao_passo_5(tm
     j = tpi._job(tmp_path, monkeypatch, 'b', tpi.CAIXAS_B_PRIMEIRO)
     conteudo = te.montar(j['job'])
     gid = tpi._familia_de(conteudo, 'p800')
-    escolhida = None
-    for v in conteudo['familias'][gid]['versoes']:
-        m = tpi._previa(conteudo, gid, 'p800', tpi._escolhas(conteudo, gid, v)[gid])
-        if m['validacoes_reprovadas'] and m['falhas']:
-            escolhida = v
-            break
+    escolhida = _escolhida_com_aviso(conteudo, gid)
     assert escolhida is not None
     conteudo = te.montar(j['job'])
-    gravadas = tpi._salvar(j, conteudo, tpi._escolhas(conteudo, gid, escolhida))
+    gravadas = tpi._salvar(j, conteudo, escolhida)
     d = gravadas['p800']
     assert d['situacao'] == 'derivado' and d['devolucao'] is None, d.get('devolucao')
     aviso = next(r for r in d['registros'] if r['codigo'] == proposta.CODIGO_APROVADO_COM_AVISO)
@@ -488,10 +483,21 @@ def test_confirmacao_de_antes_da_096_cai_so_na_familia_com_texto_editado():
 
 
 def _escolhida_com_aviso(conteudo, gid):
-    for v in conteudo['familias'][gid]['versoes']:
-        m = tpi._previa(conteudo, gid, 'p800', tpi._escolhas(conteudo, gid, v)[gid])
+    """As escolhas ({familia: {'versao', 'edicoes', 'quebras'}}) com o 800x600 em "Pede ajuste" (uma validacao do motor
+    que reprova e falhas). Desde 23/11 (n 204) as versoes da galeria do KV B saem sem validacao reprovada; quando
+    nenhuma reprova, o DA leva o titulo para cima da arte (cena_cobre_conteudo) na primeira versao."""
+    versoes = conteudo['familias'][gid]['versoes']
+    candidatas = [tpi._escolhas(conteudo, gid, v) for v in versoes]
+    if versoes:
+        m = tpi._previa(conteudo, gid, 'p800', candidatas[0][gid])
+        titulo = next(e['id'] for e in m['palco']['elementos'] if e.get('funcao') == 'titulo')
+        editada = tpi._escolhas(conteudo, gid, versoes[0])
+        editada[gid]['edicoes'] = [{'elemento': titulo, 'acao': 'mover', 'dx': 0.3, 'dy': 0}]
+        candidatas.append(editada)
+    for esc in candidatas:
+        m = tpi._previa(conteudo, gid, 'p800', esc[gid])
         if m['validacoes_reprovadas'] and m['falhas']:
-            return v
+            return esc
     return None
 
 
@@ -517,12 +523,12 @@ def test_job_salvo_numa_versao_de_antes_com_devolvido_volta_a_pedir_salvar(tmp_p
     with monkeypatch.context() as m:
         m.setattr(proposta, '_derivacao', da_095)
         m.setattr(nd, '__version__', '0.9.5')
-        gravadas = tpi._salvar(j, te.montar(j['job']), tpi._escolhas(conteudo, gid, escolhida))
+        gravadas = tpi._salvar(j, te.montar(j['job']), escolhida)
     assert gravadas['p800']['situacao'] == 'devolvido' and gravadas['p800']['motor_versao'] == '0.9.5'
     conteudo, briefing, linha = _briefing_e_linha(j['job'], 'p800')
     assert briefing['salvo'] is False and briefing['refazer_layout'] == ['p800'], briefing
     assert linha['situacao'] == 'sem_derivacao' and linha['motivo'] == te.SEM_LAYOUT_GRAVADO, linha
-    gravadas = tpi._salvar(j, conteudo, tpi._escolhas(conteudo, gid, escolhida))
+    gravadas = tpi._salvar(j, conteudo, escolhida)
     assert gravadas['p800']['situacao'] == 'derivado', gravadas['p800'].get('devolucao')
     _c, briefing, linha = _briefing_e_linha(j['job'], 'p800')
     assert briefing['salvo'] is True and not briefing.get('refazer_layout'), briefing
@@ -550,7 +556,7 @@ def test_derivacao_que_quebra_no_salvar_deixa_o_botao_ligado_com_o_aviso(tmp_pat
     with monkeypatch.context() as m:
         m.setattr(nd, 'derivar', quebra)
         try:
-            tpi._salvar(j, te.montar(j['job']), tpi._escolhas(conteudo, gid, escolhida))
+            tpi._salvar(j, te.montar(j['job']), escolhida)
         except (contratos.ErroContrato, OSError):
             pass  # nenhuma derivacao gravada para ler
     conteudo, briefing, linha = _briefing_e_linha(j['job'], 'p800')
@@ -572,7 +578,7 @@ def test_derivacao_que_quebra_no_salvar_deixa_o_botao_ligado_com_o_aviso(tmp_pat
     for texto in (v['aviso'], v['dica'], linha['motivo']):
         assert not any(x in texto for x in PROIBIDOS), texto
     # sem a falha, o clique monta os layouts e a tela volta a "salvo"
-    gravadas = tpi._salvar(j, conteudo, tpi._escolhas(conteudo, gid, escolhida))
+    gravadas = tpi._salvar(j, conteudo, escolhida)
     assert gravadas['p800']['situacao'] == 'derivado'
     assert _briefing_e_linha(j['job'], 'p800')[1]['salvo'] is True
 

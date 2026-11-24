@@ -363,7 +363,7 @@ def test_limites_novos_da_galeria_tem_fonte_e_nao_reprovam():
         assert lim.fonte['arquivo'] == 'decisoes-v1.md' and '19/11' in lim.fonte['secao'], lid
     pesos = {x['termo']: x['peso'] for x in limites.valor('derivacao.galeria_nota_pesos')}
     assert set(pesos) == {'falha', 'escala', 'menor', 'razao', 'figura', 'cobre', 'lado', 'espelho', 'vazio', 'ordem',
-                          'serie_partida'}
+                          'serie_partida', 'arte'}  # arte: 23/11, n 204
     assert all(p > 0 for p in pesos.values())
 
 

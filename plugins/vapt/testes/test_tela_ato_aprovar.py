@@ -229,7 +229,9 @@ def test_formato_com_falha_no_portao_para_o_pedido_sem_dialogo(srv, job):
     codigo, v = _pedir(srv, biscoito, DOIS)
     assert codigo == 202 and v['situacao'] == 'parou' and v['motivo'] == 'formato_com_falha', v
     assert v['resposta'] == {'com_falha': [{'id': 'mesma', 'nome': '640x320', 'codigos': ['sem_master']}]}
-    assert v['texto'] == tt.TEXTOS_POR_MOTIVO['formato_com_falha'] and srv._pendente is None
+    # 0.15.0: o texto diz o formato, no singular, e termina dizendo que nada mudou
+    assert v['texto'] == tt.FALHA_DO_APROVAR[0].format(formatos='640x320') + ' ' + tt.NADA_MUDOU, v['texto']
+    assert srv._pendente is None
     assert not (job / aprovacao.PASTA_PREVIA).exists()
 
 
