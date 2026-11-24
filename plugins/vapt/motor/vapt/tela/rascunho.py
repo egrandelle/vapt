@@ -28,7 +28,9 @@ fica salvo sozinho, a cada mudanca, neste arquivo. Regras:
   - cada familia guarda o arquivo de edicao dela (decisao 199, 1; 0.10.0; so o servidor grava): na primeira gravacao,
     o que a tela mostra pela regra (_com_a_estrutura), e ele fica enquanto o arquivo estiver na familia. So os atos da
     janela o trocam (trocar_arquivo, na familia sem edicao) e separam um arquivo em familia propria (separar e
-    juntar, com a lista separados). A confirmacao guarda o arquivo de edicao e o hash do layout de cada arquivo
+    juntar, com a lista separados). A familia que a regra do tamanho separou (decisao 208) volta pelo mesmo ato
+    "Juntar de volta" (juntar_por_tamanho, com a lista juntados na familia que a recebe: a regra nao a separa de
+    novo). A confirmacao guarda o arquivo de edicao e o hash do layout de cada arquivo
     (decisao 199, 5); a confirmacao de antes da 0.10.0, sem eles, cai uma vez (confirmada_para), e a tela diz por que
     (vapt.tela.estado.RECONFIRMAR_0100);
   - gravacao atomica, com o esquema rascunho-tela/1 conferido antes. A origem e 'rascunho', ou 'fixture_de_teste' no
@@ -57,8 +59,10 @@ COMANDO_FAMILIA = 'familia confirmar'
 COMANDO_TROCAR_ARQUIVO = 'familia trocar arquivo'
 COMANDO_SEPARAR = 'familia separar'
 COMANDO_JUNTAR = 'familia juntar'
-CAMPOS_DO_SERVIDOR = ('confirmacao', 'formatos', 'cedidos', 'arquivo_de_edicao', 'separados', 'layout_mudou',
-                      'arquivo_trocado')
+# decisao 208: os arquivos que o DA juntou de volta depois que a regra do tamanho os separou (juntar_por_tamanho); a
+# tela nao os separa de novo (vapt.tela.estado.abas)
+CAMPOS_DO_SERVIDOR = ('confirmacao', 'formatos', 'cedidos', 'arquivo_de_edicao', 'separados', 'juntados',
+                      'layout_mudou', 'arquivo_trocado')
 
 
 class ErroRascunho(Exception):
@@ -305,7 +309,7 @@ def _com_a_estrutura(familias, gravadas, tela, arquivos):
     for gid, f in familias.items():
         g = gravadas.get(gid) or {}
         f = dict(f)
-        for k in ('arquivo_de_edicao', 'separados', 'layout_mudou', 'arquivo_trocado'):
+        for k in ('arquivo_de_edicao', 'separados', 'juntados', 'layout_mudou', 'arquivo_trocado'):
             if g.get(k):
                 f[k] = list(g[k]) if isinstance(g[k], list) else g[k]
         if gid in tela and arquivos.get(gid) and f.get('arquivo_de_edicao') not in tela[gid]:
@@ -398,6 +402,31 @@ def juntar(pasta, familia, arquivo, *, disparo, job_id, laudo_atual):
     return _gravar_estrutura(pasta, dados, {familia: f}, disparo)['familias'][familia]
 
 
+def juntar_por_tamanho(pasta, familia, arquivos, *, disparo, job_id, laudo_atual, formatos, filha=None):
+    """O ato "Juntar de volta" na familia que o Vapt separou pelo tamanho (decisao 208, revisao da 163): os arquivos
+    dela voltam a familia de onde sairam (familia; formatos: os dela na tela agora), que os guarda em juntados e perde
+    a confirmacao. A regra do tamanho nao separa de novo o que esta em juntados (vapt.tela.estado.abas), e a tela nao
+    diz que eles "entraram": foi o DA que os juntou. filha: o id da familia que volta; o arquivo que o DA tinha separado
+    dela (separados) passa a ser separado da familia que a recebe, para o grupo dele continuar dizendo de onde saiu e o
+    "Juntar de volta" dele valer (a filha some da tela). ErroRascunho('arquivo') sem arquivo ou com arquivo que ja esta
+    na familia. O mesmo comando do juntar de um arquivo separado pelo DA (COMANDO_JUNTAR); o Disparo vale um ato so."""
+    from vapt import humano
+    humano.conferir(disparo, COMANDO_JUNTAR, consumir=True)
+    dados, f = _familia_gravada(pasta, familia, laudo_atual, job_id)
+    arquivos = list(arquivos or ())
+    if not arquivos or any(a in formatos for a in arquivos):
+        raise ErroRascunho('arquivo')
+    f['juntados'] = sorted(set(f.get('juntados') or ()) | set(arquivos))
+    f['formatos'] = list(formatos) + [a for a in arquivos if a not in formatos]
+    f.pop('cedidos', None)
+    mudadas = {familia: f}
+    if filha is not None and filha != familia and (dados['familias'].get(filha) or {}).get('separados'):
+        g = dict(dados['familias'][filha])
+        f['separados'] = sorted(set(f.get('separados') or ()) | set(g.pop('separados')))
+        mudadas[filha] = g
+    return _gravar_estrutura(pasta, dados, mudadas, disparo)['familias'][familia]
+
+
 def derrubar_por_layout(pasta, laudo_atual, quedas):
     """A confirmacao das familias cujo layout saiu diferente do confirmado no "Salvar e seguir" cai (decisao 199, 5;
     revisao da 0.10.0): sem isto, a tela continuava com a familia confirmada, o rodape dizia "Tudo confirmado", e o DA
@@ -420,16 +449,19 @@ def derrubar_por_layout(pasta, laudo_atual, quedas):
 
 
 def estrutura(pasta):
-    """({id: arquivo de edicao gravado}, {id: [separados]}) do rascunho gravado agora (decisao 199; 0.10.0), vazios
-    sem rascunho valido. A tela (vapt.tela.estado.abas) e a previa (vapt.tela.edicao.Editor) os leem."""
+    """({id: arquivo de edicao gravado}, {id: [separados]}, {id: [juntados]}) do rascunho gravado agora (decisao 199;
+    0.10.0; juntados: decisao 208), vazios sem rascunho valido. A tela (vapt.tela.estado.abas) e a previa
+    (vapt.tela.edicao.Editor) os leem."""
     dados, _de_outro = ler(pasta, laudo_sha256(pasta))
-    arquivos, separados = {}, {}
+    arquivos, separados, juntados = {}, {}, {}
     for gid, f in ((dados or {}).get('familias') or {}).items():
         if f.get('arquivo_de_edicao'):
             arquivos[gid] = f['arquivo_de_edicao']
         if f.get('separados'):
             separados[gid] = list(f['separados'])
-    return arquivos, separados
+        if f.get('juntados'):
+            juntados[gid] = list(f['juntados'])
+    return arquivos, separados, juntados
 
 
 def edicoes_gravadas(pasta, familia):

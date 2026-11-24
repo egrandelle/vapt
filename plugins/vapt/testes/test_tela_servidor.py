@@ -356,10 +356,17 @@ def test_abas_por_orientacao_e_grupo_de_proporcao():
         return sorted(x['id'] for c in g['composicoes'] for x in c['formatos'])
     grupos = [ids(g) for g in horiz['grupos']]
     # do mais largo para o mais perto do quadrado; as faixas juntam mesmo voltando ao DA sem familia
-    # 1,6 (perto e deitado), 1,667 e 1,778 cabem juntos (amplitude 0,178); o 2,0 da escala pura passaria de 0,3
-    assert grupos == [['faixa', 'faixa-larga'], ['mesmo'], ['deitado', 'perto', 'tv', 'tv-menor']], grupos
+    # 1,6 (perto e deitado), 1,667 e 1,778 cabem juntos (amplitude 0,178); o 2,0 da escala pura passaria de 0,3.
+    # Decisao 208: o 480x300 copiaria o layout do 1280x720 com escala 0,375 (abaixo de derivacao.grupo_escala_min) e
+    # vai para um grupo proprio, que diz de onde saiu; o 960x576 fica (0,75)
+    assert grupos == [['faixa', 'faixa-larga'], ['mesmo'], ['tv', 'tv-menor'], ['deitado', 'perto']], grupos
     for g in horiz['grupos']:
         assert g['proporcao'][1] - g['proporcao'][0] <= 0.3
+    tv = next(g for g in horiz['grupos'] if ids(g) == ['tv', 'tv-menor'])
+    pequeno = next(g for g in horiz['grupos'] if ids(g) == ['deitado', 'perto'])
+    assert 'separado_por_tamanho' not in tv and 'separado_de' not in tv
+    assert pequeno['separado_por_tamanho'] == {'de': '1280x720', 'arquivo': 'tv', 'escala': 0.375, 'escala_menor': 0.375}
+    assert pequeno['separado_de'] == tv['id']
     perto = next(c for g in horiz['grupos'] for c in g['composicoes'] if [c['largura'], c['altura']] == [480, 300])
     # perto (480 x 300) e deitado (300 x 480 girado: composicao 480 x 300) dividem a composicao
     assert sorted(x['id'] for x in perto['formatos']) == ['deitado', 'perto']

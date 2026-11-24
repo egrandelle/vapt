@@ -83,14 +83,7 @@
               <ul id="digitados-lista" class="digitados-lista"></ul>
             </div>
           </div>
-          <div id="tipos-arquivo" class="digitados" aria-labelledby="t-tipos-arquivo" hidden>
-            <h3 id="t-tipos-arquivo" class="subtitulo">Tipo de arquivo</h3>
-            <p class="nota">A folha de spec não diz o tipo de arquivo destes formatos. Sem ele, o arquivo final não sai e o formato não pode ser aprovado.</p>
-            <div id="tipos-arquivo-todos" class="digitados-linha" role="group" aria-label="Escolher para todos os formatos da lista"></div>
-            <ul id="tipos-arquivo-lista" class="digitados-lista"></ul>
-          </div>
-          <div id="lido-specs-pendentes" class="pendentes"></div></section>
-        <section class="bloco" aria-labelledby="t-giro"><h2 id="t-giro">Formatos e giro</h2><p class="nota bloco-nota">Escolha o giro de cada formato, como ele vai para o veículo. Nada vem marcado. O que a folha de spec diz aparece só como referência.</p><div id="lido-formatos"></div></section>
+          <div id="lido-formatos" class="formatos-job"></div></section>
       </div>
       <section class="lido-fontes" aria-labelledby="t-fontes">
         <h2 id="t-fontes">Fontes do job</h2>
@@ -195,44 +188,62 @@
               </ul>
               <button type="button" id="ed-ajuda-fechar" class="botao-vista">Fechar</button>
             </div>
+            <!-- melhoria t4: a barra em grade de blocos nomeados. Linha 1, os botoes do elemento em cinco blocos; o
+                 limite entre blocos e a borda esquerda do bloco seguinte (sem divisores soltos), e o Apagar fica no
+                 bloco do fim, encostado a direita. So os blocos com mais de um controle sao grupos para o leitor de
+                 tela (revisao da t4): um grupo de um botao so, ou um grupo dentro de outro com o mesmo nome, repetia o
+                 nome ao chegar com Tab -->
             <div class="barra-grupo">
-              <button type="button" id="ed-desfazer" class="botao-vista" disabled>Desfazer</button>
-              <button type="button" id="ed-varios" class="botao-vista" aria-pressed="false" title="Com este botão ligado, cada clique põe ou tira um elemento do grupo. Shift+clique faz o mesmo.">Escolher vários</button>
-              <span class="controles-divisor so-com-escolha" aria-hidden="true"></span>
-              <button type="button" id="ed-diminuir" class="botao-vista" disabled>Diminuir</button>
-              <button type="button" id="ed-aumentar" class="botao-vista" disabled>Aumentar</button>
-              <div class="campo-tamanho" role="group" aria-labelledby="t-tamanho">
-                <label id="t-tamanho" for="ed-tamanho" class="barra-rotulo">Tamanho</label>
-                <span class="tamanho-caixa">
-                  <input type="text" id="ed-tamanho" inputmode="decimal" autocomplete="off" spellcheck="false" maxlength="8" aria-describedby="ed-mensagem" title="Digite o tamanho em porcentagem e aperte Enter ou Aplicar. 100% é o tamanho antes das suas edições." disabled>
-                  <span class="tamanho-unidade" aria-hidden="true">%</span>
-                </span>
-                <button type="button" id="ed-tamanho-aplicar" class="botao-vista" disabled>Aplicar</button>
+              <div class="barra-bloco">
+                <button type="button" id="ed-desfazer" class="botao-vista" disabled>Desfazer</button>
               </div>
-              <button type="button" id="ed-texto" class="botao-vista" disabled>Editar texto</button>
-              <button type="button" id="ed-quebra" class="botao-vista" aria-pressed="false" aria-controls="editor-quebra" disabled>Quebrar linha</button>
-              <div id="ed-alinhar-texto" class="segmentado alinhar-texto" role="group" aria-label="Alinhamento do texto">
-                <button type="button" id="ed-tx-esquerda" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto à esquerda" title="Alinhar o texto à esquerda" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M2.5 7h7M2.5 10h11M2.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
-                <button type="button" id="ed-tx-centro" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto ao centro" title="Alinhar o texto ao centro" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M4.5 7h7M2.5 10h11M4.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
-                <button type="button" id="ed-tx-direita" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto à direita" title="Alinhar o texto à direita" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M6.5 7h7M2.5 10h11M6.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+              <div class="barra-bloco">
+                <button type="button" id="ed-varios" class="botao-vista" aria-pressed="false" title="Com este botão ligado, cada clique põe ou tira um elemento do grupo. Shift+clique faz o mesmo.">Escolher vários</button>
               </div>
-              <span class="controles-divisor so-com-escolha" aria-hidden="true"></span>
-              <button type="button" id="ed-apagar" class="botao-vista botao-apagar" disabled>Apagar</button>
+              <div class="barra-bloco" role="group" aria-label="Tamanho">
+                <button type="button" id="ed-diminuir" class="botao-vista" disabled>Diminuir</button>
+                <button type="button" id="ed-aumentar" class="botao-vista" disabled>Aumentar</button>
+                <div class="campo-tamanho">
+                  <label id="t-tamanho" for="ed-tamanho" class="barra-rotulo">Tamanho</label>
+                  <span class="tamanho-caixa">
+                    <input type="text" id="ed-tamanho" inputmode="decimal" autocomplete="off" spellcheck="false" maxlength="8" aria-describedby="ed-mensagem" title="Digite o tamanho em porcentagem e aperte Enter ou Aplicar. 100% é o tamanho antes das suas edições." disabled>
+                    <span class="tamanho-unidade" aria-hidden="true">%</span>
+                  </span>
+                  <button type="button" id="ed-tamanho-aplicar" class="botao-vista" disabled>Aplicar</button>
+                </div>
+              </div>
+              <div class="barra-bloco" role="group" aria-label="Texto">
+                <button type="button" id="ed-texto" class="botao-vista" disabled>Editar texto</button>
+                <button type="button" id="ed-quebra" class="botao-vista" aria-pressed="false" aria-controls="editor-quebra" disabled>Quebrar linha</button>
+                <div id="ed-alinhar-texto" class="segmentado alinhar-texto" role="group" aria-label="Alinhamento do texto">
+                  <button type="button" id="ed-tx-esquerda" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto à esquerda" title="Alinhar o texto à esquerda" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M2.5 7h7M2.5 10h11M2.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+                  <button type="button" id="ed-tx-centro" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto ao centro" title="Alinhar o texto ao centro" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M4.5 7h7M2.5 10h11M4.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+                  <button type="button" id="ed-tx-direita" class="botao-vista botao-icone" aria-pressed="false" aria-label="Alinhar o texto à direita" title="Alinhar o texto à direita" disabled><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M6.5 7h7M2.5 10h11M6.5 13h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+                </div>
+              </div>
+              <div class="barra-bloco">
+                <button type="button" id="ed-apagar" class="botao-vista botao-apagar" disabled>Apagar</button>
+              </div>
             </div>
+            <!-- linha 2: Alinhar pela, sempre numa linha propria, com o rotulo e tres blocos no mesmo eixo da linha 1 -->
             <div id="barra-alinhar" class="barra-alinhar" role="group" aria-labelledby="t-alinhar">
               <span id="t-alinhar" class="barra-rotulo">Alinhar pela</span>
-              <div class="segmentado" role="group" aria-label="Por onde alinhar">
-                <button type="button" id="ed-ref-margem" class="botao-vista" aria-pressed="true" title="A margem de cada arquivo da família.">Margem</button>
-                <button type="button" id="ed-ref-segura" class="botao-vista" aria-pressed="false" disabled title="Os arquivos desta família não têm área segura na folha.">Área segura</button>
+              <div class="barra-bloco">
+                <div class="segmentado" role="group" aria-label="Por onde alinhar">
+                  <button type="button" id="ed-ref-margem" class="botao-vista" aria-pressed="true" title="A margem de cada arquivo da família.">Margem</button>
+                  <button type="button" id="ed-ref-segura" class="botao-vista" aria-pressed="false" disabled title="Os arquivos desta família não têm área segura na folha.">Área segura</button>
+                </div>
               </div>
-              <span class="controles-divisor" aria-hidden="true"></span>
-              <button type="button" id="ed-al-esquerda" class="botao-vista botao-alinhar" disabled title="Encostar à esquerda"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 2v12"/><rect x="5" y="4" width="8" height="3" rx="0.5"/><rect x="5" y="9" width="5" height="3" rx="0.5"/></svg><span class="rotulo-botao">À esquerda</span></button>
-              <button type="button" id="ed-al-centro" class="botao-vista botao-alinhar" disabled title="Pôr no centro da largura"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12"/><rect x="3.5" y="4" width="9" height="3" rx="0.5"/><rect x="5" y="9" width="6" height="3" rx="0.5"/></svg><span class="rotulo-botao">Centro da largura</span></button>
-              <button type="button" id="ed-al-direita" class="botao-vista botao-alinhar" disabled title="Encostar à direita"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 2v12"/><rect x="3" y="4" width="8" height="3" rx="0.5"/><rect x="6" y="9" width="5" height="3" rx="0.5"/></svg><span class="rotulo-botao">À direita</span></button>
-              <span class="controles-divisor" aria-hidden="true"></span>
-              <button type="button" id="ed-al-topo" class="botao-vista botao-alinhar" disabled title="Encostar no topo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2.5h12"/><rect x="4" y="5" width="3" height="8" rx="0.5"/><rect x="9" y="5" width="3" height="5" rx="0.5"/></svg><span class="rotulo-botao">No topo</span></button>
-              <button type="button" id="ed-al-meio" class="botao-vista botao-alinhar" disabled title="Pôr no meio da altura"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h12"/><rect x="4" y="3.5" width="3" height="9" rx="0.5"/><rect x="9" y="5" width="3" height="6" rx="0.5"/></svg><span class="rotulo-botao">Meio da altura</span></button>
-              <button type="button" id="ed-al-base" class="botao-vista botao-alinhar" disabled title="Encostar na base"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5h12"/><rect x="4" y="3" width="3" height="8" rx="0.5"/><rect x="9" y="6" width="3" height="5" rx="0.5"/></svg><span class="rotulo-botao">Na base</span></button>
+              <div class="barra-bloco" role="group" aria-label="Horizontal">
+                <button type="button" id="ed-al-esquerda" class="botao-vista botao-alinhar" disabled title="Encostar à esquerda"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 2v12"/><rect x="5" y="4" width="8" height="3" rx="0.5"/><rect x="5" y="9" width="5" height="3" rx="0.5"/></svg><span class="rotulo-botao">À esquerda</span></button>
+                <button type="button" id="ed-al-centro" class="botao-vista botao-alinhar" disabled title="Pôr no centro da largura"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12"/><rect x="3.5" y="4" width="9" height="3" rx="0.5"/><rect x="5" y="9" width="6" height="3" rx="0.5"/></svg><span class="rotulo-botao">Centro da largura</span></button>
+                <button type="button" id="ed-al-direita" class="botao-vista botao-alinhar" disabled title="Encostar à direita"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 2v12"/><rect x="3" y="4" width="8" height="3" rx="0.5"/><rect x="6" y="9" width="5" height="3" rx="0.5"/></svg><span class="rotulo-botao">À direita</span></button>
+              </div>
+              <div class="barra-bloco" role="group" aria-label="Vertical">
+                <button type="button" id="ed-al-topo" class="botao-vista botao-alinhar" disabled title="Encostar no topo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2.5h12"/><rect x="4" y="5" width="3" height="8" rx="0.5"/><rect x="9" y="5" width="3" height="5" rx="0.5"/></svg><span class="rotulo-botao">No topo</span></button>
+                <button type="button" id="ed-al-meio" class="botao-vista botao-alinhar" disabled title="Pôr no meio da altura"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h12"/><rect x="4" y="3.5" width="3" height="9" rx="0.5"/><rect x="9" y="5" width="3" height="6" rx="0.5"/></svg><span class="rotulo-botao">Meio da altura</span></button>
+                <button type="button" id="ed-al-base" class="botao-vista botao-alinhar" disabled title="Encostar na base"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5h12"/><rect x="4" y="3" width="3" height="8" rx="0.5"/><rect x="9" y="6" width="3" height="5" rx="0.5"/></svg><span class="rotulo-botao">Na base</span></button>
+              </div>
             </div>
             <p id="ed-mensagem" class="ed-mensagem" role="status" aria-live="polite"></p>
           </div>

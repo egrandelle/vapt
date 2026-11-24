@@ -12,7 +12,9 @@ assets do job.
     (decisoes_do_passo_2: os nos e as opcoes do esquema, sem valor; as escolhas vao ao rascunho da tela);
   - abas: orientacao da composicao (escala.orientacao, banda derivacao.quadrado_ln_max) e, dentro dela, os grupos
     de composicoes de proporcao parecida (revisao da 163 em 05/11: lado longo sobre lado curto, amplitude ate
-    derivacao.grupo_proporcao_dif_max, por ligacao completa), qualquer que seja a familia da derivacao (a mestre que
+    derivacao.grupo_proporcao_dif_max, por ligacao completa) e de tamanho parecido (decisao 208, revisao da 163 em
+    24/11: a composicao que copiaria o layout da maior com escala abaixo de derivacao.grupo_escala_min vai para um
+    grupo proprio, e a tela diz por que), qualquer que seja a familia da derivacao (a mestre que
     ela escolheu, ou SEM_FAMILIA para o formato que volta ao DA, fica como dado da composicao). Cada composicao
     (largura x altura depois do giro) lista os formatos que ela gera, com o giro, e marca a escala pura (o caminho
     transform da derivacao: mesma proporcao da mestre). O id de cada grupo e o id da familia, preso aos formatos dela
@@ -173,6 +175,73 @@ def agrupar_por_proporcao(composicoes):
             break
         grupos[melhor:melhor + 2] = [grupos[melhor] + grupos[melhor + 1]]
     return grupos
+
+
+def escala_entre(c, ref):
+    """A escala com que o layout de ref seria copiado em c (decisao 199, 2: a do lado que aperta, sem o teto 1,0 da
+    copia, que aqui so compara tamanhos): min(largura/largura, altura/altura), medidas em pe."""
+    return min(c['largura'] / float(ref['largura']), c['altura'] / float(ref['altura']))
+
+
+def agrupar_por_tamanho(membros, presas=None):
+    """A segunda chave do agrupamento da tela, dentro de um grupo de proporcao (decisao 208, revisao da 163 em 24/11):
+    o tamanho. As composicoes vao em ordem de area em pe (e de id, no empate); a referencia e a maior, e fica com ela
+    cada membro cuja escala_entre a referencia chega a derivacao.grupo_escala_min. As que sobram passam pela mesma
+    regra de novo, com a referencia no maior delas, ate acabarem. Devolve [{'composicoes': [...], 'referencia': id da
+    composicao de referencia, 'separado_por_tamanho': None ou {'de': 'LxA' da referencia de onde a parte saiu,
+    'escala': a escala da referencia desta parte contra ela, 'escala_menor': a menor escala entre os membros desta
+    parte contra ela}, 'de': indice da parte de onde saiu, ou None}]. Por que: a copia do layout do arquivo de edicao
+    (vapt.derivacao.familia.transferir) usa uma escala so, e com 1280x720 e 300x150 no mesmo grupo o texto de 40 px
+    virava 9 px.
+    presas: {id da composicao: conjunto de formatos} das composicoes com formato que o DA juntou de volta pelo ato da
+    janela (juntados), cada uma com os irmaos dela (os formatos da familia que a juntou). A presa entra na conta como
+    qualquer outra, e e a referencia quando e a maior; so nunca sai da parte que tem um irmao dela (decisao 208: o
+    grupo juntado pelo DA nao e separado de novo). A isencao e do par, e nao do formato: quando a referencia de antes
+    sai do job e a presa vira a maior, as menores sao medidas contra ela. Sem irmao em parte nenhuma, a presa segue a
+    regra."""
+    limite = float(limites.valor('derivacao.grupo_escala_min'))
+    presas = presas or {}
+
+    def por_area(c):
+        return (-c['largura'] * c['altura'], c['id'])
+    livres = sorted(membros, key=por_area)
+    partes, anterior = [], None
+    while livres:
+        ref = livres[0]
+        ficam = [c for c in livres if escala_entre(c, ref) >= limite]
+        saem = [c for c in livres if escala_entre(c, ref) < limite]
+        while True:
+            irmaos_aqui = {x['id'] for c in ficam for x in c['formatos']}
+            puxadas = [c for c in saem if presas.get(c['id'], set()) & irmaos_aqui]
+            if not puxadas:
+                break
+            ficam = sorted(ficam + puxadas, key=por_area)
+            saem = [c for c in saem if c not in puxadas]
+        motivo, de = None, None
+        if anterior is not None:
+            de, ref_de = anterior
+            motivo = {'de': '%dx%d' % (ref_de['largura'], ref_de['altura']), 'escala': _arred(escala_entre(ref, ref_de)),
+                      'escala_menor': _arred(min(escala_entre(c, ref_de) for c in ficam))}
+        partes.append({'composicoes': ficam, 'referencia': ref['id'], 'separado_por_tamanho': motivo, 'de': de})
+        anterior = (len(partes) - 1, ref)
+        livres = saem
+    return partes
+
+
+def _presas(membros, juntados, conhecidas):
+    """{id da composicao: conjunto de irmaos} para agrupar_por_tamanho: cada composicao de membros com formato que o
+    DA juntou de volta (juntados: {id da familia: [formatos]}) leva os formatos da familia que a juntou (conhecidas:
+    {id: [formatos] ou None}), menos os proprios juntados. A composicao sem irmao fica de fora e segue a regra."""
+    saida = {}
+    for c in membros:
+        fids = {x['id'] for x in c['formatos']}
+        irmaos = set()
+        for mae, v in sorted(juntados.items()):
+            if fids & set(v):
+                irmaos |= set(conhecidas.get(mae) or ()) - set(v)
+        if irmaos:
+            saida[c['id']] = irmaos
+    return saida
 
 
 def familias_conhecidas(pasta):
@@ -371,12 +440,19 @@ def _separar_grupos(grupos, separados):
 
 
 def abas(laudo, briefing, formatos, variantes=None, conhecidas=None, editadas=(), cedidos=None, arquivos=None,
-         separados=None):
+         separados=None, juntados=None):
     """[{'id', 'rotulo', 'grupos': [{'id', 'proporcao': [menor, maior], 'escala_pura', 'aviso', 'composicoes': [{'id',
     'largura', 'altura', 'proporcao', 'escala_pura', 'familia', 'rotulo_familia', 'formatos': [...]}]}]}] na ordem
     horizontal, quadrado, vertical. Dentro da orientacao, as composicoes de proporcao parecida formam um grupo (uma aba
     da tela; agrupar_por_proporcao), qualquer que seja a familia da derivacao: a faixa de familia deixa de separar o
-    que a tela agrupa (n 163). formatos: {id: derivacao/1}; variantes: {id: quantas variantes a galeria montou}.
+    que a tela agrupa (n 163). Dentro do grupo de proporcao, o tamanho e a segunda chave (decisao 208, revisao da 163
+    em 24/11; agrupar_por_tamanho): a composicao pequena demais para copiar o layout da maior (escala abaixo de
+    derivacao.grupo_escala_min) forma um grupo proprio, que leva 'separado_por_tamanho' ({'de': 'LxA' da referencia,
+    'arquivo': o id do arquivo da referencia como o DA o ve, pela regra do arquivo de edicao, 'escala', 'escala_menor'})
+    para a tela dizer por que, e 'separado_de' (o id do grupo de onde saiu), para o ato "Juntar de volta".
+    juntados ({id: [formatos]}, vapt.tela.rascunho.estrutura): os formatos que o DA juntou de volta por esse ato ficam
+    com a familia que os juntou, e a regra do tamanho nao os tira de la (_presas, agrupar_por_tamanho).
+    formatos: {id: derivacao/1}; variantes: {id: quantas variantes a galeria montou}.
     O id do grupo e o id da familia (o rascunho, os atos e o briefing gravam por ele): desde a revisao do M7b, fase A,
     ele fica preso aos formatos, e nao a posicao do grupo na aba. conhecidas: {id: [formatos] ou None} das familias
     que o job ja conhece (familias_conhecidas); a ordem das abas continua pela proporcao (_ids_das_familias). aviso: a
@@ -390,6 +466,7 @@ def abas(laudo, briefing, formatos, variantes=None, conhecidas=None, editadas=()
     arquivos = arquivos or {}
     separados = {g: list(v) for g, v in (separados or {}).items()}
     todos_separados = {f for v in separados.values() for f in v}
+    juntados = {g: list(v) for g, v in (juntados or {}).items()}
     ordem_briefing = [f['id'] for f in briefing['formatos']]
     por_ori = {}
     for fid in ordem_briefing:
@@ -413,16 +490,31 @@ def abas(laudo, briefing, formatos, variantes=None, conhecidas=None, editadas=()
                               'situacao': d['situacao'], 'caminho': d.get('caminho'),
                               'motivo': (d.get('devolucao') or {}).get('motivo'),
                               'variantes': int(variantes.get(fid, 0))})
+    from vapt.derivacao import proposta
     saida = []
     for ori in ORIENTACOES:
         if ori not in por_ori:
             continue
         grupos = []
         for membros in agrupar_por_proporcao(list(por_ori[ori].values())):
-            membros = sorted(membros, key=lambda c: (-c['largura'] / c['altura'], c['id']))
-            ps = [c['proporcao'] for c in membros]
-            grupos.append({'proporcao': [min(ps), max(ps)], 'escala_pura': all(c['escala_pura'] for c in membros),
-                           'composicoes': membros})
+            # decisao 208: dentro do grupo de proporcao, o tamanho separa o que nao copia o layout da maior; o que o
+            # DA juntou de volta (juntados) fica com a familia dele, e a regra nao o tira de la
+            partes = agrupar_por_tamanho(membros, _presas(membros, juntados, conhecidas or {}))
+            por_id = {c['id']: c for c in membros}
+            for p in partes:
+                ms = sorted(p['composicoes'], key=lambda c: (-c['largura'] / c['altura'], c['id']))
+                ps = [c['proporcao'] for c in ms]
+                g = {'proporcao': [min(ps), max(ps)], 'escala_pura': all(c['escala_pura'] for c in ms),
+                     'composicoes': ms}
+                if p['separado_por_tamanho']:
+                    # a composicao de referencia do grupo de onde a parte saiu: vira 'separado_de' depois dos ids; o
+                    # arquivo dela que a frase da tela nomeia e o da regra do arquivo de edicao (o DA ve a medida da
+                    # entrega e o giro, nunca a medida em pe de uma composicao)
+                    ref = por_id[partes[p['de']]['referencia']]
+                    g['separado_por_tamanho'] = dict(p['separado_por_tamanho'], arquivo=proposta.arquivo_de_edicao(
+                        [dict(formatos[x['id']]['formato'], id=x['id']) for x in ref['formatos']]))
+                    g['_de_composicao'] = ref['id']
+                grupos.append(g)
         grupos.sort(key=lambda g: (-g['composicoes'][0]['largura'] / g['composicoes'][0]['altura'],
                                    g['composicoes'][0]['id']))
         if todos_separados:
@@ -437,9 +529,17 @@ def abas(laudo, briefing, formatos, variantes=None, conhecidas=None, editadas=()
                 x['nome'] = nomes.get(x['id'], x['id'])
     ids, avisos = _ids_das_familias([(ori, {x['id'] for c in g['composicoes'] for x in c['formatos']})
                                      for ori, g in todos], conhecidas, editadas, cedidos, nomes)
-    from vapt.derivacao import proposta
+    # o id do grupo que tem cada composicao (a primeira vez: o grupo de onde um arquivo separado pelo DA saiu fica com
+    # a composicao, e a copia dele no grupo do arquivo separado nao), para 'separado_de' dos grupos da decisao 208
+    grupo_da_composicao = {}
+    for (_ori, g), gid in zip(todos, ids):
+        for c in g['composicoes']:
+            grupo_da_composicao.setdefault(c['id'], gid)
     for (_ori, g), gid, aviso in zip(todos, ids, avisos):
         g['id'], g['aviso'] = gid, aviso
+        de = g.pop('_de_composicao', None)
+        if de is not None and grupo_da_composicao.get(de) not in (None, gid):
+            g['separado_de'] = grupo_da_composicao[de]
         # decisao 199 (1): o arquivo de edicao da familia, o gravado no rascunho enquanto estiver nela, senao pela
         # mesma regra da previa e da derivacao (o de maior area na composicao; no empate, o sem giro, depois o
         # primeiro da lista). separados: os arquivos que o DA separou em familia propria (decisao 199, 3)
@@ -450,7 +550,7 @@ def abas(laudo, briefing, formatos, variantes=None, conhecidas=None, editadas=()
                                                             arquivos.get(gid), (conhecidas or {}).get(gid))
         g['separados'] = [f for f in separados.get(gid) or () if f not in fids]
         mae = next((m for m, v in sorted(separados.items()) if len(fids) == 1 and fids[0] in v and m != gid), None)
-        if mae is not None:
+        if mae is not None and 'separado_de' not in g:
             g['separado_de'] = mae
     for o in saida:
         o['grupos'] = [dict({'id': g.pop('id')}, **g) for g in o['grupos']]
@@ -959,6 +1059,13 @@ def medida_da_chave(chave):
     vira '1080 x 1920 (sao paulo)'). A chave sem medida fica como esta. O id interno da folha nunca chega ao DA
     (revisao adversarial da 0.9.6): a folha sem circuito ('f9c478bf8|geral|1080x1920', ou o circuito com o id da
     folha na frente, 'f9c478bf8|f9c478bf8-geral|...') fica so com a medida."""
+    medida, onde = partes_da_chave(chave)
+    return '%s (%s)' % (medida, onde) if onde else medida
+
+
+def partes_da_chave(chave):
+    """(medida legivel, circuito legivel ou '') de uma chave de formato da folha: as duas partes de medida_da_chave,
+    separadas para a tabela "Formatos do job" (decisao 209), que mostra a medida numa linha e a origem na outra."""
     partes = str(chave).split('#', 1)[0].split('|')
     m = re.match(r'^(\d+(?:[.,]\d+)?)x(\d+(?:[.,]\d+)?)([a-z]*)$', partes[-1])
     medida = ('%s x %s%s' % (m.group(1), m.group(2), (' ' + m.group(3)) if m.group(3) else '')) if m else partes[-1]
@@ -975,11 +1082,163 @@ def medida_da_chave(chave):
     if onde and folha:
         do_veiculador = set(re.split(r'[-_: ]+', folha)) | {CIRCUITO_PADRAO}
         onde = ' '.join(p for p in onde.split() if p not in do_veiculador)
-    return '%s (%s)' % (medida, onde) if onde else medida
+    # a folha sem circuito nomeado (um CSV de uma coluna) ganha o id dela no circuito ('portal|f01b334c5-geral|
+    # 1080x1920'): o id nunca chega ao DA (decisao 209: a coluna Formato mostra so a medida e "da folha"). So o token
+    # com a forma exata do id (vapt.specs.importar.id_da_folha: 'f' e oito hexadecimais) sai; um circuito nomeado
+    # por data ('campanha-20241105') ou por palavra hexadecimal ('cafebabe') fica
+    onde = ' '.join(p for p in onde.split() if not FORMA_DO_ID_DA_FOLHA.fullmatch(p))
+    return medida, onde
+
+
+# a forma do id da folha que a importacao gera (vapt.specs.importar.id_da_folha): 'f' e o comeco do sha256
+FORMA_DO_ID_DA_FOLHA = re.compile(r'f[0-9a-f]{8}')  # numero-neutro: oito hexadecimais, como id_da_folha
 
 
 # o circuito que a folha sem circuito recebe (vapt.specs.modelo.Montagem.circuito): nao vai ao nome do cartao
 CIRCUITO_PADRAO = 'geral'
+
+# decisao 209: a tabela "Formatos do job" do passo 1. A origem de cada linha (a coluna Formato) e o que falta nela
+ORIGEM_DA_FOLHA = 'da folha'
+ORIGEM_ESCRITO = 'escrito por você'
+ORIGEM_TESTE = 'formato de teste'
+ORIGEM_DUAS_MEDIDAS = 'da folha, com duas medidas'
+# as pendencias de uma linha, na ordem em que a tabela as diz ("Falta: medida, spec, tipo, giro")
+FALTA_MEDIDA, FALTA_SPEC, FALTA_TIPO, FALTA_GIRO = 'medida', 'spec', 'tipo', 'giro'
+# o item do que falta para o tipo de arquivo (decisao 205; antes so o passo 5 e a recusa do Aprovar diziam)
+TIPO_SEM_ESCOLHA = 'Escolha o tipo de arquivo de cada formato.'
+
+
+def giro_completo(rotacao):
+    """O giro do briefing esta decidido: sem giro ou meia volta, ou um quarto de volta com o sentido (o mesmo que a
+    pagina confere em giroCompleto)."""
+    from vapt.entrega import codificar as mod_codificar
+    if not isinstance(rotacao, dict) or rotacao.get('graus') is None:
+        return False
+    # sem giro ou a meia volta (vapt.entrega.codificar.MEIA_VOLTA) nao pedem sentido; o quarto de volta pede
+    return rotacao['graus'] in (0, mod_codificar.MEIA_VOLTA) or bool(rotacao.get('sentido'))
+
+
+def tipos_da_folha(doc):
+    """{chave: texto} dos formatos cuja folha diz o tipo de arquivo (o valor do formato, ou herdado do veiculador):
+    'JPEG', 'PNG', 'JPEG e PNG' ou, fora desses, o texto da folha. Fica de fora o formato que espera a escolha do DA
+    (vapt.specs.modelo.sem_tipos_da_folha) e o valor divergente, que a coluna Spec resolve."""
+    from vapt.specs import confirmar as mod_confirmar
+    from vapt.specs import modelo as mod_modelo
+    saida = {}
+    for f in (doc or {}).get('formatos') or []:
+        if not f.get('chave') or mod_modelo.sem_tipos_da_folha(doc, f):
+            continue
+        v = mod_modelo.resolver(doc, f, 'tipos_aceitos')
+        if v is None:
+            continue
+        mimes = v.get('valor') or []
+        nomes = [TIPOS_NA_TELA[t] for t, mime in mod_confirmar.TIPOS_MIME if mime in mimes]
+        saida[f['chave']] = ' e '.join(nomes) if nomes else descricao_do_valor(v)
+    return saida
+
+
+def confirmados_por_grupo(doc, sem_medida_ids=()):
+    """{grupo: quantos valores confirmados} pelos mesmos grupos de specs_pendentes: 'f:<chave>' do formato da folha,
+    'm:<id>' do formato com duas medidas e 'geral' para o resto (folha, veiculador, circuito e formato sem chave)."""
+    from vapt.specs import modelo as mod_specs
+    conta = {}
+    for r, _campo, v in mod_specs.todos_os_valores(doc or {'folhas': [], 'veiculadores': [], 'circuitos': [],
+                                                           'formatos': []}):
+        if v.get('situacao') != 'confirmado':
+            continue
+        if r.get('chave'):
+            g = 'f:%s' % r['chave']
+        elif r.get('id') in sem_medida_ids:
+            g = 'm:%s' % r['id']
+        else:
+            g = 'geral'
+        conta[g] = conta.get(g, 0) + 1
+    return conta
+
+
+def linhas_de_specs(formatos, lista, sem_medida, sem_tipo, tipos_folha=None, confirmados=None):
+    """Decisao 209: as linhas da tabela "Formatos do job" do passo 1, uma por formato, que juntam o que antes ficava
+    em tres blocos (os valores de spec da decisao 198, item 3; o tipo de arquivo da decisao 205; o giro da revisao do
+    M7a). Nada do que cada coluna grava muda: a spec e o tipo passam pelo ato e pela janela, o giro vai ao rascunho.
+    formatos: specs['formatos'] (os formatos do briefing, com chave); lista: specs_pendentes; sem_medida:
+    formatos_sem_medida; sem_tipo: formatos_sem_tipo; tipos_folha: tipos_da_folha; confirmados: confirmados_por_grupo.
+    Cada linha: {'grupo', 'chave', 'id', 'nome', 'origem', 'largura', 'altura', 'digitado', 'sem_folha',
+    'sem_medida', 'rotacao', 'giro_da_folha', 'spec': {'lote', 'avulsos', 'a_confirmar', 'confirmados'}, 'tipo'
+    ({'escolhe', 'tipos', 'texto', 'da_folha'}, ou None onde o tipo nao se aplica), 'faltam': [medida, spec, tipo,
+    giro], 'pronto'}. O formato da folha vem primeiro, na ordem do briefing; depois o formato com duas medidas (so a
+    medida e a spec, com o tipo e o giro desligados), o formato da folha fora do briefing e, por ultimo, os valores
+    gerais da folha. O id interno nunca vai ao nome (medida_da_chave)."""
+    tipos_folha = tipos_folha or {}
+    confirmados = confirmados or {}
+    por_grupo = {}
+    for v in lista or []:
+        por_grupo.setdefault(v['grupo'], []).append(v)
+    escolhe_tipo = {x['chave']: x for x in sem_tipo or []}
+
+    def spec_de(grupo):
+        vs = por_grupo.get(grupo) or []
+        return {'lote': [v for v in vs if v.get('em_lote')], 'avulsos': [v for v in vs if not v.get('em_lote')],
+                'a_confirmar': len(vs), 'confirmados': confirmados.get(grupo, 0)}
+
+    def linha(grupo, nome, origem, spec, tipo=None, faltam=(), **extra):
+        base = {'grupo': grupo, 'chave': None, 'id': None, 'nome': nome, 'origem': origem, 'largura': None,
+                'altura': None, 'digitado': False, 'sem_folha': False, 'sem_medida': False, 'rotacao': None,
+                'giro_da_folha': None, 'spec': spec, 'tipo': tipo, 'faltam': list(faltam),
+                'pronto': not faltam}
+        base.update(extra)
+        return base
+
+    linhas, vistos = [], set()
+    for f in formatos or []:
+        grupo = 'f:%s' % f['chave']
+        vistos.add(grupo)
+        medida = '%s x %s' % (f['largura'], f['altura'])
+        if f.get('digitado'):
+            nome, origem = medida, ORIGEM_ESCRITO
+        elif f.get('sem_folha'):
+            nome, origem = medida, ORIGEM_TESTE
+        else:
+            nome, onde = partes_da_chave(f['chave'])
+            origem = onde or ORIGEM_DA_FOLHA
+        spec = spec_de(grupo)
+        if f['chave'] in escolhe_tipo:
+            x = escolhe_tipo[f['chave']]
+            tipo = {'escolhe': True, 'tipos': list(x['tipos']), 'texto': x['texto'], 'da_folha': False}
+        elif f['chave'] in tipos_folha:
+            tipo = {'escolhe': False, 'tipos': [], 'texto': tipos_folha[f['chave']], 'da_folha': True}
+        else:
+            tipo = {'escolhe': False, 'tipos': [], 'texto': '', 'da_folha': False}
+        faltam = []
+        if spec['a_confirmar']:
+            faltam.append(FALTA_SPEC)
+        if tipo['escolhe'] and not tipo['tipos']:
+            faltam.append(FALTA_TIPO)
+        if not giro_completo(f.get('rotacao')):
+            faltam.append(FALTA_GIRO)
+        linhas.append(linha(grupo, nome, origem, spec, tipo, faltam, chave=f['chave'], id=f['id'],
+                            largura=f['largura'], altura=f['altura'], digitado=bool(f.get('digitado')),
+                            sem_folha=bool(f.get('sem_folha')), rotacao=f.get('rotacao'),
+                            giro_da_folha=f.get('giro_da_folha')))
+    # o formato da folha com duas medidas (revisao dos becos, D2): a medida e a escolha do DA, e sem ela nao ha
+    # chave, tipo nem giro
+    for x in sem_medida or []:
+        grupo = 'm:%s' % x['formato']
+        vistos.add(grupo)
+        spec = spec_de(grupo)
+        outros = [v for v in (por_grupo.get(grupo) or []) if v['valor_id'] != x['valor_id']]
+        faltam = [FALTA_MEDIDA] + ([FALTA_SPEC] if outros else [])
+        linhas.append(linha(grupo, x['texto'], ORIGEM_DUAS_MEDIDAS, spec, None, faltam, id=x['formato'],
+                            sem_medida=True))
+    # o formato da folha que nao entrou no briefing (a medida fora de pixels): so a spec dele
+    for grupo, vs in por_grupo.items():
+        if grupo in vistos or grupo == 'geral':
+            continue
+        vistos.add(grupo)
+        linhas.append(linha(grupo, vs[0]['grupo_nome'], ORIGEM_DA_FOLHA, spec_de(grupo), None, [FALTA_SPEC]))
+    if 'geral' in por_grupo or confirmados.get('geral'):
+        spec = spec_de('geral')
+        linhas.append(linha('geral', GRUPO_GERAL, '', spec, None, [FALTA_SPEC] if spec['a_confirmar'] else []))
+    return linhas
 
 
 # as paradas que ainda nao tem botao na tela, em texto para o DA (decisoes-v1.md, 24, 41, 57 e 79; a 159 manda que o
@@ -1145,6 +1404,11 @@ def lido(pasta, estado_job, laudo, briefing, formatos, faces_servidas, teto=None
     specs['digitados'] = mod_digitados.na_tela(pasta)
     # 0.15.0: os formatos cuja folha nao diz o tipo de arquivo, com a escolha do DA (vazia quando falta)
     specs['sem_tipo'] = formatos_sem_tipo(pasta)
+    # decisao 209: a tabela "Formatos do job", uma linha por formato, com o estado de cada uma calculado aqui
+    specs['linhas'] = linhas_de_specs(
+        specs['formatos'], specs['lista'], specs['sem_medida'], specs['sem_tipo'],
+        tipos_da_folha(doc) if doc is not None else {},
+        confirmados_por_grupo(doc, {x['formato'] for x in specs['sem_medida']}) if doc is not None else {})
     lf = _ler(pasta / 'laudo' / 'laudo-fontes.json', 'laudo/1')
     usadas = (lf or laudo).get('fontes_usadas') or []
     nomes = {c['identidade']['layer_id']: c.get('nome') or '' for c in laudo['camadas']}
@@ -1286,6 +1550,11 @@ def faltam(lido_, formatos, variantes=None, familias=None, confirmadas=(), arqui
                 for f in lido_['specs']['formatos'] if f.get('rotacao') is None]
     if sem_giro:
         itens.append({'texto': GIRO_SEM_ESCOLHA, 'detalhe': ', '.join(sem_giro), 'ir': {'passo': 'lido'}})
+    # decisao 205 (revisao 209): o formato cuja folha nao diz o tipo de arquivo, sem a escolha do DA, nao sai como
+    # arquivo final; o item leva a tabela do passo 1, e nao so ao passo 5
+    sem_tipo = [x['nome'] for x in lido_['specs'].get('sem_tipo') or [] if not x.get('tipos')]
+    if sem_tipo:
+        itens.append({'texto': TIPO_SEM_ESCOLHA, 'detalhe': ', '.join(sem_tipo), 'ir': {'passo': 'lido'}})
     for f in lido_['fontes_que_faltam']:
         itens.append({'texto': 'Uma fonte do PSD falta ou não confere com o arquivo enviado.', 'detalhe': f['fonte_ps'],
                       'ir': {'passo': 'lido'}})
@@ -2402,13 +2671,14 @@ def montar(pasta, teto=None, biblioteca=None):
     # os ids das familias que o job ja conhece: cada id fica com os formatos dele, e nao com a posicao do grupo
     conhecidas = familias_conhecidas(pasta)
     editadas, cedidos = marcas_das_familias(pasta)
-    # decisao 199 (0.10.0): o arquivo de edicao gravado de cada familia e os arquivos separados em familia propria
+    # decisao 199 (0.10.0): o arquivo de edicao gravado de cada familia e os arquivos separados em familia propria;
+    # decisao 208: os que o DA juntou de volta depois que a regra do tamanho os separou
     from vapt.tela import rascunho as mod_rascunho
-    arquivos_gravados, separados = mod_rascunho.estrutura(pasta)
+    arquivos_gravados, separados, juntados = mod_rascunho.estrutura(pasta)
     if espera is None:
         gals = galerias(ctx, r['kv'], laudo, base, r['formatos'],
                         abas(laudo, b, r['formatos'], conhecidas=conhecidas, editadas=editadas, cedidos=cedidos,
-                             arquivos=arquivos_gravados, separados=separados),
+                             arquivos=arquivos_gravados, separados=separados, juntados=juntados),
                         specs=specs, arquivo_specs=arquivo_specs, params=params, brutos=brutos)
     for fid, gal in gals.items():
         previas[fid]['galeria'] = gal
@@ -2422,7 +2692,7 @@ def montar(pasta, teto=None, biblioteca=None):
               'briefing_origem': b['cabecalho']['origem'],
               'mestre': {'largura': laudo['documento']['largura'], 'altura': laudo['documento']['altura']},
               'orientacoes': abas(laudo, b, r['formatos'], n_variantes, conhecidas, editadas, cedidos,
-                                  arquivos_gravados, separados),
+                                  arquivos_gravados, separados, juntados),
               'fontes': lista_fontes,
               'assets': [{'id': i} for i in sorted(assets)], 'devolucoes': len(r['devolucoes']),
               'lido': lido_,
@@ -2527,10 +2797,12 @@ def montar(pasta, teto=None, biblioteca=None):
                                    'por_confirmar': sorted(set(fids) & por_confirmar(r['formatos'])),
                                    'aviso': avisos[gid],
                                    # decisao 199: o arquivo de edicao (o gravado ou a regra), os separados dela e a
-                                   # familia de onde ela saiu, quando o DA a separou
+                                   # familia de onde ela saiu, quando o DA a separou; decisao 208: o motivo, quando
+                                   # foi a regra do tamanho que a separou
                                    'arquivo_de_edicao': arquivos.get(gid),
                                    'separados': list(grupos_da_tela[gid].get('separados') or []),
-                                   'separado_de': grupos_da_tela[gid].get('separado_de')}
+                                   'separado_de': grupos_da_tela[gid].get('separado_de'),
+                                   'separado_por_tamanho': grupos_da_tela[gid].get('separado_por_tamanho')}
                              for gid, fids in familias.items()},
                 # a situacao da biblioteca (sem caminho) e a pasta, so no processo de fundo (M7c, M1 e M3)
                 'biblioteca': mod_biblioteca.para_tela(conferencia),
@@ -2567,12 +2839,13 @@ def montar(pasta, teto=None, biblioteca=None):
             return montar(pasta, teto, biblioteca)
         return atualizar
     def estrutura_de_agora():
-        # o arquivo de edicao efetivo de cada familia mostrada (o gravado que ainda esta nela, senao o de agora) e os
-        # separados: a primeira gravacao da familia, que grava o arquivo da regra, nao monta a tela de novo
-        gravados, seps = mod_rascunho.estrutura(pasta)
+        # o arquivo de edicao efetivo de cada familia mostrada (o gravado que ainda esta nela, senao o de agora), os
+        # separados e os juntados (decisao 208): a primeira gravacao da familia, que grava o arquivo da regra, nao
+        # monta a tela de novo
+        gravados, seps, junts = mod_rascunho.estrutura(pasta)
         efetivos = {gid: (gravados[gid] if gravados.get(gid) in fids else arquivos.get(gid))
                     for gid, fids in familias.items()}
-        return efetivos, {g: sorted(v) for g, v in seps.items()}
+        return efetivos, {g: sorted(v) for g, v in seps.items()}, {g: sorted(v) for g, v in junts.items()}
     estrutura_feita = estrutura_de_agora()
     conteudo['atualizar'] = atualizador(assinatura, conteudo)
     return conteudo

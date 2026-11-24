@@ -991,6 +991,18 @@
    "nota": "A tela calcula os grupos sozinha, dentro de cada orientacao, por ligacao completa: a amplitude do grupo inteiro fica ate o limite, e a cadeia de vizinhos nao passa dele. Exemplos do Duda: 960x192 (5,00) com 1248x250 (4,99); 1280x720 (1,778) com 960x576 (1,667). Revisa o 0,2 da 163 original."
   },
   {
+   "id": "derivacao.grupo_escala_min",
+   "valor": 0.5,
+   "unidade": "menor razao de lado (largura ou altura, em pe) entre um formato e o maior do seu grupo da tela, abaixo da qual o formato vai para um grupo proprio",
+   "fonte": {
+    "arquivo": "decisoes-v1.md",
+    "secao": "24/11, melhorias antes do M8, revisao da 163"
+   },
+   "situacao": "a_calibrar",
+   "efeito": "registra",
+   "nota": "A segunda chave do agrupamento da tela (decisao 208), dentro de cada grupo de proporcao: a referencia e o formato de maior area em pe; o membro com min(largura/largura da referencia, altura/altura da referencia) abaixo disto sai para um grupo proprio, e os que sairam passam pela mesma regra de novo, com a referencia no maior deles. Com 0,5: 1920x1080 e 1280x720 ficam juntos (0,67); 1280x720 e 640x360 tambem (0,5); 1280x720 e 300x150 separam (0,21); 1080x1920 e 300x600 separam (0,28). Motivo: a copia do layout do arquivo de edicao (vapt.derivacao.familia.transferir) usa uma escala so, e o texto de 40 px do 1280x720 virava 9 px no 300x150. O grupo que o DA junta de volta nao e separado de novo: o formato juntado fica com a parte que tem um irmao da familia que o juntou, e entra na conta como referencia quando e o maior (a isencao e do par, nao do formato)."
+  },
+  {
    "id": "derivacao.alinhamento_intencao_tolerancia",
    "valor": 0.01,
    "unidade": "fracao do lado maior da peca: diferenca de borda ou de centro entre dois elementos abaixo da qual a edicao do DA vira alinhamento",

@@ -343,7 +343,8 @@ def _motivo_da_recusa(corpo):
 
 @pytest.mark.parametrize('design,trecho', [
     (kr.DESIGN, 'andam juntas num bloco'),
-    (kr.DESIGN_MESMA_REGRA, 'Falta confirmar 3 famílias'),
+    # decisao 208: o 300x600 sai do 1080x1920 por tamanho (escala 0,28); o job do relato tem quatro familias
+    (kr.DESIGN_MESMA_REGRA, 'Falta confirmar 4 famílias'),
 ])
 def test_salvar_recusado_devolve_o_motivo_em_portugues(base, tmp_path, design, trecho):
     job, ids = _copia(base, 'relato', tmp_path)

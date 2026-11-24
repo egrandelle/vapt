@@ -392,19 +392,21 @@ def test_passo_1_confirma_os_valores_marcados_em_lote_no_chromium(job_email):
             tp._esperar(pg, tp.JS_PRONTO)
             pg.evaluate('() => document.querySelector("#passos [data-passo=lido]").click()')
             tp._esperar(pg, '() => document.getElementById("spec-lote") ? "1" : ""')
+            # decisao 209: o lote mora na tabela "Formatos do job" (#lido-formatos): a caixa da linha marca os valores
+            # do formato, e cada valor tem a sua caixa na linha de baixo
             antes = pg.evaluate('''() => ({
-                cartoes: Array.from(document.querySelectorAll("#spec-lote .spec-cartao .spec-cartao-nome"))
+                cartoes: Array.from(document.querySelectorAll("#lido-formatos tr.linha-spec .formato-nome"))
                   .map(n => n.textContent),
-                marcados: document.querySelectorAll("#spec-lote input:checked").length,
-                valores: document.querySelectorAll("#spec-lote input.spec-valor-marca").length,
+                marcados: document.querySelectorAll("#lido-formatos input:checked").length,
+                valores: document.querySelectorAll("#lido-formatos input.spec-valor-marca").length,
                 confirmar: document.getElementById("spec-lote-confirmar").disabled,
-                texto: document.getElementById("lido-specs-pendentes").textContent})''')
+                texto: document.getElementById("lido-formatos").textContent})''')
             assert antes['marcados'] == 0 and antes['confirmar'] is True, antes
             assert antes['valores'] == len(lote) and any('640 x 320' in c for c in antes['cartoes']), antes
             assert not any(x in antes['texto'] for x in PROIBIDOS), antes['texto']
-            # um cartao inteiro pela caixa dele: o contador do botao acompanha
-            pg.evaluate('() => document.querySelector("#spec-lote input.spec-grupo-marca").click()')
-            um = pg.evaluate('''() => [document.querySelectorAll("#spec-lote input.spec-valor-marca:checked").length,
+            # uma linha inteira pela caixa dela: o contador do botao acompanha
+            pg.evaluate('() => document.querySelector("#lido-formatos input.spec-grupo-marca").click()')
+            um = pg.evaluate('''() => [document.querySelectorAll("#lido-formatos input.spec-valor-marca:checked").length,
                 document.querySelector("#spec-lote-confirmar .contagem-botao").textContent]''')
             assert um[0] >= 1 and um[1] == str(um[0]), um
             pg.evaluate('() => document.getElementById("spec-lote-todos").click()')
@@ -429,14 +431,15 @@ def test_passo_1_confirma_os_valores_marcados_em_lote_no_chromium(job_email):
             tp._esperar(pg, '() => document.getElementById("spec-lote") ? "" : "1"')
             # revisao adversarial (pedido 3): o giro em lote. Nada vem marcado; um clique do DA deixa sem giro os
             # formatos que faltam e em que a folha nao fala de giro, e o rascunho grava
+            # (decisao 209: cada linha da tabela diz se o giro dela esta feito, em data-giro)
             giro = pg.evaluate('''() => ({b: document.getElementById("giro-lote") && document.getElementById("giro-lote").textContent,
-                feitos: document.querySelectorAll("#lido-formatos article.giro.feita").length,
-                todos: document.querySelectorAll("#lido-formatos article.giro").length})''')
+                feitos: document.querySelectorAll("#lido-formatos tr[data-giro=feito]").length,
+                todos: document.querySelectorAll("#lido-formatos tr[data-giro]").length})''')
             assert giro['b'] and giro['feitos'] == 0 and giro['todos'] >= 2, giro
             pg.evaluate('() => document.getElementById("giro-lote").click()')
             tp._esperar(pg, '() => document.getElementById("giro-lote") ? "" : "1"')
-            depois = pg.evaluate('''() => [document.querySelectorAll("#lido-formatos article.giro.feita").length,
-                document.querySelectorAll("#lido-formatos article.giro").length,
+            depois = pg.evaluate('''() => [document.querySelectorAll("#lido-formatos tr[data-giro=feito]").length,
+                document.querySelectorAll("#lido-formatos tr[data-giro]").length,
                 document.getElementById("dica-acoes").textContent]''')
             assert depois[0] == depois[1] == giro['todos'], depois
             assert 'giro' not in depois[2], depois

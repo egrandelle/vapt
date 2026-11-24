@@ -155,7 +155,9 @@
   /* as escolhas do passo 1 (revisao do M7a): a prancheta (id do quadro) e o giro por chave do formato na folha */
   const p1 = { quadro: null, rotacoes: {} };
   const giroSemSentido = {}; // quarto de volta escolhido sem o sentido: fica so na tela ate o DA escolher o sentido
-  const GIROS = [[0, 'Sem giro'], [90, '90 graus'], [180, '180 graus'], [270, '270 graus']];
+  // decisao 209: o segmentado da tabela e estreito; o nome inteiro fica no aria-label
+  const GIROS = [[0, 'Sem giro', 'Sem giro'], [90, '90', 'Girar 90 graus'], [180, '180', 'Girar 180 graus'],
+    [270, '270', 'Girar 270 graus']];
   const SENTIDOS = [['horario', 'Horário'], ['anti_horario', 'Anti-horário']];
   const TEXTO_RASCUNHO = {
     pronto: 'Suas escolhas ficam salvas no rascunho',
@@ -253,6 +255,12 @@
   const DICA_QUADRO = 'Escolha a prancheta da peça no passo 1.';
   const DICA_GIRO = 'Escolha o giro de cada formato no passo 1.';
   const DICA_MEDIDA = 'Escolha a medida do formato com duas medidas no passo 1.';
+  /* decisao 209 (completa a 205): sem o tipo de arquivo o briefing salva, mas o formato nao sai nem e aprovado no
+     passo 5; a dica avisa antes, sem travar o botao (o servidor nao recusa salvar por isso) */
+  function dicaDoTipo(n) {
+    return 'Pode salvar. Para aprovar no passo 5, escolha o tipo de arquivo ' +
+      (n === 1 ? 'de 1 formato' : 'de ' + n + ' formatos') + ' no passo 1, em Formatos do job.';
+  }
   /* revisao 0.9.3: sem familia, o motivo do servidor ao lado do botao */
   const DICA_SEM_FAMILIAS = 'As famílias ainda não foram montadas. ';
   const DICA_GRAVANDO = 'Salvando as suas escolhas. As famílias aparecem logo depois.';
@@ -967,6 +975,8 @@
     if (t.indexOf('modo de dados') >= 0) return { alvo: 'lido-modo', foco: null };
     if (t.indexOf('prancheta') >= 0) return { alvo: 'bloco-quadros', foco: null };
     if (t.indexOf('giro') >= 0) return { alvo: 'lido-formatos', foco: null };
+    // decisao 209: o tipo de arquivo se escolhe na tabela "Formatos do job"
+    if (t.indexOf('tipo de arquivo') >= 0) return { alvo: 'lido-formatos', foco: null };
     if (t.indexOf('linkad') >= 0) return { alvo: 'lido-linkados', foco: null };
     if (t.indexOf('spec') >= 0 || t.indexOf('medida') >= 0) return { alvo: 'bloco-specs', foco: null };
     return { alvo: null, foco: null };
@@ -1330,45 +1340,13 @@
   }
   /* 0.15.0, tipo de arquivo: a folha que so traz a medida (uma planilha com a coluna do formato) nao diz se o arquivo
      final sai em JPEG ou PNG, e sem isso o formato nao pode ser aprovado. O DA escolhe para todos de uma vez ou para
-     cada formato; o motor confere e grava na confirmacao da janela (ato spec_tipos) */
+     cada formato; o motor confere e grava na confirmacao da janela (ato spec_tipos). Decisao 209: a escolha fica na
+     coluna Tipo da tabela "Formatos do job" (montarFormatos) */
   const TIPOS_DE_ARQUIVO = [['jpg'], ['png'], ['jpg', 'png']];
   const NOMES_DOS_TIPOS = { jpg: 'JPEG', png: 'PNG' };
   function nomeDosTipos(ts) { return ts.map(function (t) { return NOMES_DOS_TIPOS[t]; }).join(' e '); }
-  function montarTiposDeArquivo(lista) {
-    const bloco = document.getElementById('tipos-arquivo');
-    if (!bloco) return;
-    lista = lista || [];
-    bloco.hidden = !lista.length;
-    const todos = document.getElementById('tipos-arquivo-todos');
-    const ul = document.getElementById('tipos-arquivo-lista');
-    limpar(todos);
-    limpar(ul);
-    if (!lista.length) return;
-    const chaves = lista.map(function (x) { return x.chave; });
-    if (lista.length > 1) {
-      todos.appendChild(el('span', 'Todos em', 'digitados-rotulo'));
-      TIPOS_DE_ARQUIVO.forEach(function (ts) {
-        const b = botaoAto(nomeDosTipos(ts), 'spec_tipos', { formatos: chaves, tipos: ts });
-        b.setAttribute('aria-label', 'Todos os formatos da lista em ' + nomeDosTipos(ts));
-        todos.appendChild(b);
-      });
-    }
-    lista.forEach(function (x) {
-      const li = el('li', null, 'digitados-item');
-      const topo = el('div', null, 'digitados-item-topo');
-      topo.appendChild(el('span', x.nome, 'digitados-medida'));
-      topo.appendChild(el('span', x.tipos.length ? 'Escolhido por você: ' + x.texto : 'Falta escolher',
-        x.tipos.length ? 'opcao-detalhe' : 'chip chip-neutro'));
-      TIPOS_DE_ARQUIVO.forEach(function (ts) {
-        const igual = x.tipos.length === ts.length && ts.every(function (t) { return x.tipos.indexOf(t) >= 0; });
-        if (igual) return;
-        const b = botaoAto(nomeDosTipos(ts), 'spec_tipos', { formatos: [x.chave], tipos: ts });
-        b.setAttribute('aria-label', 'O formato ' + x.nome + ' em ' + nomeDosTipos(ts));
-        topo.appendChild(b);
-      });
-      li.appendChild(topo);
-      ul.appendChild(li);
-    });
+  function mesmosTipos(a, b) {
+    return a.length === b.length && b.every(function (t) { return a.indexOf(t) >= 0; });
   }
   depoisDoAto.formatos_digitados = function (d) {
     const campo = document.getElementById('digitados-campo');
@@ -1493,38 +1471,18 @@
       no.appendChild(art);
     });
   }
-  /* 0.9.6: os valores de spec em lote. Cada formato da folha vira um cartao com uma caixa de marcar e a lista dos
-     valores dele, cada um com a caixa dele. Nada vem marcado (decisoes 31 e 170): "Marcar todos" e um clique do DA. O
-     botao "Confirmar os marcados" pede uma janela so, que lista cada valor, e o motor grava uma confirmacao por valor,
-     igual a do botao de um valor (ato spec_valores). O valor com leituras diferentes e o formato com duas medidas
-     ficam fora do lote, em "Escolha você", com os botoes de antes. Os textos da folha entram so por textContent */
+  /* 0.9.6: os valores de spec em lote (decisao 198, 3). Nada vem marcado (decisoes 31 e 170): "Marcar todos" e um
+     clique do DA. O botao "Confirmar os marcados" pede uma janela so, que lista cada valor, e o motor grava uma
+     confirmacao por valor, igual a do botao de um valor (ato spec_valores). O valor com leituras diferentes e o
+     formato com duas medidas ficam fora do lote, com a escolha um por um na propria linha. Decisao 209: tudo isso
+     mora na coluna Spec da tabela "Formatos do job" (montarFormatos); a caixa da linha marca os valores do formato, e
+     "ver os N valores" abre a lista deles. Os textos da folha entram so por textContent */
   const specsMarcados = new Set();
+  const specsAbertos = new Set(); // as linhas com os valores da spec a vista (o DA abriu "ver os N valores")
   const LOTE_SEM_MARCA = 'Marque os valores que você quer confirmar.';
   function valoresDoLote(lista) { return lista.filter(function (v) { return v.em_lote; }); }
-  function montarSpecs(s) {
-    const no = document.getElementById('lido-specs-pendentes');
-    limpar(no);
-    const lista = s.lista || [];
-    const lote = valoresDoLote(lista);
-    const ids = new Set(lote.map(function (v) { return v.valor_id; }));
-    Array.from(specsMarcados).forEach(function (i) { if (!ids.has(i)) specsMarcados.delete(i); });
-    if (!lista.length) {
-      if (s.tem_rascunho) no.appendChild(el('p', 'Todos os valores de spec estão confirmados.', 'nota spec-vazio'));
-      return;
-    }
-    no.appendChild(el('h3', lista.length === 1 ? '1 valor espera a sua confirmação' : lista.length + ' valores esperam a sua confirmação', 'subtitulo'));
-    const avulsos = lista.filter(function (v) { return !v.em_lote; });
-    if (avulsos.length) {
-      const sec = el('section', null, 'spec-escolha');
-      sec.appendChild(el('h4', 'Escolha você', 'spec-grupo-titulo'));
-      sec.appendChild(el('p', 'Estes valores pedem a sua escolha, um por um.', 'nota'));
-      montarSpecsAvulsos(sec, avulsos);
-      no.appendChild(sec);
-    }
-    if (lote.length) no.appendChild(montarLoteDeSpecs(lote));
-  }
   function atualizarLoteDeSpecs() {
-    const caixa = document.getElementById('spec-lote');
+    const caixa = document.getElementById('lido-formatos');
     if (!caixa) return;
     const todos = Array.from(caixa.querySelectorAll('input.spec-valor-marca'));
     todos.forEach(function (c) { c.checked = specsMarcados.has(c.dataset.valor); c.disabled = !escrita; });
@@ -1534,95 +1492,84 @@
       g.checked = n > 0 && n === dele.length;
       g.indeterminate = n > 0 && n < dele.length;
       g.disabled = !escrita;
-      const art = g.closest('.spec-cartao');
-      if (art) art.classList.toggle('marcado', n > 0);
+      const tr = g.closest('tr');
+      if (tr) tr.classList.toggle('marcada', n > 0);
     });
     const ordem = todos.filter(function (c) { return c.checked; }).map(function (c) { return c.dataset.valor; });
     const b = document.getElementById('spec-lote-confirmar');
-    limpar(b);
-    b.appendChild(document.createTextNode('Confirmar os marcados'));
-    if (ordem.length) b.appendChild(el('span', String(ordem.length), 'contagem-botao'));
-    b.setAttribute('aria-label', ordem.length ? 'Confirmar os marcados, ' + plural(ordem.length, 'valor', 'valores') :
-      'Confirmar os marcados');
-    b.disabled = !escrita || !ordem.length;
-    b.title = b.disabled && escrita ? LOTE_SEM_MARCA : '';
-    b.dataset.dados = JSON.stringify({ valor_ids: ordem });
+    if (b) {
+      limpar(b);
+      b.appendChild(document.createTextNode('Confirmar os marcados'));
+      if (ordem.length) b.appendChild(el('span', String(ordem.length), 'contagem-botao'));
+      b.setAttribute('aria-label', ordem.length ? 'Confirmar os marcados, ' + plural(ordem.length, 'valor', 'valores') :
+        'Confirmar os marcados');
+      b.disabled = !escrita || !ordem.length;
+      b.title = b.disabled && escrita ? LOTE_SEM_MARCA : '';
+      b.dataset.dados = JSON.stringify({ valor_ids: ordem });
+    }
     const t = document.getElementById('spec-lote-todos');
-    const tudo = ordem.length === todos.length && todos.length > 0;
-    t.textContent = tudo ? 'Desmarcar todos' : 'Marcar todos';
-    t.disabled = !escrita;
+    if (t) {
+      const tudo = ordem.length === todos.length && todos.length > 0;
+      t.textContent = tudo ? 'Desmarcar todos' : 'Marcar todos';
+      t.disabled = !escrita;
+    }
   }
-  function montarLoteDeSpecs(lote) {
-    const caixa = el('section', null, 'spec-lote');
-    caixa.id = 'spec-lote';
-    caixa.setAttribute('aria-label', 'Valores de spec para confirmar');
-    const barra = el('div', null, 'spec-lote-barra');
-    const todos = botao('Marcar todos', 'botao');
-    todos.id = 'spec-lote-todos';
-    todos.addEventListener('click', function () {
-      const tudo = lote.every(function (v) { return specsMarcados.has(v.valor_id); });
-      lote.forEach(function (v) { if (tudo) specsMarcados.delete(v.valor_id); else specsMarcados.add(v.valor_id); });
+  /* a caixa de um valor do lote, ou a da linha inteira (grupo): marcar e um clique do DA */
+  function caixaDeMarcar(classe, valores, rotulo) {
+    const c = el('input', null, classe);
+    c.type = 'checkbox';
+    c.setAttribute('aria-label', rotulo);
+    c.addEventListener('change', function () {
+      valores.forEach(function (v) { if (c.checked) specsMarcados.add(v.valor_id); else specsMarcados.delete(v.valor_id); });
       atualizarLoteDeSpecs();
     });
-    const conf = botao('Confirmar os marcados', 'botao botao-primario');
-    conf.id = 'spec-lote-confirmar';
-    conf.dataset.ato = 'spec_valores';
-    barra.appendChild(todos);
-    barra.appendChild(conf);
-    caixa.appendChild(barra);
-    const grupos = [];
-    lote.forEach(function (v) {
-      let g = grupos.find(function (x) { return x.id === v.grupo; });
-      if (!g) { g = { id: v.grupo, nome: v.grupo_nome, valores: [] }; grupos.push(g); }
-      g.valores.push(v);
-    });
-    // o cartao dos valores gerais da folha fica por ultimo
-    grupos.sort(function (a, b) { return (a.id === 'geral') - (b.id === 'geral'); });
-    grupos.forEach(function (g, i) {
-      const art = el('article', null, 'spec-cartao');
-      art.style.animationDelay = (i * 30) + 'ms';
-      const topo = el('label', null, 'spec-cartao-topo');
-      const gm = el('input', null, 'linha-marca spec-grupo-marca');
-      gm.type = 'checkbox';
-      gm.dataset.grupo = g.id;
-      gm.addEventListener('change', function () {
-        g.valores.forEach(function (v) {
-          if (gm.checked) specsMarcados.add(v.valor_id); else specsMarcados.delete(v.valor_id);
-        });
+    return c;
+  }
+  /* a barra de lote no cabecalho da tabela: os marcados da spec (#spec-lote, so enquanto ha valor em lote), o tipo
+     de arquivo de todos os formatos que faltam (decisao 205) e o giro dos que faltam (decisao 198) */
+  function montarBarraDeLote(no, s) {
+    const lote = valoresDoLote(s.lista || []);
+    const semTipo = (s.sem_tipo || []).filter(function (x) { return !x.tipos.length; });
+    const faltamGiro = s.formatos.filter(function (f) { return !giroCompleto(giroDe(f)); });
+    if (!lote.length && semTipo.length < 2 && !faltamGiro.length) return;
+    const barra = el('div', null, 'lote-barra');
+    barra.setAttribute('role', 'group');
+    barra.setAttribute('aria-label', 'Para todos os formatos');
+    if (lote.length) {
+      const g = el('div', null, 'lote-grupo');
+      g.id = 'spec-lote';
+      g.appendChild(el('span', 'Spec', 'lote-rotulo'));
+      const todos = botao('Marcar todos', 'botao');
+      todos.id = 'spec-lote-todos';
+      todos.addEventListener('click', function () {
+        const tudo = lote.every(function (v) { return specsMarcados.has(v.valor_id); });
+        lote.forEach(function (v) { if (tudo) specsMarcados.delete(v.valor_id); else specsMarcados.add(v.valor_id); });
         atualizarLoteDeSpecs();
       });
-      topo.appendChild(gm);
-      topo.appendChild(el('span', g.nome, 'spec-cartao-nome'));
-      topo.appendChild(el('span', plural(g.valores.length, 'valor', 'valores'), 'spec-cartao-conta'));
-      art.appendChild(topo);
-      const ul = el('ul', null, 'spec-valores');
-      g.valores.forEach(function (v) {
-        const li = el('li', null, 'spec-valor');
-        const rot = el('label', null, 'spec-valor-rotulo');
-        const c = el('input', null, 'spec-valor-marca');
-        c.type = 'checkbox';
-        c.dataset.valor = v.valor_id;
-        c.dataset.grupo = g.id;
-        c.addEventListener('change', function () {
-          if (c.checked) specsMarcados.add(v.valor_id); else specsMarcados.delete(v.valor_id);
-          atualizarLoteDeSpecs();
-        });
-        rot.appendChild(c);
-        const info = el('span', null, 'opcao-info');
-        const linha = el('span', null, 'spec-valor-linha');
-        linha.appendChild(el('span', v.campo, 'spec-valor-campo'));
-        linha.appendChild(el('span', v.descricao, 'opcao-nome'));
-        info.appendChild(linha);
-        if (v.trecho && v.trecho !== v.descricao) info.appendChild(el('span', v.trecho, 'opcao-detalhe'));
-        rot.appendChild(info);
-        li.appendChild(rot);
-        ul.appendChild(li);
+      const conf = botao('Confirmar os marcados', 'botao botao-primario');
+      conf.id = 'spec-lote-confirmar';
+      conf.dataset.ato = 'spec_valores';
+      g.appendChild(todos);
+      g.appendChild(conf);
+      barra.appendChild(g);
+    }
+    if (semTipo.length > 1) {
+      const g = el('div', null, 'lote-grupo');
+      g.id = 'tipo-lote';
+      g.appendChild(el('span', 'Todos em', 'lote-rotulo'));
+      const seg = segmentado('Tipo de arquivo de todos os formatos que faltam');
+      const chaves = semTipo.map(function (x) { return x.chave; });
+      TIPOS_DE_ARQUIVO.forEach(function (ts) {
+        // acao em lote, nao escolha: sem aria-pressed, que so a linha de cada formato reflete
+        const b = botaoAto(nomeDosTipos(ts), 'spec_tipos', { formatos: chaves, tipos: ts }, 'botao-vista');
+        b.setAttribute('aria-label', 'Todos os formatos que faltam em ' + nomeDosTipos(ts));
+        seg.appendChild(b);
       });
-      art.appendChild(ul);
-      caixa.appendChild(art);
-    });
-    setTimeout(atualizarLoteDeSpecs, 0);
-    return caixa;
+      g.appendChild(seg);
+      barra.appendChild(g);
+    }
+    if (faltamGiro.length) montarGiroEmLote(barra, s, faltamGiro);
+    no.appendChild(barra);
   }
   /* a janela do lote lista cada valor marcado, por formato (so textContent) */
   function extraDoLoteDeSpecs(dados) {
@@ -1652,37 +1599,125 @@
     });
     return corpo;
   }
-  function montarSpecsAvulsos(no, lista) {
-    lista.forEach(function (v) {
-      const art = el('article', null, 'decisao');
-      const topo = el('div', null, 'decisao-topo');
-      topo.appendChild(el('span', v.campo, 'decisao-nome'));
-      topo.appendChild(el('span', v.onde, 'decisao-estado'));
-      art.appendChild(topo);
-      if (v.leituras.length) {
-        art.appendChild(el('p', 'As folhas trazem valores diferentes. Escolha o que vale.', 'decisao-nota'));
-        const ul = el('ul', null, 'opcoes-lista');
-        v.leituras.forEach(function (lei) {
-          const li = el('li', null, 'opcao-linha');
-          const info = el('span', null, 'opcao-info');
-          info.appendChild(el('span', lei.descricao, 'opcao-nome'));
-          if (lei.trecho && lei.trecho !== lei.descricao) info.appendChild(el('span', lei.trecho, 'opcao-detalhe'));
-          li.appendChild(info);
-          li.appendChild(botaoAto('Usar este valor', 'spec_valor', { valor_id: v.valor_id, leitura: lei.indice }));
-          ul.appendChild(li);
-        });
-        art.appendChild(ul);
-      } else {
-        const linha = el('div', null, 'opcao-linha');
+  /* o valor fora do lote, na propria linha do formato: as leituras diferentes com "Usar este valor" (ato spec_valor
+     com a leitura), ou o valor do formato com duas medidas com "Confirmar valor" */
+  function avulsoNaLinha(v) {
+    const caixa = el('div', null, 'spec-avulso');
+    caixa.appendChild(el('span', v.campo, 'spec-valor-campo'));
+    if (v.leituras.length) {
+      caixa.appendChild(el('span', 'As folhas trazem valores diferentes. Escolha o que vale.', 'cel-nota'));
+      const ul = el('ul', null, 'spec-leituras');
+      v.leituras.forEach(function (lei) {
+        const li = el('li', null, 'spec-leitura');
         const info = el('span', null, 'opcao-info');
-        info.appendChild(el('span', v.descricao, 'opcao-nome'));
-        if (v.trecho && v.trecho !== v.descricao) info.appendChild(el('span', v.trecho, 'opcao-detalhe'));
-        linha.appendChild(info);
-        linha.appendChild(botaoAto('Confirmar valor', 'spec_valor', { valor_id: v.valor_id }));
-        art.appendChild(linha);
-      }
-      no.appendChild(art);
+        info.appendChild(el('span', lei.descricao, 'opcao-nome'));
+        if (lei.trecho && lei.trecho !== lei.descricao) info.appendChild(el('span', lei.trecho, 'opcao-detalhe'));
+        li.appendChild(info);
+        li.appendChild(botaoAto('Usar este valor', 'spec_valor', { valor_id: v.valor_id, leitura: lei.indice }, 'botao botao-mini'));
+        ul.appendChild(li);
+      });
+      caixa.appendChild(ul);
+    } else {
+      const linha = el('div', null, 'spec-leitura');
+      const info = el('span', null, 'opcao-info');
+      info.appendChild(el('span', v.descricao, 'opcao-nome'));
+      if (v.trecho && v.trecho !== v.descricao) info.appendChild(el('span', v.trecho, 'opcao-detalhe'));
+      linha.appendChild(info);
+      linha.appendChild(botaoAto('Confirmar valor', 'spec_valor', { valor_id: v.valor_id }, 'botao botao-mini'));
+      caixa.appendChild(linha);
+    }
+    return caixa;
+  }
+  /* a coluna Spec: o chip dos confirmados quando nada espera; senao a caixa que marca os valores do lote, "ver os N
+     valores" (a linha de baixo, com a caixa de cada valor) e os valores de escolha um por um */
+  function montarCelulaDaSpec(td, linha, i) {
+    const sp = linha.spec || { lote: [], avulsos: [], a_confirmar: 0, confirmados: 0 };
+    if (!sp.a_confirmar) {
+      if (sp.confirmados) td.appendChild(el('span', plural(sp.confirmados, 'confirmado', 'confirmados'), 'chip chip-pronto'));
+      else td.appendChild(el('span', 'sem valor na folha', 'cel-nota'));
+      return;
+    }
+    if (sp.lote.length) {
+      const rot = el('label', null, 'spec-grupo-rotulo');
+      const gm = caixaDeMarcar('linha-marca spec-grupo-marca', sp.lote,
+        'Marcar os valores de ' + linha.nome + ' para confirmar');
+      gm.dataset.grupo = linha.grupo;
+      rot.appendChild(gm);
+      rot.appendChild(el('span', sp.lote.length + ' a confirmar', 'spec-grupo-texto'));
+      td.appendChild(rot);
+      const idValores = 'spec-valores-' + i;
+      const aberto = specsAbertos.has(linha.grupo);
+      const textoVer = function (ab) {
+        if (sp.lote.length === 1) return ab ? 'esconder o valor' : 'ver o valor';
+        return (ab ? 'esconder os ' : 'ver os ') + sp.lote.length + ' valores';
+      };
+      const ver = botao(textoVer(aberto), 'ver-valores');
+      ver.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+      ver.setAttribute('aria-controls', idValores);
+      ver.addEventListener('click', function () {
+        const agora = !specsAbertos.has(linha.grupo);
+        if (agora) specsAbertos.add(linha.grupo); else specsAbertos.delete(linha.grupo);
+        const trv = document.getElementById(idValores);
+        if (trv) trv.hidden = !agora;
+        ver.textContent = textoVer(agora);
+        ver.setAttribute('aria-expanded', agora ? 'true' : 'false');
+      });
+      td.appendChild(ver);
+    }
+    sp.avulsos.forEach(function (v) { td.appendChild(avulsoNaLinha(v)); });
+  }
+  /* a linha de baixo com os valores do lote do formato, cada um com a sua caixa (input.spec-valor-marca[data-valor]) */
+  function linhaDosValores(linha, i) {
+    const tr = el('tr', null, 'linha-valores');
+    tr.id = 'spec-valores-' + i;
+    tr.hidden = !specsAbertos.has(linha.grupo);
+    const td = el('td');
+    td.colSpan = 5;
+    const ul = el('ul', null, 'spec-valores');
+    linha.spec.lote.forEach(function (v) {
+      const li = el('li', null, 'spec-valor');
+      const rot = el('label', null, 'spec-valor-rotulo');
+      const c = caixaDeMarcar('spec-valor-marca', [v], 'Marcar ' + v.campo + ' de ' + linha.nome);
+      c.dataset.valor = v.valor_id;
+      c.dataset.grupo = linha.grupo;
+      rot.appendChild(c);
+      const info = el('span', null, 'opcao-info');
+      const texto = el('span', null, 'spec-valor-linha');
+      texto.appendChild(el('span', v.campo, 'spec-valor-campo'));
+      texto.appendChild(el('span', v.descricao, 'opcao-nome'));
+      info.appendChild(texto);
+      if (v.trecho && v.trecho !== v.descricao) info.appendChild(el('span', v.trecho, 'opcao-detalhe'));
+      rot.appendChild(info);
+      li.appendChild(rot);
+      ul.appendChild(li);
     });
+    td.appendChild(ul);
+    tr.appendChild(td);
+    return tr;
+  }
+  /* a coluna Tipo (decisao 205): o segmentado JPEG, PNG, JPEG e PNG quando a folha nao diz (ato spec_tipos, pela
+     janela), o texto "JPEG, da folha" quando ela diz, e a nota onde o tipo ainda nao se aplica */
+  function montarCelulaDoTipo(td, linha) {
+    if (linha.sem_medida) { td.appendChild(el('span', NOTA_CONFIRME_A_MEDIDA, 'cel-nota')); return; }
+    const t = linha.tipo;
+    if (!t) return;
+    if (t.escolhe) {
+      const seg = segmentado('Tipo de arquivo de ' + linha.nome);
+      TIPOS_DE_ARQUIVO.forEach(function (ts) {
+        // o tipo ja escolhido e so o indicador, sem ato: o clique nele nao abre a janela nem grava a mesma escolha
+        // de novo (montarTiposDeArquivo, antes da decisao 209, pulava o igual)
+        const atual = mesmosTipos(t.tipos, ts);
+        const b = atual ? botao(nomeDosTipos(ts), 'botao-vista') :
+          botaoAto(nomeDosTipos(ts), 'spec_tipos', { formatos: [linha.chave], tipos: ts }, 'botao-vista');
+        b.setAttribute('aria-pressed', atual ? 'true' : 'false');
+        b.setAttribute('aria-label', 'O formato ' + linha.nome + ' em ' + nomeDosTipos(ts));
+        seg.appendChild(b);
+      });
+      td.appendChild(seg);
+      return;
+    }
+    if (t.da_folha) { td.appendChild(el('span', t.texto + ', da folha', 'cel-texto')); return; }
+    if (linha.spec && linha.spec.a_confirmar) td.appendChild(el('span', 'depois da spec', 'cel-nota'));
   }
   /* ---------------------------------------------------------------- passo 1: giro e prancheta (revisao do M7a) */
   function giroDe(f) {
@@ -1691,12 +1726,6 @@
     return p1.rotacoes[f.chave] || f.rotacao || null;
   }
   function giroCompleto(g) { return !!g && (g.graus === 0 || g.graus === 180 || !!g.sentido); }
-  function descreverGiro(g) {
-    if (!giroCompleto(g)) return 'Giro não escolhido';
-    if (g.graus === 0) return 'Sem giro';
-    const sentido = g.sentido === 'horario' ? ', sentido horário' : (g.sentido === 'anti_horario' ? ', sentido anti-horário' : '');
-    return 'Girado ' + g.graus + ' graus' + sentido;
-  }
   /* uma escolha do passo 1 muda o layout de todas as familias, como o passo 2 (mudouP2) */
   function mudouP1() {
     p2Mudou = true;
@@ -1727,11 +1756,10 @@
   function formatosSemGiro(s) {
     return s.formatos.filter(function (f) { return !giroCompleto(giroDe(f)) && !f.giro_da_folha; });
   }
-  function montarGiroEmLote(no, s) {
-    const faltam = s.formatos.filter(function (f) { return !giroCompleto(giroDe(f)); });
-    if (!faltam.length) return;
+  function montarGiroEmLote(barra, s, faltam) {
     const livres = formatosSemGiro(s);
-    const barra = el('div', null, 'giro-lote');
+    const g = el('div', null, 'lote-grupo');
+    g.appendChild(el('span', 'Giro', 'lote-rotulo'));
     const b = botao(livres.length === 1 ? 'Sem giro no formato que falta' : (livres.length ? 'Sem giro nos ' +
       livres.length + ' formatos que faltam' : 'Sem giro nos que faltam'), 'botao');
     b.id = 'giro-lote';
@@ -1746,26 +1774,124 @@
       mudouP1();
       montarFormatos(estado.lido.specs, null);
       atualizarSalvar();
-      const t = document.getElementById('t-giro');
+      const t = document.getElementById('t-formatos-job');
       if (t) { t.tabIndex = -1; t.focus({ preventScroll: true }); }
       const selo = document.getElementById('selo');
       if (selo) selo.textContent = plural(agora.length, 'formato ficou', 'formatos ficaram') + ' sem giro.';
     });
-    barra.appendChild(b);
+    g.appendChild(b);
     const fora = faltam.length - livres.length;
-    barra.appendChild(el('p', fora ? (fora === 1 ? 'A folha fala do giro de 1 formato. Escolha o giro dele abaixo.' :
-      'A folha fala do giro de ' + fora + ' formatos. Escolha o giro deles abaixo.') :
-      'Ou escolha o giro de cada formato abaixo.', 'nota'));
-    no.appendChild(barra);
+    if (fora) {
+      g.appendChild(el('span', fora === 1 ? 'A folha fala do giro de 1 formato: escolha na linha dele.' :
+        'A folha fala do giro de ' + fora + ' formatos: escolha na linha de cada um.', 'cel-nota'));
+    }
+    barra.appendChild(g);
   }
-  function botaoGiro(texto, pressionado, chave, acao) {
-    const b = botaoOpcao(texto, pressionado, acao);
+  function botaoGiro(texto, pressionado, chave, acao, rotulo) {
+    const b = botaoOpcao(texto, pressionado, acao, 'botao-vista');
     b.dataset.giro = chave;
+    if (rotulo) b.setAttribute('aria-label', rotulo);
     return b;
+  }
+  /* a coluna Giro: o segmentado Sem giro, 90, 180, 270 e, no quarto de volta, o sentido (o rascunho so grava com
+     ele, escolherGiro); a dica da folha em cinza, so referencia (revisao do M7a) */
+  function montarCelulaDoGiro(td, f, nome) {
+    const g = giroDe(f);
+    const seg = segmentado('Giro de ' + nome);
+    GIROS.forEach(function (x) {
+      seg.appendChild(botaoGiro(x[1], !!g && g.graus === x[0], f.chave + '|' + x[0] + '|', function () {
+        escolherGiro(f, x[0], null);
+      }, x[2]));
+    });
+    td.appendChild(seg);
+    if (g && (g.graus === 90 || g.graus === 270)) {
+      const sent = segmentado('Sentido do giro de ' + nome);
+      SENTIDOS.forEach(function (x) {
+        sent.appendChild(botaoGiro(x[1], g.sentido === x[0], f.chave + '|' + g.graus + '|' + x[0], function () {
+          escolherGiro(f, g.graus, x[0]);
+        }));
+      });
+      td.appendChild(sent);
+      if (!g.sentido) td.appendChild(el('span', 'Escolha o sentido, como o veículo pede.', 'cel-nota cel-aviso'));
+    }
+    if (f.giro_da_folha) td.appendChild(el('span', 'folha: ' + f.giro_da_folha, 'cel-nota'));
+  }
+  /* decisao 209: a tabela "Formatos do job", um lugar so para as decisoes por formato do passo 1. Cada linha e um
+     formato: a spec (decisao 198, 3), o tipo de arquivo (decisao 205) e o giro (revisao do M7a). A spec e o tipo
+     passam pelo ato e pela janela (pedirAto); o giro grava no rascunho sem janela (mudouP1) e so chega ao briefing no
+     "Salvar e seguir". O estado de cada linha vem do motor (specs.linhas, vapt.tela.estado.linhas_de_specs); a pagina
+     so poe por cima o giro que ela guarda ate o rascunho gravar */
+  const NOMES_DO_QUE_FALTA = { medida: 'medida', spec: 'spec', tipo: 'tipo', giro: 'giro' };
+  const NOTA_CONFIRME_A_MEDIDA = 'confirme a medida';
+  function segmentado(rotulo) {
+    const g = el('div', null, 'segmentado seg-compacto');
+    g.setAttribute('role', 'group');
+    g.setAttribute('aria-label', rotulo);
+    return g;
+  }
+  function formatoDaLinha(s, linha) {
+    if (!linha.chave) return null;
+    return s.formatos.find(function (f) { return f.chave === linha.chave; }) || null;
+  }
+  /* o que falta na linha agora: a medida, a spec e o tipo vem do motor; o giro vem da pagina, porque a escolha ainda
+     a caminho do rascunho ja conta */
+  function faltamDaLinha(linha, f) {
+    const fora = (linha.faltam || []).filter(function (x) { return x !== 'giro'; });
+    if (f && !giroCompleto(giroDe(f))) fora.push('giro');
+    return fora;
+  }
+  function chipDoEstado(faltam) {
+    if (!faltam.length) return el('span', 'Pronto', 'chip chip-pronto');
+    return el('span', 'Falta: ' + faltam.map(function (x) { return NOMES_DO_QUE_FALTA[x] || x; }).join(', '), 'chip chip-falta');
+  }
+  function cabecalhoDaTabela() {
+    const thead = el('thead');
+    const tr = el('tr');
+    [['Formato', null], ['Spec', 'pede Confirmar'], ['Tipo', 'pede Confirmar'], ['Giro', 'salvo no rascunho'],
+      ['Estado', null]].forEach(function (c) {
+      const th = el('th', null, 'col-' + c[0].toLowerCase());
+      th.setAttribute('scope', 'col');
+      th.appendChild(el('span', c[0]));
+      if (c[1]) th.appendChild(el('small', c[1], 'col-nota'));
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+    return thead;
+  }
+  function linhaDaTabela(s, linha, i) {
+    const f = formatoDaLinha(s, linha);
+    const tr = el('tr', null, 'linha-spec');
+    tr.dataset.grupo = linha.grupo;
+    if (f) tr.dataset.formato = f.id;
+    const tdF = el('td', null, 'cel-formato');
+    tdF.appendChild(el('span', linha.nome, 'formato-nome'));
+    if (linha.origem) tdF.appendChild(el('span', linha.origem, 'formato-origem'));
+    tr.appendChild(tdF);
+    const tdS = el('td', null, 'cel-spec');
+    montarCelulaDaSpec(tdS, linha, i);
+    tr.appendChild(tdS);
+    const tdT = el('td', null, 'cel-tipo');
+    montarCelulaDoTipo(tdT, linha);
+    tr.appendChild(tdT);
+    const tdG = el('td', null, 'cel-giro');
+    if (f) {
+      montarCelulaDoGiro(tdG, f, linha.nome);
+      tr.dataset.giro = giroCompleto(giroDe(f)) ? 'feito' : 'falta';
+    } else if (linha.sem_medida) tdG.appendChild(el('span', NOTA_CONFIRME_A_MEDIDA, 'cel-nota'));
+    tr.appendChild(tdG);
+    const faltam = faltamDaLinha(linha, f);
+    const tdE = el('td', null, 'cel-estado');
+    tdE.appendChild(chipDoEstado(faltam));
+    tr.appendChild(tdE);
+    tr.classList.toggle('pronta', !faltam.length);
+    return tr;
   }
   function montarFormatos(s, foco) {
     const no = document.getElementById('lido-formatos');
     limpar(no);
+    const linhas = s.linhas || [];
+    const ids = new Set(valoresDoLote(s.lista || []).map(function (v) { return v.valor_id; }));
+    Array.from(specsMarcados).forEach(function (i) { if (!ids.has(i)) specsMarcados.delete(i); });
     if (!s.formatos.length) {
       // 0.9.2 (A3): o estado normal do job novo, num cartao neutro com a saida ao lado do texto
       const vazio = el('div', null, 'vazio-formatos');
@@ -1777,49 +1903,29 @@
       });
       vazio.appendChild(ir);
       no.appendChild(vazio);
-      return;
+      if (!linhas.length) return;
     }
-    montarGiroEmLote(no, s);
-    s.formatos.forEach(function (f) {
-      const g = giroDe(f);
-      const art = el('article', null, 'decisao giro' + (giroCompleto(g) ? ' feita' : ''));
-      const topo = el('div', null, 'decisao-topo');
-      const nome = el('span', null, 'decisao-nome');
-      // revisao do 0.9.2: o formato escrito na tela aparece pela medida, sem o id do motor
-      if (f.digitado) nome.appendChild(el('span', 'Escrito por você', 'giro-id'));
-      else nome.appendChild(el('span', f.id, 'giro-id'));
-      nome.appendChild(el('span', dimensao(f.largura, f.altura), 'giro-medida'));
-      topo.appendChild(nome);
-      topo.appendChild(el('span', descreverGiro(g), 'decisao-estado'));
-      art.appendChild(topo);
-      art.appendChild(el('p', f.sem_folha ? 'Formato de teste, sem folha.' : (f.digitado ? 'Formato escrito por você, sem folha de spec.' :
-        (f.tem_spec ? 'Com spec confirmada.' : 'Sem spec confirmada.')), 'decisao-nota giro-spec'));
-      art.appendChild(el('p', f.digitado ? 'Sem folha de spec, o giro é só escolha sua.' :
-        (f.giro_da_folha ? 'A folha diz: ' + f.giro_da_folha : 'A folha não fala de giro.'), 'giro-folha'));
-      const linha = el('div', null, 'opcoes-funcao giro-opcoes');
-      linha.setAttribute('role', 'group');
-      linha.setAttribute('aria-label', 'Giro de ' + (f.digitado ? dimensao(f.largura, f.altura) : f.id));
-      GIROS.forEach(function (x) {
-        linha.appendChild(botaoGiro(x[1], !!g && g.graus === x[0], f.chave + '|' + x[0] + '|', function () {
-          escolherGiro(f, x[0], null);
-        }));
-      });
-      art.appendChild(linha);
-      if (g && (g.graus === 90 || g.graus === 270)) {
-        const sent = el('div', null, 'opcoes-funcao giro-opcoes');
-        sent.setAttribute('role', 'group');
-        sent.setAttribute('aria-label', 'Sentido do giro de ' + (f.digitado ? dimensao(f.largura, f.altura) : f.id));
-        sent.appendChild(el('span', 'Sentido', 'giro-rotulo'));
-        SENTIDOS.forEach(function (x) {
-          sent.appendChild(botaoGiro(x[1], g.sentido === x[0], f.chave + '|' + g.graus + '|' + x[0], function () {
-            escolherGiro(f, g.graus, x[0]);
-          }));
-        });
-        art.appendChild(sent);
-        if (!g.sentido) art.appendChild(el('p', 'Escolha o sentido do giro, como o veículo pede.', 'decisao-nota aviso'));
-      }
-      no.appendChild(art);
+    const cabeca = el('div', null, 'formatos-cabeca');
+    const titulo = el('h3', 'Formatos do job', 'subtitulo');
+    titulo.id = 't-formatos-job';
+    cabeca.appendChild(titulo);
+    const pend = (s.lista || []).length;
+    if (pend) cabeca.appendChild(el('p', pend === 1 ? '1 valor de spec espera a sua confirmação.' : pend + ' valores de spec esperam a sua confirmação.', 'nota formatos-resumo'));
+    else if (s.tem_rascunho) cabeca.appendChild(el('p', 'Todos os valores de spec estão confirmados.', 'nota formatos-resumo spec-vazio'));
+    cabeca.appendChild(el('p', 'A spec e o tipo pedem a confirmação na janela. O giro fica salvo no rascunho e vai ao briefing no Salvar e seguir.', 'nota formatos-como'));
+    no.appendChild(cabeca);
+    montarBarraDeLote(no, s);
+    const tabela = el('table', null, 'formatos-tabela');
+    tabela.appendChild(el('caption', 'Formatos do job: a spec, o tipo de arquivo e o giro de cada um', 'visualmente-oculto'));
+    tabela.appendChild(cabecalhoDaTabela());
+    const tbody = el('tbody');
+    linhas.forEach(function (linha, i) {
+      tbody.appendChild(linhaDaTabela(s, linha, i));
+      if (linha.spec && linha.spec.lote.length) tbody.appendChild(linhaDosValores(linha, i));
     });
+    tabela.appendChild(tbody);
+    no.appendChild(tabela);
+    atualizarLoteDeSpecs();
     if (foco) {
       const b = Array.from(no.querySelectorAll('button[data-giro]')).find(function (x) { return x.dataset.giro === foco; });
       if (b) b.focus();
@@ -1924,9 +2030,13 @@
     }
     if (!escrita) md.appendChild(el('p', SO_PARA_VER, 'nota modo-nota'));
   }
-  /* M7c, M3: a marca do job (decisao 190, Q5). As marcas da biblioteca da agencia, "Sem marca" e a "Marca nova",
-     nenhuma marcada ate o clique do DA; a escolha e opcional e nunca entra no que falta. Sem biblioteca que sirva, so
-     "Sem marca", com a nota de onde configurar. O nome da marca e dado do DA: so por textContent */
+  /* M7c, M3: a marca do job (decisao 190, Q5, revisada pela 207). Com marcas na biblioteca da agencia, as marcas,
+     "Sem marca" e a "Marca nova", nenhuma marcada ate o clique do DA. Quando "Sem marca" e a unica escolha possivel
+     (biblioteca nao usavel, ou usavel e sem nenhuma marca), ela ja vem marcada, sem gravar nada: a marcacao e so
+     visual, derivada do estado, porque no motor a ausencia de briefing/marca.json e 'sem_marca' sao a mesma coisa. O
+     primeiro clique em qualquer linha grava como sempre, pela janela. Nesse caso a nota de abertura (escolha de que
+     marca e este job) nao entra, so a nota do caso. A escolha e opcional e nunca entra no que falta. Sem biblioteca
+     que sirva, so "Sem marca", com a nota de onde configurar. O nome da marca e dado do DA: so por textContent */
   let marcaNova = '';
   let marcaNovaRecusada = null;
   const MARCA_NOVA_MAX = 120;
@@ -1939,9 +2049,19 @@
     const partes = extensoes.map(function (x) { return String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
     return new RegExp('\\.(?:' + partes.join('|') + ')(?![A-Za-z0-9_-])', 'i');
   }
-  function linhaMarca(nome, texto, dados, sim) {
+  /* decisao 207: a linha marcada por ser a unica escolha diz isso no title e ao leitor de tela. Com a biblioteca
+     usavel e vazia, o campo "Marca nova" fica logo abaixo, entao o texto nao pode dizer que nao ha outra escolha */
+  const MARCA_UNICA = 'Única escolha possível agora. O job segue sem marca.';
+  const MARCA_UNICA_VAZIA = 'Já marcada: a biblioteca ainda não tem marca. Você pode criar uma abaixo.';
+  // unica: o texto do title e do leitor de tela quando a linha vem marcada por ser a unica escolha; null nos demais
+  function linhaMarca(nome, texto, dados, sim, unica) {
     const b = botaoAto('', 'marca', dados, 'modo marca-linha');
     b.setAttribute('aria-pressed', sim ? 'true' : 'false');
+    if (unica) {
+      b.title = unica;
+      b.setAttribute('aria-description', unica);
+      b.dataset.unica = '1';
+    }
     b.appendChild(el('span', null, 'modo-marca'));
     const corpo = el('span', null, 'modo-corpo');
     corpo.appendChild(el('span', nome, 'modo-nome'));
@@ -1955,9 +2075,15 @@
     if (!m) return;
     const e = m.escolhida;
     const usavel = !!(m.biblioteca && m.biblioteca.usavel);
-    no.appendChild(el('p', e ? 'A marca vale para o job inteiro. Você pode trocar quando quiser.' :
-      'Escolha de que marca é este job, se quiser. O padrão que a marca tiver aparece como sugestão, e nada muda sem o seu clique.',
-      'nota modo-nota'));
+    // decisao 207: "Sem marca" e a unica escolha possivel; vem marcada sem gravar
+    const unica = !e && (!usavel || m.marcas.length === 0);
+    // decisao 207: com a linha ja marcada, a nota de abertura ("escolha de que marca e este job") nao entra; fica so a
+    // nota do caso, que diz que a linha ja vem marcada
+    if (!unica) {
+      no.appendChild(el('p', e ? 'A marca vale para o job inteiro. Você pode trocar quando quiser.' :
+        'Escolha de que marca é este job, se quiser. O padrão que a marca tiver aparece como sugestão, e nada muda sem o seu clique.',
+        'nota modo-nota'));
+    }
     if (e && e.escolha === 'marca' && !e.nome) {
       no.appendChild(el('p', 'Este job tem uma marca escolhida que não aparece na biblioteca desta janela.', 'nota marca-escolhida-fora'));
     }
@@ -1970,10 +2096,16 @@
       });
       no.appendChild(lista);
     } else if (usavel) {
-      no.appendChild(el('p', 'A biblioteca da agência ainda não tem marca. Crie a primeira abaixo, ou siga sem marca.', 'vazio-calmo modo-nota'));
+      // decisao 207: a nota diz que a linha "Sem marca" ja vem marcada e que nenhum clique e preciso
+      no.appendChild(el('p', unica ?
+        'A biblioteca da agência ainda não tem marca. A linha Sem marca já vem marcada e não precisa de clique. Se quiser, crie a primeira marca abaixo.' :
+        'A biblioteca da agência ainda não tem marca. Crie a primeira abaixo, ou siga sem marca.', 'vazio-calmo modo-nota'));
     } else {
       // 0.9.2 (M7): uma linha a vista; o caminho da configuracao fica dentro de "Como configurar"
-      no.appendChild(el('p', 'A biblioteca de marcas da agência não está pronta para este job. O job segue sem marca.', 'nota modo-nota'));
+      // decisao 207: a nota diz que a linha "Sem marca" ja vem marcada e que nenhum clique e preciso
+      no.appendChild(el('p', unica ?
+        'A biblioteca de marcas da agência não está pronta para este job. A linha Sem marca já vem marcada e não precisa de clique.' :
+        'A biblioteca de marcas da agência não está pronta para este job. O job segue sem marca.', 'nota modo-nota'));
       const como = m.biblioteca && m.biblioteca.o_que_fazer;
       if (como) {
         const d = el('details', null, 'saiba-mais');
@@ -1983,7 +2115,8 @@
       }
     }
     const sem = el('div', null, 'modos marca-sem');
-    sem.appendChild(linhaMarca('Sem marca', 'O job segue sem padrão de marca.', { escolha: 'sem_marca' }, !!e && e.escolha === 'sem_marca'));
+    sem.appendChild(linhaMarca('Sem marca', 'O job segue sem padrão de marca.', { escolha: 'sem_marca' },
+      unica || (!!e && e.escolha === 'sem_marca'), unica ? (usavel ? MARCA_UNICA_VAZIA : MARCA_UNICA) : null));
     no.appendChild(sem);
     if (usavel && m.pode_criar) no.appendChild(campoMarcaNova(m.marcas, m.extensoes_fonte));
     if (!escrita) no.appendChild(el('p', SO_PARA_VER, 'nota modo-nota'));
@@ -2078,13 +2211,12 @@
       sp.appendChild(n);
     }
     montarDigitados(s.digitados);
-    montarTiposDeArquivo(s.sem_tipo);
     // 0.9.2 (A3): sem formato nenhum, o bloco dos formatos escritos e o primeiro passo; com a folha, fica discreto
     const blocoDig = document.getElementById('digitados');
     const soDaFolha = s.formatos.length > 0 && !s.formatos.some(function (f) { return f.digitado; });
     blocoDig.classList.toggle('em-destaque', !s.formatos.length && !s.folhas);
     blocoDig.classList.toggle('secundario', soDaFolha);
-    montarSpecs(s);
+    // decisao 209: a spec, o tipo e o giro de cada formato numa tabela so
     montarFormatos(s);
     montarQuadros(l.quadros || []);
     montarModo(l.modo_dados);
@@ -2391,6 +2523,7 @@
     const semGiro = lido.specs.formatos.some(function (f) { return !giroCompleto(giroDe(f)); });
     /* o formato da folha com duas medidas, sem a escolha do DA: o servidor recusa salvar (formato_sem_medida) */
     const semMedida = (lido.specs.sem_medida || []).length > 0;
+    const semTipo = (lido.specs.sem_tipo || []).filter(function (x) { return !(x.tipos || []).length; }).length;
     const semFamilias = !idsDasFamilias().length;
     /* 0.9.2 (A6): o motivo em tinta, junto do botao, e o "Ir até lá" leva ao lugar onde ele se resolve */
     let destino = null;
@@ -2422,6 +2555,7 @@
       // ja na familia que falta, o botao ao lado (Confirmar família) e o caminho; o "Ir até lá" so leva a outra
       if (gid && !(vista.familia === gid && !document.getElementById('passo-pecas').hidden)) destino = { passo: 'pecas', familia: gid };
     } else if (refazer.length) { dica.textContent = DICA_REFAZER; dica.classList.add('pronta'); }
+    else if (semTipo) { dica.textContent = dicaDoTipo(semTipo); destino = { passo: 'lido', alvo: 'lido-formatos' }; }
     else { dica.textContent = DICA_PRONTA; dica.classList.add('pronta'); }
     b.disabled = !!(semConfirmar || p2falta || semModo || semFormatos || semQuadro || semGiro || semMedida || semFamilias);
     if (b.disabled) {
@@ -3556,11 +3690,26 @@
     no.appendChild(texto);
     const giro = etiquetaDoGiro(x);
     if (giro) no.appendChild(el('span', giro, 'etiqueta-giro'));
-    if (g.separado_de) {
+    if (g.separado_por_tamanho) {
+      // decisao 208 (revisao da 163): a regra do tamanho separou este grupo do maior; a frase diz de onde e quanto o
+      // conteudo copiado ficaria, e o mesmo "Juntar de volta" o devolve (a regra nao separa de novo)
+      no.appendChild(el('span', fraseDoTamanho(g.separado_por_tamanho), 'cabecalho-nota'));
+      no.appendChild(botaoAto('Juntar de volta', 'familia_juntar', { familia: g.id }, 'botao botao-vista'));
+    } else if (g.separado_de) {
       no.appendChild(el('span', 'Este arquivo saiu de outra família e tem o layout próprio.', 'cabecalho-nota'));
       no.appendChild(botaoAto('Juntar de volta', 'familia_juntar', { familia: g.id }, 'botao botao-vista'));
     }
     montarTrocar(g, no);
+  }
+  /* a frase do motivo (decisao 208): o arquivo de referencia pelo nome que o DA ve (a medida da entrega e o giro,
+     nunca a medida em pe da composicao) e o percentual inteiro da copia; com mais de um arquivo no grupo, a faixa do
+     menor ao arquivo de edicao. A janela do "Juntar de volta" diz o mesmo (atos.quanto_do_tamanho) */
+  function fraseDoTamanho(t) {
+    const maior = Math.round(t.escala * 100);
+    const menor = Math.round((typeof t.escala_menor === 'number' ? t.escala_menor : t.escala) * 100);
+    const quanto = menor === maior ? 'com ' + maior + '% do tamanho' : 'entre ' + menor + '% e ' + maior + '% do tamanho';
+    const de = t.arquivo && formatoDoJob(t.arquivo) ? nomeDoArquivo(t.arquivo) : t.de;
+    return 'O Vapt separou este grupo do ' + de + ': copiado, o conteúdo ficaria ' + quanto + '.';
   }
   /* "Trocar arquivo de edicao" (decisao 199, 1; resposta 2 do Duda): so na familia sem edicao, com um clique por
      arquivo; a janela do servidor confirma. Com edicao, o botao some e o title diz por que */
@@ -6259,7 +6408,7 @@
       } else if (resposta && resposta.confirmados) {
         selo.textContent = plural(resposta.confirmados, 'valor de spec confirmado', 'valores de spec confirmados') + '.';
       }
-      const alvo = document.querySelector('#lido-specs-pendentes .subtitulo') || document.getElementById('t-specs');
+      const alvo = document.getElementById('t-formatos-job') || document.getElementById('t-specs');
       if (alvo) { alvo.tabIndex = -1; alvo.focus({ preventScroll: true }); }
     };
     depoisDoAto.salvar = function () {

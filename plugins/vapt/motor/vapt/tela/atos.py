@@ -489,11 +489,23 @@ def _nomes(conteudo):
     return estado.nomes_da_tela(conteudo)
 
 
+def quanto_do_tamanho(motivo):
+    """'com 33% do tamanho' ou 'entre 28% e 33% do tamanho' (decisao 208): com que escala o conteudo copiado ficaria
+    no arquivo de edicao da familia que a regra do tamanho separou ('escala') e, quando ela tem arquivo menor, no menor
+    dela ('escala_menor'); percentuais inteiros, como no cabecalho da tela (tela.js, fraseDoTamanho)."""
+    maior = int(round(float(motivo['escala']) * 100))
+    menor = int(round(float(motivo.get('escala_menor', motivo['escala'])) * 100))
+    if menor == maior:
+        return 'com %d%% do tamanho' % maior
+    return 'entre %d%% e %d%% do tamanho' % (menor, maior)
+
+
 def _atos_da_estrutura(pasta, conteudo):
     """Os atos da janela que mudam a estrutura da familia (decisao 199; 0.10.0), cada um com a confirmacao do DA:
       - familia_arquivo: "Trocar arquivo de edicao", so na familia sem edicao nem quebra de linha gravada;
       - familia_separar: "Separar em familia propria", um arquivo que nao e o de edicao, na familia de dois ou mais;
-      - familia_juntar: "Juntar de volta", a familia de um arquivo separado volta para a de onde saiu.
+      - familia_juntar: "Juntar de volta", a familia de um arquivo separado volta para a de onde saiu; desde a
+        decisao 208, tambem a familia que a regra do tamanho separou (separado_por_tamanho), com todos os arquivos.
     As familias sao as do conteudo da tela agora; depois do ato, a tela monta as familias de novo
     (vapt.tela.estado.montar, estrutura)."""
     from vapt.tela import rascunho
@@ -557,16 +569,38 @@ def _atos_da_estrutura(pasta, conteudo):
 
     def juntar_valido(d):
         fam = familia(d)
-        return fam is not None and bool(fam.get('separado_de')) and len(fam['formatos']) == 1
+        if fam is None or not fam.get('separado_de') or fam['separado_de'] not in conteudo['familias']:
+            return False
+        # decisao 208: a familia que a regra do tamanho separou volta inteira, com os arquivos que tiver
+        return bool(fam.get('separado_por_tamanho')) or len(fam['formatos']) == 1
 
     def juntar_texto(d):
+        nomes = _nomes(conteudo)
         fam = conteudo['familias'][d['familia']]
+        if fam.get('separado_por_tamanho'):
+            mae = conteudo['familias'][fam['separado_de']]
+            ref = mae.get('arquivo_de_edicao')
+            lista = [nomes.get(f, f) for f in fam['formatos']]
+            quem = ('O %s volta' % lista[0] if len(lista) == 1 else
+                    'Os arquivos %s e %s voltam' % (', '.join(lista[:-1]), lista[-1]))
+            # a frase do cabecalho da tela, com a escala em percentual inteiro (tela.js, montarCabecalho)
+            return ('%s para a família do %s e %s a seguir o layout do arquivo de edição dela. Copiado, o conteúdo '
+                    'fica %s. O que você editou aqui fica guardado e não vale lá. A família que recebe %s pede a sua '
+                    'confirmação de novo.'
+                    % (quem, nomes.get(ref, ref), 'passa' if len(lista) == 1 else 'passam',
+                       quanto_do_tamanho(fam['separado_por_tamanho']),
+                       'o arquivo' if len(lista) == 1 else 'os arquivos'))
         return ('O %s volta para a família de onde saiu e passa a seguir o layout do arquivo de edição dela. O que '
                 'você editou aqui fica guardado e não vale lá. A família de onde ele saiu pede a sua confirmação de '
-                'novo.' % _nomes(conteudo).get(fam['formatos'][0], fam['formatos'][0]))
+                'novo.' % nomes.get(fam['formatos'][0], fam['formatos'][0]))
 
     def juntar_executar(disparo, d):
         fam = conteudo['familias'][d['familia']]
+        if fam.get('separado_por_tamanho'):
+            mae = conteudo['familias'][fam['separado_de']]
+            rascunho.juntar_por_tamanho(pasta, fam['separado_de'], fam['formatos'], formatos=mae['formatos'],
+                                        filha=d['familia'], **comum(disparo))
+            return {'familia': fam['separado_de'], 'juntados': list(fam['formatos'])}
         rascunho.juntar(pasta, fam['separado_de'], fam['formatos'][0], **comum(disparo))
         return {'familia': fam['separado_de'], 'juntado': fam['formatos'][0]}
     return {

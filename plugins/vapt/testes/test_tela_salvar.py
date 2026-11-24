@@ -1121,6 +1121,8 @@ def test_salvar_e_seguir_no_chromium(job, modelo):
 # ------------------------------------------------------------------ M7c, M3: a marca do job no passo 1
 # decisoes-v1.md, 190 (Q5): a lista das marcas da biblioteca da agencia, "Marca nova" e "Sem marca", nenhuma marcada;
 # a escolha e opcional e nunca trava o "Salvar e seguir". Nomes de marca sinteticos.
+# decisao 207 (revisa a 190 Q5): sem marca na biblioteca, ou sem biblioteca usavel, "Sem marca" ja vem marcada na pagina,
+# so no visual: o motor continua sem briefing/marca.json ate o clique do DA (escolhida None).
 MARCA_UM = 'Marca Sintetica Um'
 MARCA_DOIS = 'Marca Sintetica Dois'
 
@@ -1351,6 +1353,17 @@ def test_gancho_nega_ao_claude_ler_e_escrever_a_marca_do_job(job):
 
 JS_MARCAS_MARCADAS = '''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
     .filter(b => b.getAttribute("aria-pressed") === "true").map(b => b.textContent)'''
+# decisao 207: a linha marcada por ser a unica escolha possivel (sem gravar)
+JS_MARCA_UNICA = '''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca][data-unica]"))
+    .map(b => b.querySelector(".modo-nome").textContent)'''
+# o textContent da linha "Sem marca" e o nome seguido do texto de apoio
+SEM_MARCA_LINHA = 'Sem marcaO job segue sem padrão de marca.'
+JS_TEXTO_DA_MARCA = '() => document.getElementById("lido-marca").textContent'
+JS_TITLE_SEM_MARCA = '''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
+    .find(b => b.querySelector(".modo-nome").textContent === "Sem marca").title'''
+# a nota de abertura do bloco: so quando nada vem marcado (decisao 207)
+NOTA_ABERTURA = 'nada muda sem o seu clique'
+JA_MARCADA = 'já vem marcada'
 
 
 def _abrir_passo_1(pw, srv):
@@ -1402,7 +1415,9 @@ def test_marca_no_chromium_escolher_fechar_e_reabrir(job, biblioteca, capturas=N
             nomes = pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
                 .map(b => b.querySelector(".modo-nome").textContent)''')
             assert nomes == sorted(ids.values(), key=str.casefold) + ['Sem marca']
-            assert pg.evaluate(JS_MARCAS_MARCADAS) == []
+            assert pg.evaluate(JS_MARCAS_MARCADAS) == [] and pg.evaluate(JS_MARCA_UNICA) == []
+            # com marcas na biblioteca, a nota de abertura continua (decisao 207 nao a tira daqui)
+            assert NOTA_ABERTURA in pg.evaluate(JS_TEXTO_DA_MARCA)
             assert pg.evaluate('() => document.getElementById("marca-nova-criar").disabled') is True
             foto(pg, '1-nenhuma-marcada')
             # a marca dois, pela janela de confirmacao
@@ -1446,6 +1461,7 @@ def test_marca_no_chromium_sem_biblioteca(job, capturas=None):
     from playwright.sync_api import sync_playwright
 
     from vapt.chromium import navegador
+    from vapt.marca import job as mj
     navegador.apontar_playwright()
     conteudo = te.montar(job)
     with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
@@ -1454,13 +1470,114 @@ def test_marca_no_chromium_sem_biblioteca(job, capturas=None):
         try:
             nomes = pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
                 .map(b => b.querySelector(".modo-nome").textContent)''')
-            assert nomes == ['Sem marca'] and pg.evaluate(JS_MARCAS_MARCADAS) == []
+            # decisao 207: "Sem marca" e a unica escolha, entao ja vem marcada, com o title que diz isso
+            assert nomes == ['Sem marca'] and pg.evaluate(JS_MARCAS_MARCADAS) == [SEM_MARCA_LINHA]
+            assert pg.evaluate(JS_MARCA_UNICA) == ['Sem marca']
+            assert 'nica escolha' in pg.evaluate(JS_TITLE_SEM_MARCA)
             assert pg.evaluate('() => document.getElementById("marca-nova-nome")') is None
-            assert 'Configure' in pg.evaluate('() => document.getElementById("lido-marca").textContent')
+            texto = pg.evaluate(JS_TEXTO_DA_MARCA)
+            assert 'Configure' in texto and JA_MARCADA in texto and NOTA_ABERTURA not in texto
+            assert '—' not in texto and '–' not in texto
             if capturas is not None:
                 pg.locator('#bloco-marca').screenshot(path=str(capturas / '6-sem-biblioteca.png'))
         finally:
             nav.close()
+    # a marcacao e so visual: nada foi gravado
+    assert not (job / mj.ARQUIVO).exists()
+    # "Sem marca" gravada de proposito (pelo servidor, como o fluxo da janela): a linha continua marcada, mas pela
+    # escolha gravada, nao por ser a unica; a nota volta a ser a de sempre
+    s = _servidor(job, conteudo)
+    try:
+        biscoito = tts._entrar(s)
+        assert _ato(s, biscoito, 'marca', {'escolha': 'sem_marca'})[1] == 200
+    finally:
+        s.parar()
+    assert mj.ler(job)['escolha'] == 'sem_marca'
+    conteudo = te.montar(job)
+    assert _marca_na_tela(conteudo)['escolhida']['escolha'] == 'sem_marca'
+    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
+                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
+        nav, pg = _abrir_passo_1(pw, srv)
+        try:
+            assert pg.evaluate(JS_MARCAS_MARCADAS) == [SEM_MARCA_LINHA] and pg.evaluate(JS_MARCA_UNICA) == []
+            assert pg.evaluate(JS_TITLE_SEM_MARCA) == ''
+            texto = pg.evaluate(JS_TEXTO_DA_MARCA)
+            assert 'O job segue sem marca.' in texto and JA_MARCADA not in texto
+        finally:
+            nav.close()
+
+
+def test_marca_no_chromium_escolhida_fora_da_biblioteca(job, biblioteca):
+    """decisao 207: a marca gravada com a biblioteca que depois deixou de servir. Nada vem marcado, nem "Sem marca"
+    (ha escolha gravada), e a nota diz que a marca escolhida nao aparece nesta janela."""
+    from playwright.sync_api import sync_playwright
+
+    from vapt.chromium import navegador
+    bib, ids = biblioteca
+    navegador.apontar_playwright()
+    conteudo = te.montar(job, biblioteca=str(bib))
+    s = _servidor(job, conteudo)
+    try:
+        biscoito = tts._entrar(s)
+        assert _ato(s, biscoito, 'marca', {'escolha': 'marca', 'id': next(iter(ids))})[1] == 200
+    finally:
+        s.parar()
+    conteudo = te.montar(job)
+    assert _marca_na_tela(conteudo)['escolhida']['escolha'] == 'marca'
+    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
+                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
+        nav, pg = _abrir_passo_1(pw, srv)
+        try:
+            assert pg.evaluate(JS_MARCAS_MARCADAS) == [] and pg.evaluate(JS_MARCA_UNICA) == []
+            texto = pg.evaluate(JS_TEXTO_DA_MARCA)
+            assert 'não aparece na biblioteca' in texto and JA_MARCADA not in texto
+            assert 'A marca vale para o job inteiro' in texto
+        finally:
+            nav.close()
+
+
+def test_marca_no_chromium_biblioteca_vazia(job, tmp_path, capturas=None):
+    """decisao 207: biblioteca usavel e sem marca. "Sem marca" ja vem marcada sem gravar; o campo da marca nova
+    continua; o clique em "Sem marca" grava como sempre, pela janela, e a marca deixa de ser "a unica"."""
+    from playwright.sync_api import sync_playwright
+
+    from vapt.chromium import navegador
+    from vapt.marca import job as mj
+    navegador.apontar_playwright()
+    vazia = tmp_path / 'biblioteca-vazia'
+    vazia.mkdir()
+    conteudo = te.montar(job, biblioteca=str(vazia))
+    assert _marca_na_tela(conteudo)['escolhida'] is None
+    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
+                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
+        nav, pg = _abrir_passo_1(pw, srv)
+        try:
+            nomes = pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
+                .map(b => b.querySelector(".modo-nome").textContent)''')
+            assert nomes == ['Sem marca'] and pg.evaluate(JS_MARCAS_MARCADAS) == [SEM_MARCA_LINHA]
+            assert pg.evaluate(JS_MARCA_UNICA) == ['Sem marca']
+            # o campo da marca nova esta a vista: o title nao diz que e a unica escolha, diz que da para criar
+            title = pg.evaluate(JS_TITLE_SEM_MARCA)
+            assert title.startswith('Já marcada') and 'criar uma abaixo' in title and 'nica escolha' not in title
+            assert pg.evaluate('() => document.getElementById("marca-nova-nome")') is not None
+            texto = pg.evaluate(JS_TEXTO_DA_MARCA)
+            assert JA_MARCADA in texto and NOTA_ABERTURA not in texto
+            assert '—' not in texto and '–' not in texto
+            assert not (job / mj.ARQUIVO).exists()
+            if capturas is not None:
+                pg.locator('#bloco-marca').screenshot(path=str(capturas / '9-biblioteca-vazia.png'))
+            # o clique em "Sem marca" grava de proposito, pela janela, como hoje
+            pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
+                .find(b => b.querySelector(".modo-nome").textContent === "Sem marca").click()''')
+            _confirmar_na_janela(pg)
+            assert pg.evaluate(JS_MARCAS_MARCADAS) == [SEM_MARCA_LINHA]
+            assert pg.evaluate(JS_MARCA_UNICA) == [] and pg.evaluate(JS_TITLE_SEM_MARCA) == ''
+            texto = pg.evaluate(JS_TEXTO_DA_MARCA)
+            assert 'Crie a primeira abaixo' in texto and JA_MARCADA not in texto
+        finally:
+            nav.close()
+    reg = mj.ler(job)
+    assert reg['escolha'] == 'sem_marca' and reg['marca_id'] is None
 
 
 # revisao do M3: o mesmo nome escrito de outro jeito (Unicode NFD, espacos repetidos ou de outro tipo, maiusculas que

@@ -76,8 +76,9 @@ def test_alinhar_o_texto_na_tela_do_chromium(job, modelo):
                                  '.getAttribute("aria-label")]', b) for b in BOTOES]
             assert nomes == [['Alinhar o texto à esquerda'] * 2, ['Alinhar o texto ao centro'] * 2,
                              ['Alinhar o texto à direita'] * 2]
-            # o grupo fica depois de Quebrar linha, na mesma linha dos botoes do elemento
-            ordem = pg.evaluate('() => Array.from(document.querySelector(".barra-grupo").children).map(n => n.id)')
+            # o grupo fica logo depois de Quebrar linha, no bloco Texto da linha dos botoes do elemento (melhoria t4:
+            # os botoes ficam em blocos, e a ordem e a de todo elemento com id na linha)
+            ordem = pg.evaluate('() => Array.from(document.querySelectorAll(".barra-grupo [id]")).map(n => n.id)')
             assert ordem.index('ed-alinhar-texto') == ordem.index('ed-quebra') + 1
             x, y = tgr._ponto(pg, el)
             pg.mouse.click(x, y)

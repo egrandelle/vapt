@@ -2,6 +2,16 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.17.0 (24/11/2026): quatro melhorias na tela antes do M8
+
+Pedidos do Duda antes dos testes finais: menos cliques no passo 1, um lugar só para a spec, o tipo e o giro, famílias que não encolhem o texto e uma barra de edição alinhada.
+
+- Em O que eu li, quando a agência ainda não tem biblioteca de marcas, ou a biblioteca ainda não tem marca, a linha "Sem marca" já vem marcada, porque é a única escolha possível. A tela diz isso na própria linha. Nada fica gravado sem o seu clique, e com marcas na biblioteca nada vem marcado, como antes.
+- A spec, o tipo de arquivo e o giro de cada formato ficam numa tabela só, "Formatos do job", uma linha por formato, com a coluna Estado dizendo o que falta ("Pronto" ou "Falta: spec, tipo, giro"). A barra de lote fica presa no alto: "Marcar todos" e "Confirmar os marcados", "Todos em JPEG, PNG ou os dois", "Sem giro nos N que faltam". A spec e o tipo continuam pedindo a confirmação na janela; o giro continua salvo no rascunho e vai ao briefing no Salvar e seguir. Os três blocos antigos (cartões de spec, Tipo de arquivo, Formatos e giro) saem.
+- "Faltam" passa a avisar do tipo de arquivo que falta, e o Salvar diz quantos formatos ainda precisam dele para aprovar no passo 5.
+- Nas Famílias, o formato de mesma proporção mas muito menor que o maior do grupo (menos da metade do lado) ganha família própria, com o próprio layout proposto. Antes ele copiava o layout do maior e o texto ficava minúsculo. O cabeçalho diz o motivo ("O Vapt separou este grupo do 1280x720: copiado, o conteúdo ficaria com 21% do tamanho") e "Juntar de volta" desfaz a separação; o que você junta não é separado de novo.
+- A barra abaixo do palco virou uma grade: Desfazer, Escolher vários, Tamanho, Texto e Apagar na primeira linha; "Alinhar pela" com os alinhamentos na segunda, sempre no mesmo eixo; o escolhido e "Como editar" na terceira. A altura é fixa, com e sem escolha, e cabe a 1024 px.
+
 ## 0.16.0 (24/11/2026): a âncora vem sugerida pelo KV
 
 No Design system, a âncora ficou mais clara e mais rápida de escolher.

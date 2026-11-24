@@ -48,7 +48,8 @@ def _job(base):
     if PLAT.nome in ('sem-suporte', 'mac'):
         pytest.skip('sem isolador neste sistema')
     j = KD.criar_job(base, FORMATOS)
-    j['conteudo'] = te.montar(j['job'])
+    # decisao 208: os quatro verticais numa familia so, como o DA os deixa com "Juntar de volta"
+    j['conteudo'] = tfd._com_os_pequenos_juntados(j['job'], te.montar(j['job']))
     j['el'] = {papel: 'el%d' % lid for papel, lid in j['ids'].items()}
     return j
 

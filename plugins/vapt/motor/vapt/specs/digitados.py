@@ -52,7 +52,7 @@ MENSAGENS = {
                'pixels.'),
     'repetido_no_texto': 'O formato {largura} x {altura} aparece mais de uma vez no que você escreveu.',
     'ja_na_lista': 'O formato {largura} x {altura} já está na sua lista.',
-    'ja_na_folha': 'O formato {largura} x {altura} já vem da folha de spec. Ele já está em Formatos e giro.',
+    'ja_na_folha': 'O formato {largura} x {altura} já vem da folha de spec. Ele já está em Formatos do job.',
     'demais': 'O job aceita até {max} formatos digitados. Remova algum da lista antes de acrescentar outros.',
     'texto_longo': 'O texto ficou longo demais. Acrescente os formatos em partes.',
     'recusado': 'O Vapt não aceitou estes formatos agora. Confira a lista e tente de novo.',

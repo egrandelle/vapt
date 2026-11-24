@@ -236,6 +236,16 @@
             "pattern": "^[a-z0-9][a-z0-9-]*$"
           }
         },
+        "juntados": {
+          "description": "Os arquivos que a regra do tamanho da tela separou desta familia (decisao 208, revisao da 163; derivacao.grupo_escala_min) e o DA juntou de volta pelo ato Juntar de volta da janela. A tela nao os separa de novo. So o servidor grava; o que a pagina manda e jogado fora.",
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 500,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          }
+        },
         "arquivo_trocado": {
           "description": "O arquivo de edicao gravado saiu da familia (o DA tirou o formato no passo 1, ou a familia foi montada de novo) com a familia ja editada: as edicoes, em fracao do arquivo de edicao, passam a valer no arquivo da regra (revisao da 0.10.0). de: o arquivo que saiu; para: o de agora. A tela diz isso ate o DA confirmar a familia. So o servidor grava; o que a pagina manda e jogado fora.",
           "type": "object",

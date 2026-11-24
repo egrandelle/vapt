@@ -268,29 +268,29 @@ def test_barra_em_duas_linhas_e_resumo_do_grupo_inteiro(job_escala, conteudo_esc
         b = pg.evaluate(JS_BARRA)
         assert not b['cortado'], b
         assert b['texto'].startswith('Escolhidos juntos: 3 elementos'), b
-        if janela[0] == 2048:  # numero-neutro: a tela larga do Duda
-            # os botoes do elemento e os de alinhar na mesma linha: o nome embaixo, duas linhas na barra
-            assert b['grupo'] == b['alinhar'], b
+        # melhoria t4: Alinhar pela fica sempre numa linha propria, abaixo dos botoes do elemento (antes, na tela
+        # larga do Duda, as duas dividiam a primeira linha e a de alinhar encostava a direita)
+        assert b['alinhar'] > b['grupo'], b
 
 
 JS_LINHA_DO_ELEMENTO = """() => {
-  // o meio de cada filho (o divisor e mais baixo que os botoes)
-  const tops = Array.from(document.querySelector('.barra-grupo').children)
+  // o meio de cada controle a vista da linha 1 (os botoes e a caixa do Tamanho, dentro dos blocos)
+  const tops = Array.from(document.querySelectorAll('.barra-grupo .botao-vista, .barra-grupo .tamanho-caixa'))
     .filter(n => getComputedStyle(n).display !== 'none').map(n => {
       const r = n.getBoundingClientRect(); return Math.round((r.top + r.bottom) / 2); });
   const nomes = Array.from(document.querySelectorAll('.botao-alinhar .rotulo-botao'))
     .map(n => n.getBoundingClientRect().width);
   return {tops: tops, nomes: nomes, barra: document.querySelector('.barra-edicao').getBoundingClientRect().height};
 }"""
-BARRA_DE_DUAS_LINHAS_PX = 149  # numero-neutro: a barra de 0.11.0 nessas janelas (botoes do elemento, Alinhar pela, nome)
+# numero-neutro: a barra da melhoria t4 nessas janelas, quatro linhas (botoes do elemento, Alinhar pela, nome, frase)
+BARRA_DE_DUAS_LINHAS_PX = 149
 
 
 @pytest.mark.parametrize('janela', [(1024, 768), (1600, 900), (1920, 1080)], ids=['1024x768', '1600x900', '1920x1080'])
 def test_alinhamento_do_texto_nao_tira_os_nomes_nem_desce_o_apagar(job_escala, conteudo_escala, janela):  # noqa: F811
     # 0.12.0 (revisao): os tres botoes do alinhamento do texto cabem na linha dos botoes do elemento a 1024 px (o
-    # Apagar nao desce sozinho), e os seis botoes de Alinhar pela so perdem o nome na faixa estreita da tela de 2048 px
-    # com a faixa dos arquivos (test_barra_em_duas_linhas_e_resumo_do_grupo_inteiro); nas janelas comuns os nomes
-    # ficam, como em 0.11.0
+    # Apagar nao desce sozinho). Melhoria t4: os seis botoes de Alinhar pela tem o nome a vista em toda janela de
+    # 1280 px ou mais (a faixa de 1660 a 1790 px da barra que os tirava saiu com a grade)
     import test_tela_palco as tp
     job, grupo = job_escala['job'], job_escala['grupo']
     with _tela(conteudo_escala, job, *janela) as (_srv, pg, _gid):
@@ -303,6 +303,51 @@ def test_alinhamento_do_texto_nao_tira_os_nomes_nem_desce_o_apagar(job_escala, c
             assert b['barra'] == pytest.approx(BARRA_DE_DUAS_LINHAS_PX, abs=1), b
         else:
             assert len(b['nomes']) == 6 and min(b['nomes']) > 10, b  # numero-neutro: os seis nomes a vista
+
+
+# ------------------------------------------------------------------ a grade da barra (melhoria t4)
+JS_GRADE = """() => {
+  const caixa = n => n.getBoundingClientRect();
+  const aVista = n => { const cs = getComputedStyle(n);
+    return cs.display !== 'none' && cs.visibility !== 'hidden' && caixa(n).width > 0; };
+  const linha = sel => Array.from(document.querySelectorAll(sel)).filter(aVista).map(caixa);
+  const barra = caixa(document.getElementById('barra-edicao'));
+  const l1 = linha('.barra-grupo .botao-vista, .barra-grupo .tamanho-caixa');
+  const l2 = linha('.barra-alinhar .barra-rotulo, .barra-alinhar .botao-vista');
+  const inicio = rs => rs.length ? Math.min.apply(null, rs.map(r => r.left)) : null;
+  return {esquerda: barra.left, direita: barra.right, altura: barra.height,
+          inicio: [inicio(l1), inicio(l2)],
+          fim: [caixa(document.getElementById('ed-apagar')).right, caixa(document.getElementById('ed-ajuda')).right],
+          alturas: l1.concat(linha('.barra-alinhar .botao-vista')).map(r => Math.round(r.height)),
+          topos: [caixa(document.querySelector('.barra-grupo')).top, caixa(document.querySelector('.barra-alinhar')).top],
+          semEscolha: document.getElementById('barra-edicao').classList.contains('sem-escolha')};
+}"""
+RESPIRO_DA_BARRA_PX = 16  # numero-neutro: o respiro dos lados da barra (tela.css, .barra-edicao)
+ALTURA_DO_CONTROLE_PX = 28  # numero-neutro: a altura de todo controle da barra (tela.css, .botao-vista)
+
+
+@pytest.mark.parametrize('janela', [(1280, 800), (1920, 1080)], ids=['1280x800', '1920x1080'])
+def test_barra_em_grade_alinha_as_linhas_e_nao_muda_de_altura(job_escala, conteudo_escala, janela):  # noqa: F811
+    """Melhoria t4: a barra e uma grade. Os primeiros controles das linhas 1 e 2 comecam no mesmo x (o respiro da
+    barra); Apagar e Como editar terminam na borda direita do miolo; todo controle tem 28 px; e a barra tem a mesma
+    altura sem escolha e com escolha (o palco nao pula embaixo do mouse)."""
+    import test_tela_palco as tp
+    job, grupo = job_escala['job'], job_escala['grupo']
+    with _tela(conteudo_escala, job, *janela) as (_srv, pg, _gid):
+        pg.keyboard.press('Escape')
+        antes = pg.evaluate(JS_GRADE)
+        assert antes['semEscolha'], antes
+        x, y = tgr._ponto(pg, grupo[0])
+        pg.mouse.click(x, y)
+        tp._esperar(pg, '() => document.querySelector(".barra-edicao.sem-escolha") ? "" : "1"')
+        b = pg.evaluate(JS_GRADE)
+        assert b['altura'] == antes['altura'], (b, antes)
+        assert b['topos'][1] > b['topos'][0], b
+        eixo = b['esquerda'] + RESPIRO_DA_BARRA_PX
+        assert b['inicio'][0] == pytest.approx(eixo, abs=1) and b['inicio'][1] == pytest.approx(eixo, abs=1), b
+        borda = b['direita'] - RESPIRO_DA_BARRA_PX
+        assert b['fim'][0] == pytest.approx(borda, abs=2) and b['fim'][1] == pytest.approx(borda, abs=2), b
+        assert b['alturas'] and all(a == ALTURA_DO_CONTROLE_PX for a in b['alturas']), b
 
 
 # ------------------------------------------------------------------ o rascunho que nao gravou

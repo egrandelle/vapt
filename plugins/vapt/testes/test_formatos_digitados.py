@@ -526,11 +526,12 @@ def test_passo_1_no_chromium_colar_confirmar_e_remover(sem_folha):
             pg.evaluate('() => document.querySelector("#confirmacao [data-resposta=sim]").click()')
             tp._esperar(pg, feito)
             assert pg.evaluate('() => document.querySelectorAll("#digitados-lista li").length') == 2
-            assert pg.evaluate('() => document.querySelectorAll("#lido-formatos article").length') == 2
+            # decisao 209: uma linha da tabela "Formatos do job" por formato, com a origem "escrito por você"
+            assert pg.evaluate('() => document.querySelectorAll("#lido-formatos tr[data-formato]").length') == 2
             assert pg.evaluate('() => document.getElementById("digitados-campo").value') == ''
             assert pg.evaluate('() => document.activeElement && document.activeElement.id') == 'digitados-campo'
             nota = pg.evaluate('() => document.getElementById("lido-formatos").innerText')
-            assert 'Formato escrito por você, sem folha de spec.' in nota
+            assert 'escrito por você' in nota
             assert pg.evaluate('() => document.documentElement.scrollWidth <= window.innerWidth')
             if pasta:
                 pg.screenshot(path=os.path.join(pasta, 'digitados-lista.png'), full_page=True)

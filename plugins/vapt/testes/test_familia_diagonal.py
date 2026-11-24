@@ -11,6 +11,8 @@ derivacao gravada sao a mesma conta. Criterios:
   - a regressao do repro B (KV A): o titulo do 300x600 com no maximo 0,95 da largura e o logo na linha da margem;
   - a area segura do arquivo girado medida na composicao, em pe;
   - a familia de 8 arquivos, com giros, abaixo de um teto de tempo.
+Desde a decisao 208 (revisao da 163), a tela separa por tamanho o 640x360 girado e o 300x600 do 1080x1920; os testes
+da copia partem da familia com os quatro verticais como o DA a deixa com "Juntar de volta" (_com_os_pequenos_juntados).
 Tudo sintetico, gerado na hora numa pasta temporaria; nenhum job real.
 """
 import copy
@@ -88,6 +90,25 @@ def _familia_de(conteudo, fid):
     return next(g for g, f in conteudo['familias'].items() if fid in f['formatos'])
 
 
+def _com_os_pequenos_juntados(job, conteudo):
+    """A tela como o DA a deixa depois de clicar "Juntar de volta" nas familias que a regra do tamanho separou
+    (decisao 208, revisao da 163; vapt.tela.estado.agrupar_por_tamanho): no KV da diagonal, o 640x360 girado (360x640,
+    escala 0,33) e o 300x600 saem do 1080x1920 por tamanho (test_tela_grupo_por_tamanho cobre a separacao). Estes
+    testes sao da copia do layout numa familia so com os quatro verticais, que o DA pede com o ato pelo servidor da
+    tela; o rascunho guarda os juntados, e a familia montada de novo os tem."""
+    separadas = [g for g, f in conteudo['familias'].items() if f.get('separado_por_tamanho')]
+    if not separadas:
+        return conteudo
+    s = ts.ServidorTela(conteudo, pasta=job, modo_teste=True, atos=ta.atos_do_job(job, conteudo=conteudo)).iniciar()
+    try:
+        biscoito = tts._entrar(s)
+        for gid in separadas:
+            _ato(s, biscoito, 'familia_juntar', {'familia': gid})
+    finally:
+        s.parar()
+    return te.montar(job)
+
+
 def _versao_limpa(conteudo, gid):
     """Como a tela abre a familia: a primeira versao sem falha (sem galeria, None)."""
     vs = conteudo['familias'][gid].get('versoes') or []
@@ -133,7 +154,7 @@ def diag(tmp_path_factory):
     if PLAT.nome in ('sem-suporte', 'mac'):
         pytest.skip('sem isolador neste sistema')
     j = KD.criar_job(tmp_path_factory.mktemp('familia-diagonal'), FORMATOS)
-    conteudo = te.montar(j['job'])
+    conteudo = _com_os_pequenos_juntados(j['job'], te.montar(j['job']))
     j['conteudo'] = conteudo
     j['el'] = {papel: 'el%d' % lid for papel, lid in j['ids'].items()}
     return j
@@ -142,7 +163,9 @@ def diag(tmp_path_factory):
 def test_arquivo_de_edicao_e_o_maior_em_pe_e_so_ele_tem_galeria(diag):
     conteudo = diag['conteudo']
     gid = _familia_de(conteudo, REF)
+    # os quatro verticais numa familia so, depois que o DA juntou os pequenos de volta (_com_os_pequenos_juntados)
     assert sorted(conteudo['familias'][gid]['formatos']) == sorted(VERTICAIS)
+    assert tr.estrutura(diag['job'])[2] == {gid: ['f300x600', 'g640x360r90']}
     grupo = next(g for o in conteudo['estado']['orientacoes'] for g in o['grupos'] if g['id'] == gid)
     # o 1080x1920 e o 1920x1080 girado empatam na area em pe: vence o sem giro
     assert grupo['arquivo_de_edicao'] == REF and grupo['separados'] == []
@@ -305,7 +328,8 @@ def test_repro_b_titulo_cabe_e_logo_fica_na_linha_da_margem(tmp_path, monkeypatc
     monkeypatch.setattr(kv, 'FORMATOS', [('f1080x1080', 1080, 1080), ('f970x250', 970, 250),
                                          ('f1080x1920', 1080, 1920), ('f300x600', 300, 600)])
     j = kv.criar_job(tmp_path, 'a')
-    conteudo = te.montar(j['job'])
+    # decisao 208: o 300x600 sai do 1080x1920 por tamanho (0,28); o repro e da copia, com o DA juntando de volta
+    conteudo = _com_os_pequenos_juntados(j['job'], te.montar(j['job']))
     gid = _familia_de(conteudo, REF)
     el = {p: 'el%d' % lid for p, lid in j['ids'].items()}
     versao = _versao_limpa(conteudo, gid)

@@ -584,9 +584,10 @@ main { flex: 1; min-height: 0; display: flex; }
   border: solid var(--on-acao); border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
 
-/* M7c, M3: a marca do job, no mesmo desenho do modo de dados (linhas de escolha, nenhuma marcada ate o clique). A
-   lista da biblioteca rola sozinha quando passa de umas oito marcas; "Sem marca" fica sempre a vista, separada; a
-   "Marca nova" e um campo com o rotulo em cima e o botao ao lado */
+/* M7c, M3: a marca do job, no mesmo desenho do modo de dados (linhas de escolha, nenhuma marcada ate o clique; desde a
+   decisao 207, "Sem marca" ja vem marcada quando e a unica escolha, sem gravar). A lista da biblioteca rola sozinha
+   quando passa de umas oito marcas; "Sem marca" fica sempre a vista, separada; a "Marca nova" e um campo com o rotulo
+   em cima e o botao ao lado */
 .opcional { margin-left: 6px; font-weight: 400; font-size: var(--t-15); color: var(--text2); }
 .marcas { max-height: 384px; overflow-y: auto; overscroll-behavior: contain; margin-bottom: 10px; }
 .marca-linha { padding: 13px 20px; align-items: center; }
@@ -718,50 +719,92 @@ main { flex: 1; min-height: 0; display: flex; }
 .opcao-detalhe { color: var(--text2); font-size: 12px; overflow-wrap: anywhere; }
 .opcao-em-uso { color: var(--ok); font-weight: 600; flex: none; }
 .opcao-linha .botao { flex: none; height: 28px; padding: 0 12px; font-size: 12px; }
-.pendentes:not(:empty) { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--sep); }
-/* 0.9.6: os valores de spec em lote. Um cartao por formato, com a caixa de marcar no topo e a lista dos valores; a
-   barra fica presa no alto do bloco enquanto o DA rola a lista */
-.spec-escolha { margin-bottom: 14px; }
-.spec-grupo-titulo { font-size: 12px; font-weight: 600; color: var(--text2); margin: 0 0 2px; }
-.spec-lote { display: grid; gap: 8px; }
-.spec-lote-barra {
-  position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px;
-  padding: 8px 0; background: var(--bg);
+/* decisao 209: a tabela "Formatos do job" do passo 1, um lugar so para a spec (decisao 198, 3), o tipo de arquivo
+   (decisao 205) e o giro de cada formato. Tudo escopado em #bloco-specs. A 1280 px a coluna do passo 1 tem 720 px:
+   a tabela e fixa na largura, os controles tem 28 px de altura e os segmentados sao estreitos, e o que nao cabe
+   quebra a linha dentro da celula, nunca para o lado */
+#bloco-specs .formatos-job { margin-top: var(--e-4); }
+#bloco-specs .formatos-cabeca { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 8px; }
+#bloco-specs .formatos-cabeca .subtitulo { margin: 0; font-size: var(--t-14); }
+#bloco-specs .formatos-resumo { margin: 0; }
+#bloco-specs .formatos-como { flex-basis: 100%; margin: 0; font-size: var(--t-12); }
+/* a barra de lote fica presa no alto enquanto o DA rola a tabela (como a barra do lote da 0.9.6): com muitos
+   formatos, o "Confirmar os marcados" segue a vista */
+#bloco-specs .lote-barra {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin-bottom: 10px; padding: 8px 12px;
+  background: var(--card); border-radius: var(--raio); box-shadow: 0 0 0 1px var(--stroke);
 }
-.spec-lote-barra .botao { min-height: 32px; }
-.spec-cartao {
-  border: 1px solid var(--stroke); border-radius: var(--raio); background: var(--card); overflow: hidden;
-  transition: border-color 0.18s var(--curva), background-color 0.18s var(--curva);
-  animation: entrar 0.28s var(--curva) both;
+#bloco-specs .lote-grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+#bloco-specs .lote-rotulo { color: var(--text2); font-size: var(--t-12); font-weight: 600; }
+#bloco-specs .lote-barra .botao { height: 28px; padding: 0 12px; font-size: var(--t-13); }
+#bloco-specs .formatos-tabela {
+  width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--card); border-radius: var(--raio-g);
+  box-shadow: 0 0 0 1px var(--stroke); overflow: hidden;
 }
-.spec-cartao.marcado { border-color: var(--accent-stroke); background: var(--card); box-shadow: 0 0 0 1px var(--accent-stroke); }
-.spec-cartao-topo {
-  display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer;
-  border-bottom: 1px solid var(--sep);
+#bloco-specs .formatos-tabela th, #bloco-specs .formatos-tabela td {
+  padding: 8px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--sep); overflow-wrap: anywhere;
 }
-.spec-cartao-nome { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.spec-cartao-conta { margin-left: auto; color: var(--text2); font-size: 12px; white-space: nowrap; }
-.spec-valores { list-style: none; margin: 0; padding: 4px 0; display: grid; }
-.bloco .spec-valores li { padding: 0; }
-.spec-valor-rotulo { display: flex; align-items: flex-start; gap: 10px; padding: 6px 12px 6px 46px; cursor: pointer; }
-.spec-valor-rotulo:hover { background: var(--hover); }
-.spec-valor-marca { width: 16px; height: 16px; margin: 2px 0 0; flex: none; accent-color: var(--acao); cursor: pointer; }
-.spec-valor-linha { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
-.spec-valor-campo { color: var(--text2); font-size: 12px; }
+#bloco-specs .formatos-tabela th { color: var(--text2); font-size: var(--t-12); font-weight: 600; letter-spacing: 0.02em; padding-top: 10px; }
+#bloco-specs .formatos-tabela th:first-child, #bloco-specs .formatos-tabela td:first-child { padding-left: 12px; }
+#bloco-specs .formatos-tabela th:last-child, #bloco-specs .formatos-tabela td:last-child { padding-right: 12px; }
+#bloco-specs .formatos-tabela tbody tr:last-child td { border-bottom: 0; }
+/* as larguras (a 720 px da coluna do passo 1): a medida, a caixa com "N a confirmar", os tres botoes do tipo, os
+   quatro do giro numa linha so, e o chip do estado */
+#bloco-specs .formatos-tabela .col-formato { width: 15%; }
+#bloco-specs .formatos-tabela .col-spec { width: 19%; }
+#bloco-specs .formatos-tabela .col-tipo { width: 26%; }
+#bloco-specs .formatos-tabela .col-giro { width: 27%; }
+#bloco-specs .formatos-tabela .col-estado { width: 13%; }
+/* o rotulo discreto de cada caminho de gravacao: a spec e o tipo pedem a janela, o giro vai ao rascunho */
+#bloco-specs .col-nota { display: block; color: var(--text3); font-size: 11px; font-weight: 400; letter-spacing: 0; }
+#bloco-specs .linha-spec.marcada { background: var(--tip-bg); }
+#bloco-specs .formato-nome { display: block; font-weight: 600; font-variant-numeric: tabular-nums; }
+#bloco-specs .formato-origem { display: block; color: var(--text2); font-size: var(--t-12); }
+#bloco-specs .cel-nota { display: block; color: var(--text2); font-size: var(--t-12); margin-top: 4px; }
+#bloco-specs .cel-aviso { color: var(--warn); font-weight: 600; }
+#bloco-specs .cel-texto { display: block; padding-top: 4px; }
+#bloco-specs .spec-grupo-rotulo { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+#bloco-specs .spec-grupo-texto { font-weight: 600; }
+#bloco-specs .ver-valores {
+  display: block; margin-top: 4px; padding: 0; border: 0; background: none; color: var(--link); font-size: var(--t-12);
+  cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+#bloco-specs .ver-valores:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+#bloco-specs .spec-avulso { display: grid; gap: 4px; margin-top: 6px; }
+#bloco-specs .spec-leituras { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+#bloco-specs .spec-leitura { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+#bloco-specs .botao-mini { height: 24px; padding: 0 10px; font-size: var(--t-12); }
+/* os segmentados compactos: 28 px de altura, botoes estreitos, e o que nao cabe passa para a linha de baixo */
+#bloco-specs .seg-compacto { display: inline-flex; flex-wrap: wrap; max-width: 100%; }
+#bloco-specs .seg-compacto .botao-vista { height: 28px; padding: 0 6px; font-size: var(--t-12); }
+#bloco-specs .seg-compacto + .seg-compacto { margin-top: 4px; }
+/* a linha de baixo com os valores do lote do formato (0.9.6: cada um com a sua caixa) */
+#bloco-specs .linha-valores td { padding: 0 12px 6px; background: var(--panel); }
+#bloco-specs .spec-valores { list-style: none; margin: 0; padding: 4px 0; display: grid; }
+#bloco-specs .spec-valores li { padding: 0; }
+#bloco-specs .spec-valor-rotulo { display: flex; align-items: flex-start; gap: 10px; padding: 4px 8px; cursor: pointer; border-radius: var(--raio-s); }
+#bloco-specs .spec-valor-rotulo:hover { background: var(--hover); }
+#bloco-specs .spec-valor-marca { width: 16px; height: 16px; margin: 2px 0 0; flex: none; accent-color: var(--acao); cursor: pointer; }
+#bloco-specs .spec-valor-linha { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+#bloco-specs .spec-valor-campo { color: var(--text2); font-size: 12px; }
+#bloco-specs .chip { white-space: normal; height: auto; min-height: 22px; padding: 2px 8px; line-height: 1.3; font-size: 11px; }
+#bloco-specs .chip-pronto { background: var(--ok-bg); color: var(--ok); }
+#bloco-specs .chip-falta { background: var(--warn-bg); color: var(--warn); }
 .spec-lista-janela { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 13px; overflow-wrap: anywhere; }
 .spec-vazio { margin: 0; }
 #confirmacao-extra:has(.spec-lista-janela) { max-height: 50vh; overflow-y: auto; }
-@media (max-width: 640px) {
-  .spec-valor-rotulo { padding-left: 12px; }
-  .spec-lote-barra { justify-content: stretch; }
-  .spec-lote-barra .botao { flex: 1 1 auto; }
+/* na coluna estreita, o formato e a spec ganham espaco e os segmentados do tipo e do giro quebram a linha dentro da
+   celula (flex-wrap), sem a pagina correr para o lado */
+@media (max-width: 1100px) {
+  #bloco-specs .formatos-tabela .col-formato { width: 22%; }
+  #bloco-specs .formatos-tabela .col-spec { width: 26%; }
+  #bloco-specs .formatos-tabela .col-tipo, #bloco-specs .formatos-tabela .col-giro { width: 20%; }
+  #bloco-specs .formatos-tabela .col-estado { width: 12%; }
 }
-@media (prefers-reduced-motion: reduce) { .spec-cartao { animation: none; transition: none; } }
-/* 0.9.6: o giro em lote, acima dos cartoes de giro: o botao e a nota do que fica um por um */
-.giro-lote { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 10px; }
-.giro-lote .botao { min-height: 32px; }
-.giro-lote .nota { margin: 0; }
-@media (max-width: 640px) { .giro-lote .botao { flex: 1 1 auto; } }
+@media (max-width: 640px) {
+  #bloco-specs .lote-barra .botao { flex: 1 1 auto; }
+}
 .subtitulo { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
 .bloco .paradas { display: grid; gap: 8px; }
 .bloco .parada { display: grid; gap: 2px; padding: 12px 14px; background: var(--bad-bg); border-radius: var(--raio); box-shadow: 0 0 0 1px var(--bad-stroke); }
@@ -797,14 +840,6 @@ main { flex: 1; min-height: 0; display: flex; }
 .quadro-nome { font-size: var(--t-12); color: var(--text2); overflow-wrap: anywhere; }
 .quadro[aria-pressed="true"] .quadro-nome { color: var(--text); font-weight: 600; }
 .quadro-medida { color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; }
-.giro .decisao-nome { display: flex; align-items: baseline; gap: 8px; }
-.giro-medida { color: var(--text2); font-weight: 400; font-variant-numeric: tabular-nums; }
-.giro-spec { color: var(--text2); font-size: 12px; margin-bottom: 2px; }
-.giro-folha { color: var(--text2); font-size: 12px; margin-bottom: 8px; max-width: 62ch; overflow-wrap: anywhere; }
-.giro-opcoes { align-items: center; }
-.giro-opcoes + .giro-opcoes { margin-top: 6px; }
-.giro-rotulo { color: var(--text2); font-size: 12px; margin-right: 4px; }
-.giro .decisao-nota.aviso { margin: 6px 0 0; }
 /* 0.9.2 (A3): sem formato e um estado normal do job novo, nunca um erro: o cartao neutro com a saida */
 .vazio-formatos {
   display: grid; gap: var(--e-2); justify-items: start; padding: var(--e-4) 18px;
@@ -1756,16 +1791,18 @@ img.peca { user-select: none; pointer-events: none; }
    como o texto do KV), em volta da ancora do texto (medirTexto) */
 .selo-confirmada { background: var(--ok-bg); color: var(--ok); }
 .selo-confirmada::before { background: var(--ok-fill); opacity: 1; }
-/* revisao 1 da fase D: os botoes do elemento e os de alinhar dividem a primeira linha quando cabem (a tela larga do
-   Duda fica com mais palco); embaixo, o nome do escolhido (o grupo pelos nomes curtos, inteiro) e a frase da ultima
-   mudanca, uma linha cada. As duas linhas ficam reservadas: escolher um elemento ou a frase que some nunca mudam a
-   altura da barra, e o palco nao pula embaixo do mouse */
+/* melhoria t4: a barra e uma grade de quatro linhas, uma embaixo da outra e todas no mesmo eixo (o respiro de 16 px
+   dos lados): 1) os botoes do elemento, em blocos nomeados (.barra-bloco); 2) Alinhar pela, sempre numa linha propria;
+   3) o nome do escolhido (o grupo pelos nomes curtos, inteiro) com "Como editar" na ponta direita; 4) a frase da
+   ultima mudanca. Antes (revisao 1 da fase D) as linhas 1 e 2 dividiam uma linha quando cabiam e a 2 encostava a
+   direita: os botoes nao se alinhavam entre si. O Duda prefere a grade e aceita o palco um pouco mais baixo. As
+   linhas ficam reservadas: escolher um elemento ou a frase que some nunca mudam a altura da barra, e o palco nao pula
+   embaixo do mouse */
 .barra-edicao {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px 16px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   padding: 10px 16px;
   background: var(--panel);
   border-top: 1px solid var(--sep);
@@ -1774,7 +1811,7 @@ img.peca { user-select: none; pointer-events: none; }
 }
 /* revisao 2 da fase D: a linha do nome leva "Como editar" no fim; a lista dos gestos abre por cima do palco, sem
    mudar a altura da barra */
-.linha-escolhido { order: 3; flex: 1 1 100%; min-width: 0; display: flex; align-items: center; gap: 12px; height: 18px; }
+.linha-escolhido { order: 3; flex: none; min-width: 0; display: flex; align-items: center; gap: 12px; height: 18px; }
 .botao-ajuda {
   flex: none;
   height: 24px; /* revisao do 0.9.2: alvo de 24 px */
@@ -1817,17 +1854,27 @@ img.peca { user-select: none; pointer-events: none; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* melhoria t4: as linhas 1 e 2 sao fileiras de blocos. Dentro do bloco, 6 px entre os controles; entre dois blocos,
+   12 px ao todo: o gap de 6 px da fileira, a borda esquerda de 1 px do bloco seguinte (que faz as vezes do divisor,
+   no meio do espaco) e 5 px de folga depois dela. Os botoes tem borda propria, por isso a linha nao encosta neles
+   (revisao da t4: a primeira versao somava 12 + 1 + 12 e abria 25 px). Todos os controles tem 28 px de altura. O
+   ultimo bloco da linha 1 (Apagar) vai para a ponta direita */
 .barra-grupo { order: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.barra-edicao .barra-bloco { display: flex; align-items: center; gap: 6px; height: 28px; }
+.barra-edicao .barra-bloco + .barra-bloco { border-left: 1px solid var(--sep); padding-left: 5px; }
+.barra-grupo > .barra-bloco:last-child { margin-left: auto; }
 .barra-grupo .botao-vista:disabled, .barra-alinhar .botao-vista:disabled { cursor: not-allowed; color: var(--text2); background: var(--chip); border-color: transparent; }
 .barra-grupo .botao-vista:disabled svg, .barra-alinhar .botao-vista:disabled svg { opacity: 0.6; }
 /* 0.9.2 (M3): sem nada escolhido, so Desfazer, Escolher vários e a frase ficam a vista. Os outros guardam o lugar
-   (visibility), para a barra nunca mudar de altura e o palco nao pular embaixo do mouse ao escolher */
-.barra-edicao.sem-escolha .barra-grupo > :not(#ed-varios):not(#ed-desfazer), .barra-edicao.sem-escolha .barra-alinhar { visibility: hidden; }
+   (visibility), para a barra nunca mudar de altura e o palco nao pular embaixo do mouse ao escolher. Desde a melhoria
+   t4 o que some sao os blocos inteiros que nao sao os de Desfazer e Escolher vários */
+.barra-edicao.sem-escolha .barra-grupo > .barra-bloco:not(:has(#ed-varios)):not(:has(#ed-desfazer)), .barra-edicao.sem-escolha .barra-alinhar { visibility: hidden; }
 .barra-edicao.sem-escolha .elemento-escolhido { color: var(--text); font-weight: 500; }
 .botao-apagar:not(:disabled) { color: var(--bad); }
 .botao-apagar:not(:disabled):hover { border-color: var(--bad); }
-/* o tamanho por numero (M7b, D3): o rotulo, o campo com o % colado e o Aplicar, juntos entre Aumentar e o texto */
-.campo-tamanho { display: inline-flex; align-items: center; gap: 6px; margin: 0 2px 0 6px; }
+/* o tamanho por numero (M7b, D3): o rotulo, o campo com o % colado e o Aplicar, juntos depois de Aumentar no bloco
+   Tamanho; sem margens proprias (melhoria t4), o espaco e o gap do bloco */
+.campo-tamanho { display: inline-flex; align-items: center; gap: 6px; }
 .tamanho-caixa {
   display: inline-flex;
   align-items: center;
@@ -1860,9 +1907,13 @@ img.peca { user-select: none; pointer-events: none; }
 .tamanho-caixa:has(input[aria-invalid="true"]) { border-color: var(--bad); box-shadow: 0 0 0 3px var(--bad-bg); }
 .tamanho-unidade { color: var(--text2); font-size: 12px; }
 /* alinhar no quadro (M7b, D2): a referencia em dois botoes colados e os seis alvos, com o desenho do alinhamento e o
-   nome escrito; a linha fica abaixo dos botoes do elemento, alinhada a direita como eles */
-.barra-alinhar { order: 2; margin-left: auto; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
-.barra-rotulo { color: var(--text2); font-size: 12px; margin-right: 2px; }
+   nome escrito; a linha fica abaixo dos botoes do elemento, no mesmo eixo esquerdo (melhoria t4) */
+.barra-alinhar { order: 2; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+/* os rotulos Tamanho e Alinhar pela sem largura minima (revisao da t4): o Tamanho fica no meio da linha 1 e o
+   Alinhar pela no comeco da linha 2, uma largura igual nao alinhava nada e abria um vazio de 24 px antes da caixa do
+   numero. Sem ela, o rotulo escondido abaixo de 1280 px tambem volta a medir 1 x 1 px, como todo texto so do leitor
+   de tela */
+.barra-rotulo { color: var(--text2); font-size: 12px; }
 .segmentado { display: inline-flex; }
 .segmentado .botao-vista { border-radius: 0; }
 .segmentado .botao-vista:first-child { border-radius: var(--raio-p) 0 0 var(--raio-p); }
@@ -1880,41 +1931,28 @@ img.peca { user-select: none; pointer-events: none; }
 .segmentado .botao-vista:disabled + .botao-vista:disabled { border-left-color: var(--stroke); }
 .botao-alinhar svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; }
 .botao-alinhar svg rect { fill: currentColor; stroke: none; opacity: 0.55; }
-/* 0.9.2 (M3): abaixo de 1280 px os seis botoes de alinhar ficam so com o desenho; o nome segue no leitor de tela e
-   no title, e a linha de alinhar cabe numa linha so */
-@media (max-width: 1279px) {
-  .botao-alinhar { position: relative; width: 30px; padding: 0; }
-  .botao-alinhar .rotulo-botao, .campo-tamanho .barra-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  /* a linha dos botoes do elemento cabe numa linha a 1024 px: um pouco menos de folga dentro de cada botao */
-  .barra-grupo .botao-vista { padding: 0 8px; }
-  .campo-tamanho { margin-left: 2px; }
-}
+/* melhoria t4: os botoes colados da barra nao se sobrepoem (sem o -1 px), para cada desenho ter os mesmos 28 px.
+   So aqui: .segmentado tambem e o filtro do Conferir */
+.barra-edicao .segmentado .botao-vista + .botao-vista { margin-left: 0; }
 /* 0.12.0: o alinhamento das linhas do texto, tres botoes so com o desenho, colados, depois de Quebrar linha. O
    desenho e o das linhas de texto (sem a guia dos botoes de Alinhar pela, que mexem o elemento no quadro) */
 .alinhar-texto .botao-vista { width: 28px; padding: 0; justify-content: center; }
 .alinhar-texto svg { width: 16px; height: 16px; flex: none; }
-/* 0.12.0: abaixo de 1280 px os tres botoes novos cabem na linha dos botoes do elemento a 1024 px, como em 0.9.2 (o
-   Apagar nao desce para uma linha so dele): botoes de 24 px, um pouco menos de folga dentro de cada botao do elemento,
-   entre eles e em volta dos divisores */
+/* 0.9.2 (M3): abaixo de 1280 px os seis botoes de alinhar ficam so com o desenho (28 px de largura, como os outros
+   desenhos da barra); o nome segue no leitor de tela e no title, e a linha de alinhar cabe numa linha so. Os botoes
+   do elemento cabem numa linha a 1024 px (a barra tem 728 px de miolo ali) com menos folga dentro de cada botao e
+   entre eles (os 12 px entre blocos ficam), e os tres desenhos do alinhamento do texto com 24 px (0.12.0, melhoria
+   t4) */
 @media (max-width: 1279px) {
-  .barra-grupo { gap: 4px; }
-  .barra-grupo .botao-vista { padding: 0 5px; }
-  .barra-grupo .controles-divisor { margin: 0 2px; }
-  .alinhar-texto .botao-vista { width: 24px; padding: 0; }
+  .barra-edicao .botao-alinhar { position: relative; width: 28px; padding: 0; }
+  .barra-edicao .botao-alinhar .rotulo-botao, .campo-tamanho .barra-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .barra-grupo { gap: 4px 6px; }
+  .barra-grupo .barra-bloco, .barra-grupo .campo-tamanho { gap: 4px; }
+  .barra-grupo .botao-vista { padding: 0 4px; }
+  .barra-grupo .alinhar-texto .botao-vista { width: 24px; padding: 0; }
 }
-/* 0.12.0: os botoes do elemento e os de Alinhar pela dividem uma linha quando cabem (revisao 1 da fase D). Os tres
-   botoes novos tiram dela 88 px: numa faixa estreita de largura da barra (a tela de 2048 px do Duda com a faixa dos
-   arquivos ao lado), as duas metades cabiam juntas antes e com os nomes ja nao cabem. So nessa faixa os seis botoes de
-   Alinhar pela ficam so com o desenho, como abaixo de 1280 px: a barra continua com duas linhas e o palco nao perde
-   altura; o nome segue no title e no leitor de tela. Abaixo dela, as duas metades ja ficavam em linhas separadas, e
-   os nomes ficam; acima, tudo cabe com os nomes. As medidas sao a largura da barra sem o respiro dela: 1660 px um
-   pouco abaixo de onde as duas metades cabiam juntas em 0.11.0 (1684), 1790 px um pouco acima de onde cabem com os
-   nomes agora (1772) */
+/* a barra e um container (barra): a galeria de versoes ao lado a estreita numa janela comum (abaixo, 980 px) */
 .barra-edicao { container-type: inline-size; container-name: barra; }
-@container barra (min-width: 1660px) and (max-width: 1790px) {
-  .botao-alinhar { position: relative; width: 30px; padding: 0; }
-  .botao-alinhar .rotulo-botao { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-}
 /* M4: o nome do formato fica inteiro; o selo e a medida encolhem primeiro, com reticencias */
 .mesa-info .selo { display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; line-height: 20px; }
 .mesa-info .selo::before { display: inline-block; margin-right: 6px; vertical-align: 1px; }
@@ -1925,7 +1963,7 @@ img.peca { user-select: none; pointer-events: none; }
    fica no title */
 .ed-mensagem {
   order: 4;
-  flex: 1 1 100%;
+  flex: none;
   margin: 0;
   height: 36px;
   line-height: 18px;
@@ -2565,13 +2603,12 @@ button.membro:active { transform: scale(0.98); }
    1280 px, so com o desenho nos seis de Alinhar pela e menos folga entre eles. Assim o Apagar e o Na base nao descem
    sozinhos para uma linha so deles; o nome segue no title e no leitor de tela */
 @container barra (max-width: 980px) {
-  .botao-alinhar { position: relative; width: 30px; padding: 0; }
-  .botao-alinhar .rotulo-botao, .campo-tamanho .barra-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .barra-grupo { gap: 4px; }
-  .barra-grupo .botao-vista { padding: 0 5px; }
-  .barra-grupo .controles-divisor { margin: 0 2px; }
-  .alinhar-texto .botao-vista { width: 24px; padding: 0; }
-  .campo-tamanho { margin-left: 2px; }
+  .barra-edicao .botao-alinhar { position: relative; width: 28px; padding: 0; }
+  .barra-edicao .botao-alinhar .rotulo-botao, .campo-tamanho .barra-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .barra-grupo { gap: 4px 6px; }
+  .barra-grupo .barra-bloco, .barra-grupo .campo-tamanho { gap: 4px; }
+  .barra-grupo .botao-vista { padding: 0 4px; }
+  .barra-grupo .alinhar-texto .botao-vista { width: 24px; padding: 0; }
 }
 
 /* o alto contraste do Windows tira o fundo e a sombra: o escolhido ganha o contorno do sistema e o cartao a borda */
