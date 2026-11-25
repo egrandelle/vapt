@@ -2565,29 +2565,9 @@ def _sem_previa(_dados, origem=None, antes=None):
     return None
 
 
-def marca_na_tela(pasta, conferencia):
-    """M7c, M3: o bloco da marca do job no passo 1 (vapt.marca.job.na_tela), sem o caminho da biblioteca. M7c, M4:
-    'padrao', o padrao da marca escolhida para o Design system (vapt.tela.funcoes.padrao_da_marca: regra e ancora
-    por funcao com a versao e o job de origem, ou None), lido de novo a cada montagem e a cada recarregar, sem gravar.
-    M7c, M5: 'registro', o botao de guardar o padrao da marca (vapt.marca.registrar.na_tela: so com a marca
-    escolhida e todos os formatos aprovados pelo DA, com o que vai ao perfil; sem caminho nem id da marca)."""
-    from vapt.marca import job as marca_job
-    from vapt.marca import registrar
-    from vapt.tela import funcoes as funcoes_da_tela
-    bloco = marca_job.na_tela(pasta, conferencia)
-    bib = conferencia.pasta if conferencia.usavel else None
-    bloco['padrao'] = funcoes_da_tela.padrao_da_marca(pasta, bib)
-    bloco['registro'] = registrar.na_tela(pasta, bib)
-    return bloco
-
-
-def montar(pasta, teto=None, biblioteca=None):
+def montar(pasta, teto=None):
     """Conteudo do servidor da tela para o job: {'estado', 'previas', 'assets', 'fontes', 'recarregar', 'editar',
-    'familias', 'elementos', 'atualizar', 'biblioteca', 'pasta_biblioteca'}. biblioteca: a pasta da biblioteca da
-    agencia que o processo da tela recebeu (M7c, M1), ou None; ela e conferida uma vez aqui, e o passo 1 leva a marca
-    do job (lido.marca; M7c, M3), com a lista das marcas lida de novo a cada recarregar. 'biblioteca' e
-    'pasta_biblioteca' seguem vapt.tela.processo.com_biblioteca: o caminho fica so no processo de fundo, para o
-    ato da marca. editar(dados, origem) e a previa da edicao por familia
+    'familias', 'elementos', 'atualizar', 'sugestoes'}. editar(dados, origem) e a previa da edicao por familia
     (vapt.tela.edicao.Editor.previa); familias: {id: {'formatos', 'versoes', 'pecas', 'por_confirmar', 'aviso'}}
     para o ato de confirmar a familia (o id e o que o job ja conhece para esses formatos; familias_conhecidas e abas);
     elementos: {id: [layer_ids]} da mestre da tela (None enquanto o passo 3 espera), que o rascunho usa para conferir
@@ -2650,20 +2630,15 @@ def montar(pasta, teto=None, biblioteca=None):
         f, _metodo, _n = casamento.casar(ps, faces)
         return f['id'] if f is not None and f['id'] in fontes else None
 
-    from vapt import biblioteca as mod_biblioteca
     from vapt.tela import edicao
     from vapt.tela import funcoes as funcoes_da_tela
     b, laudo = ctx['briefing'], ctx['laudo']
     base = pecas_base(laudo, asset_por_camada, face_de)
-    conferencia = mod_biblioteca.conferir(biblioteca)
-    pasta_da_biblioteca = conferencia.pasta if conferencia.usavel else None
 
     def com_previas_dos_quadros(l):
-        # a previa de cada prancheta no passo 1: as camadas dela como estao no KV, so desenho; e a marca do job (M7c,
-        # M3), com as marcas da biblioteca de agora (a "Marca nova" entra na lista depois do ato)
+        # a previa de cada prancheta no passo 1: as camadas dela como estao no KV, so desenho
         for q in l['quadros']:
             q['palco'] = palco_do_documento(laudo, base, ctx['resolvidas'], q['id'])
-        l['marca'] = marca_na_tela(pasta, conferencia)
         return l
     com_previas_dos_quadros(lido_)
     previas = {fid: palco(d, r['kv'], laudo, base) for fid, d in r['formatos'].items()}
@@ -2720,7 +2695,7 @@ def montar(pasta, teto=None, biblioteca=None):
     # situacao do briefing usa a mesma (0.18.0)
     def ler_sugestoes():
         return funcoes_da_tela.sugestoes_na_tela(pasta, teto)
-    estado['briefing'] = dict(salvar.situacao_na_tela(pasta, familias, pasta_da_biblioteca, ler_sugestoes),
+    estado['briefing'] = dict(salvar.situacao_na_tela(pasta, familias, sugestoes=ler_sugestoes),
                               avisos=_avisos_do_job(pasta))
     # a aprovacao de cada formato do briefing (M7b, B4): aprovado, caiu (com o campo e o motivo para o DA) ou sem
     # aprovacao, e o painel de situacao por formato (M7b, B5), medidos a cada montagem e depois de cada ato
@@ -2792,7 +2767,7 @@ def montar(pasta, teto=None, biblioteca=None):
                     faltam=faltam(novo_lido, r['formatos'], n_variantes, familias,
                                   familias_confirmadas(pasta, familias, por_confirmar(r['formatos']), pecas, sem_edicao),
                                   arquivos),
-                    briefing=dict(salvar.situacao_na_tela(pasta, familias, pasta_da_biblioteca, ler_sugestoes),
+                    briefing=dict(salvar.situacao_na_tela(pasta, familias, sugestoes=ler_sugestoes),
                                   avisos=_avisos_do_job(pasta)),
                     aprovacoes=aprovacoes, painel=painel)
 
@@ -2812,9 +2787,6 @@ def montar(pasta, teto=None, biblioteca=None):
                                    'separado_de': grupos_da_tela[gid].get('separado_de'),
                                    'separado_por_tamanho': grupos_da_tela[gid].get('separado_por_tamanho')}
                              for gid, fids in familias.items()},
-                # a situacao da biblioteca (sem caminho) e a pasta, so no processo de fundo (M7c, M1 e M3)
-                'biblioteca': mod_biblioteca.para_tela(conferencia),
-                'pasta_biblioteca': conferencia.pasta if conferencia.usavel else None,
                 # M7c, S4: a rota leve /api/sugestoes le de novo, a cada pedido, o arquivo validado do modo de agora
                 # (com o teto desta tela), sem gravar nada (vapt.tela.funcoes.sugestoes_na_tela)
                 'sugestoes': ler_sugestoes}
@@ -2827,11 +2799,11 @@ def montar(pasta, teto=None, biblioteca=None):
             if mb.hashes_atuais(pasta) != arquivos_feitos:
                 # o laudo, as specs, o design system ou as fontes mudaram com a tela aberta (o ato de spec do passo
                 # 1): os formatos e o briefing de onde a tela parte sao outros
-                return montar(pasta, teto, biblioteca)
+                return montar(pasta, teto)
             if estrutura_de_agora() != estrutura_feita:
                 # decisao 199 (0.10.0): o ato da janela trocou o arquivo de edicao ou separou (ou juntou) um arquivo:
                 # as familias da tela sao outras
-                return montar(pasta, teto, biblioteca)
+                return montar(pasta, teto)
             nova = assinatura_do_passo_2(pasta)
             if nova == feita:
                 return None
@@ -2844,7 +2816,7 @@ def montar(pasta, teto=None, biblioteca=None):
                             recarregar=lambda: dict(recarregar(), passo_3=p3))
                 novo['atualizar'] = atualizador(nova, novo)
                 return novo
-            return montar(pasta, teto, biblioteca)
+            return montar(pasta, teto)
         return atualizar
     def estrutura_de_agora():
         # o arquivo de edicao efetivo de cada familia mostrada (o gravado que ainda esta nela, senao o de agora), os

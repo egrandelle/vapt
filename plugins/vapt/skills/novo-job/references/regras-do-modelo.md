@@ -6,7 +6,6 @@ Estas regras valem durante toda a skill `/vapt:novo-job`. Elas protegem o materi
 
 - O PSD ou o PSB do KV, os arquivos de fonte e qualquer imagem do job. Você só passa os caminhos ao motor, que lê esses arquivos num processo isolado.
 - Os arquivos da pasta do job: o laudo, a conferência das fontes, o design system, as specs, o briefing, os renders e o estado do job. Tudo o que você sabe do job vem do envelope que o motor imprime.
-- A biblioteca da agência (a pasta BIBLIOTECA do passo 2 da skill), onde fica o padrão de cada marca. Você nunca lê, lista nem copia essa pasta. Se ela não estiver configurada, o job roda normal, sem marca.
 - `${CLAUDE_PLUGIN_DATA}/interpretador.json` é o único arquivo do plugin que você lê nesta skill, para achar o Python do Vapt. As referências desta skill ficam em `${CLAUDE_PLUGIN_ROOT}/skills/novo-job/references/`.
 
 O gancho do plugin nega a leitura desses arquivos. Não procure outro caminho para chegar a eles (outro comando, um script, uma cópia).

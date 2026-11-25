@@ -4,8 +4,9 @@
 Dentro de uma pasta de job (a pasta com estado.json, achada subindo a partir do caminho pedido), o Claude le so a lista
 permitida de sugestoes/; todo o resto do job e negado pelas ferramentas Read, Glob e Grep, pelos comandos de leitura
 da Bash e da PowerShell e pelas ferramentas que sobem arquivo para fora (mcp__*, Artifact, SendUserFile). Fora de um
-job, PSD, PSB, arquivo de fonte e a biblioteca de marcas sao negados. Busca recursiva com raiz que contem pasta negada
-e negada, menos na raiz sugestoes/. O codigo-fonte do motor continua legivel, e os tres comandos do motor que recebem
+job, PSD, PSB, arquivo de fonte e a biblioteca de marcas sao negados (a biblioteca antiga, sem uso pelo motor desde a
+0.19.0; compat, sai na 0.20.0, nº213). Busca recursiva com raiz que contem pasta negada e negada, menos na raiz
+sugestoes/. O codigo-fonte do motor continua legivel, e os tres comandos do motor que recebem
 PSD ou fonte no argumento passam pelo interpretador do interpretador.json (medicao da secao 7.6).
 
 Tudo sintetico: a pasta do job e os arquivos sao criados na hora, com bytes quaisquer; nenhum arquivo e aberto como
@@ -223,7 +224,8 @@ def test_fora_do_job_psd_e_fonte_sao_negados(g, tmp_path, nome):
 
 
 def test_fora_do_job_a_biblioteca_de_marcas_e_negada(g, tmp_path):
-    perfil = tmp_path / 'biblioteca' / 'marcas' / 'marca-x' / 'perfil-marca.json'
+    """Compat, sai na 0.20.0 (nº213): a biblioteca antiga fica no disco do DA, sem uso pelo motor."""
+    perfil =tmp_path / 'biblioteca' / 'marcas' / 'marca-x' / 'perfil-marca.json'
     perfil.parent.mkdir(parents=True)
     perfil.write_text('{}', encoding='utf-8')
     for ferramenta, evento in _eventos_de_leitura(perfil, str(tmp_path)).items():
@@ -281,6 +283,7 @@ def test_comando_do_motor_encadeado_com_leitura_e_negado(g, job, tmp_path, inter
     {'files': ['C:/x/render/f1/master.png']},
     {'path': 'C:\\x\\entrega\\aprovados\\f1.jpg'},
     {'text': 'anexo C:/x/briefing/briefing.json'},
+    # a biblioteca antiga de marcas: compat, sai na 0.20.0 (nº213)
     {'path': 'C:/agencia/marcas/m1/perfil-marca.json'},
     {'arquivo': 'D:/qualquer/face.woff2'},
     {'url': 'file:///C:/x/kv.PSD'},
@@ -445,6 +448,7 @@ def test_ligacao_simbolica_de_nome_inocente_e_conferida_pelo_alvo(g, tmp_path):
     fora = _fora(tmp_path)
     fora.mkdir()
     (fora / 'kv.psd').write_bytes(b'sintetico')
+    # o perfil da biblioteca antiga de marcas: compat, sai na 0.20.0 (nº213)
     marcas = tmp_path / 'biblioteca' / 'marcas' / 'm1'
     marcas.mkdir(parents=True)
     (marcas / 'perfil-marca.json').write_text('{}', encoding='utf-8')
@@ -507,6 +511,7 @@ def test_o_que_nao_toca_o_job_continua_passando(g, job, tmp_path):
     py = 'C:/Users/da/.venv/Scripts/python.exe'
     for cmd, cwd in (
             ('"%s" -m vapt --envelope --teto-modo-dados c job proxima "%s"' % (py, j), tmp_path),
+            # a linha antiga com --biblioteca (aceita e ignorada pelo motor): compat, sai na 0.20.0 (nº213)
             ('& "%s" -m vapt --envelope --teto-modo-dados c --biblioteca "%s" tela abrir --job "%s"'
              % (py, tmp_path.as_posix(), j), tmp_path),
             ('python -m vapt --envelope --teto-modo-dados c doctor', tmp_path),

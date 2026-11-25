@@ -19,9 +19,9 @@ Regras:
     clique;
   - o arquivo vale so para o job dele (job_id) e dentro do contrato. O arquivo de outro job ou ilegivel nao entra no
     job, e o ato recusa (lista_ilegivel) em vez de gravar por cima e perder o historico (revisao do 0.9.2);
-  - o formato digitado no modo de teste da tela (origem fixture_de_teste) nunca chega ao master, a entrega nem ao
-    registro da marca (vapt.entrega.portao.confirmacao_de_teste e o bloqueio formato_digitado_no_modo_de_teste
-    do contrato do render);
+  - o formato digitado no modo de teste da tela (origem fixture_de_teste) nunca chega ao master nem a entrega
+    (vapt.entrega.portao.confirmacao_de_teste e o bloqueio formato_digitado_no_modo_de_teste do contrato do
+    render);
   - o motor e a autoridade (conferir, no pedido e no Confirmar); a pagina espelha interpretar() para o erro na hora,
     com as mensagens daqui (MENSAGENS, mandadas a pagina em na_tela), uma fonte so dos textos;
   - os lados minimo e maximo, o numero de formatos e o tamanho do texto sao limites (specs.digitado_*);

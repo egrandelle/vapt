@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:vapt:schema:briefing:1",
   "title": "Briefing confirmado (briefing/1)",
-  "description": "briefing/briefing-confirmado.json (arquitetura-v1.md, 5.3). Todo campo de decisao tem valor, situacao e origem, sem valor inicial: padrao da marca e regra da decisao 10 so aparecem como sugestao citada. Quem grava como confirmado pelo DA e a tela (M7) ou 'vapt briefing confirmar'; 'vapt briefing importar --teste' grava com a origem fixture_de_teste, que o entregar recusa. A funcao resolvida de cada camada sai da heranca (vapt.briefing.resolver) e e a unica que layout, validacao e teste leem.",
+  "description": "briefing/briefing-confirmado.json (arquitetura-v1.md, 5.3). Todo campo de decisao tem valor, situacao e origem, sem valor inicial: a regra da decisao 10 so aparece como sugestao citada. A origem padrao_marca e legado da 0.9 a 0.18, aceito na leitura, nunca gravado; sai na 0.20.0 (decisao 213). Quem grava como confirmado pelo DA e a tela (M7) ou 'vapt briefing confirmar'; 'vapt briefing importar --teste' grava com a origem fixture_de_teste, que o entregar recusa. A funcao resolvida de cada camada sai da heranca (vapt.briefing.resolver) e e a unica que layout, validacao e teste leem.",
   "type": "object",
   "additionalProperties": false,
   "required": ["esquema", "job_id", "cabecalho", "quadro", "funcoes", "cobertas", "regras_escala", "regras_indeterminado", "ancoras", "formatos", "mestres", "modo_dados"],
@@ -16,7 +16,7 @@
       "required": ["tipo"],
       "properties": {
         "tipo": {"enum": ["da", "padrao_marca", "decisao_10", "folha", "fixture_de_teste"]},
-        "ref": {"type": ["string", "null"], "description": "Referencia da origem: o perfil da marca, a decisao, a folha e o trecho, ou o arquivo do fixture"}
+        "ref": {"type": ["string", "null"], "description": "Referencia da origem: a decisao, a folha e o trecho, ou o arquivo do fixture. padrao_marca: legado da 0.9 a 0.18 (o perfil da marca), aceito na leitura, nunca gravado; sai na 0.20.0"}
       }
     },
     "decisao": {

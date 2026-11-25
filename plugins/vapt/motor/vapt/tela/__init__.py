@@ -9,8 +9,8 @@ tela grava (o rascunho, os atos que o DA confirma na janela e o cronometro da me
 processo de fundo, pelo servidor da tela (vapt.tela.servidor), nunca este comando. Ele:
   - confere a pasta do job e o Chromium com janela fixado (doctor.chromium.verificar_chromium_janela);
   - solta o processo de fundo (vapt.tela.processo), sem segredo na linha de comando, sem console visivel e fora
-    do grupo de processos de quem chamou, com o teto e a pasta da biblioteca da agencia (opcao global --biblioteca;
-    M7c, M1) na linha de comando quando vieram; a saida e o envelope nunca levam a pasta;
+    do grupo de processos de quem chamou, com o teto na linha de comando quando veio (a opcao global --biblioteca,
+    legado, e aceita e ignorada pelo CLI e nunca passa ao fundo; nº213, sai na 0.20.0);
   - espera a linha de aviso do fundo ("pronto" ou "recusado <motivo>") por no maximo tela.partida_max_s e volta. A
     janela fica aberta com o DA; o fundo sai sozinho quando ele a fecha, e o perfil temporario e apagado.
 
@@ -117,27 +117,20 @@ def registrar(subparsers):
     a.set_defaults(executar=_abrir, nome_comando='tela abrir')
 
 
-def comando_do_filho(pasta, teto=None, biblioteca=None):
-    """A linha de comando do processo de fundo: so o modulo, a pasta, o teto do modo de dados e a pasta da biblioteca
-    da agencia (M7c, M1), nenhum segredo."""
+def comando_do_filho(pasta, teto=None):
+    """A linha de comando do processo de fundo: so o modulo, a pasta e o teto do modo de dados, nenhum segredo."""
     argv = [sys.executable, '-I', '-B', '-m', 'vapt.tela.processo', '--job', str(pasta)]
     if teto:
         argv += ['--teto', teto]
-    if biblioteca:
-        argv += ['--biblioteca', str(biblioteca)]
     return argv
 
 
 def _argumentos_do_filho(args):
-    """teto e biblioteca so quando vieram (os testes trocam comando_do_filho por uma funcao so da pasta)."""
+    """teto so quando veio (os testes trocam comando_do_filho por uma funcao so da pasta)."""
     extra = {}
     teto = getattr(args, 'teto_modo_dados', None)
     if teto:
         extra['teto'] = teto
-    from vapt import biblioteca
-    pasta = biblioteca.normalizar(getattr(args, 'biblioteca', None))
-    if pasta is not None:
-        extra['biblioteca'] = str(pasta)
     return extra
 
 

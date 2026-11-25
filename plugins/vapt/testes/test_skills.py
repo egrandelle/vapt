@@ -7,7 +7,7 @@ conjunto roda em dois lugares:
   2. na autoverificacao, com textos de skill ruins escritos aqui (inventados), onde cada regra tem de achar a violacao
      dela. Uma regra que nao pega o caso ruim e uma regra quebrada, e o teste fica vermelho.
 
-As regras (plano do M7c, passo K6; arquitetura-v1.md, 3.5; decisoes-v1.md, 159, 162, 170 e 190):
+As regras (plano do M7c, passo K6; arquitetura-v1.md, 3.5; decisoes-v1.md, 159, 162, 170, 190 e nº213):
   - SKILL.md e referencias abaixo de 500 linhas;
   - sem caminho relativo do plugin nem bin/; o Python do Vapt so pelo interpretador.json (o "PY");
   - toda chamada do motor com --teto-modo-dados TETO, o TETO vindo de ${user_config.teto_modo_dados};
@@ -15,9 +15,8 @@ As regras (plano do M7c, passo K6; arquitetura-v1.md, 3.5; decisoes-v1.md, 159, 
     nenhuma instrucao ao DA para rodar um deles ou abrir terminal;
   - nenhum pedido de caminho relativo (todo caminho pedido ao DA e absoluto);
   - nenhuma pergunta ao DA, nem escolha pelo DA, de modo, teto, valor, limite ou regra;
-  - a regra "nunca leia a biblioteca da agencia" onde a skill toca a biblioteca, e nenhuma instrucao para le-la;
-  - o caso de ${user_config.biblioteca_agencia} vazio tratado: --biblioteca "BIBLIOTECA" sempre entre aspas, o
-    marcador uma vez so (sem guarda que o cite), o texto do caso vazio e nada que mande tirar a opcao;
+  - nenhuma citacao da biblioteca da agencia, que saiu na 0.19.0 (nº213): nem ${user_config.biblioteca_agencia}, nem
+    --biblioteca, nem o nome BIBLIOTECA, nem a marca registrar ou o padrao da marca (a biblioteca de specs fica);
   - sugerir-funcoes com disable-model-invocation: false;
   - nenhuma palavra de VAPT_PALAVRAS_PROIBIDAS (a lista mora fora do repositorio; sem a variavel, pula);
   - cada skill da tabela 3.5 existe.
@@ -35,7 +34,7 @@ from pathlib import Path
 
 import pytest
 
-from vapt import biblioteca, cli, humano
+from vapt import cli, humano
 from test_pacote import compilar_palavras, palavras_de_cliente, palavras_do_ambiente
 
 RAIZ_PLUGIN = Path(__file__).resolve().parents[1]
@@ -44,14 +43,12 @@ GANCHO = RAIZ_PLUGIN / 'scripts' / 'gancho_confirmacoes.py'
 # arquitetura-v1.md, 3.5 (tabela das skills)
 SKILLS_DA_TABELA = ('novo-job', 'continuar', 'doctor', 'sugerir-funcoes', 'ler-spec')
 MARCADOR_TETO = '${user_config.teto_modo_dados}'
-MARCADOR_BIBLIOTECA = '${user_config.biblioteca_agencia}'
 LIMITE_DE_LINHAS = 500  # numero-neutro: limite do plano do M7c, K6 ("abaixo de 500 linhas")
-# os atos so do DA: os comandos de terminal (humano.COMANDOS), os botoes da tela (humano.ATOS_DA_TELA) e o registro da
-# marca (M7c, M5), que so existe como botao
-ATOS_DO_DA = tuple(dict.fromkeys(humano.COMANDOS + humano.ATOS_DA_TELA + ('marca registrar', 'confirmar')))
+# os atos so do DA: os comandos de terminal (humano.COMANDOS) e os botoes da tela (humano.ATOS_DA_TELA)
+ATOS_DO_DA = tuple(dict.fromkeys(humano.COMANDOS + humano.ATOS_DA_TELA + ('confirmar',)))
 # os nomes que as linhas do motor usam no lugar dos valores (o Claude troca pelo que leu ou recebeu)
 MARCADORES_DAS_LINHAS = ('PY', 'TETO', 'PASTA', 'PSD', 'FONTE1', 'FONTE2', 'SPECS', 'SPECS1', 'SPECS2', 'NOME',
-                         'ARQUIVO', 'VEICULADOR', 'BIBLIOTECA')
+                         'ARQUIVO', 'VEICULADOR')
 
 
 # ------------------------------------------------------------------ leitura das skills
@@ -346,85 +343,20 @@ DEIXAR_O_DA_ESCOLHER = (r'\b(?:deix\w*|permit\w*|aguard\w*|esper\w*)\s+(?:que\s+
 NA_TELA = r'\bna tela\b|\bpasso \d da tela\b|\bclique\b'
 
 
-TOCA_BIBLIOTECA = re.compile(re.escape(MARCADOR_BIBLIOTECA) + r'|(?i:biblioteca da agência)|\bBIBLIOTECA\b')
-# ler por qualquer verbo ou comando: ferramentas do Claude Code e os comandos de listar e ler da Bash e da PowerShell
-LEITURA = (r'(?<![\w-])(?:leia|ler|lê|lendo|liste|listar|lista|abra|abrir|copie|copiar|procur\w*|busqu\w*|busca\w*|'
-           r'consult\w*|examin\w*|inspecion\w*|olh\w*|veja|ver|vê|vasculh\w*|percorr\w*|varr\w*|explor\w*|'
-           r'Read|Glob|Grep|ls|dir|cat|type|tree|find|rg|grep|findstr|gci|Get-ChildItem|Get-Content|'
-           r'Select-String)(?![\w-])')
-ALVO_BIBLIOTECA = r'(?i:biblioteca da agência)|\bBIBLIOTECA\b|\bmarcas/|perfil-marca'
-# "Quem lê a biblioteca é o motor", "o motor lê a biblioteca": descricao de quem le, nao instrucao ao Claude
-SUJEITO_MOTOR = re.compile(r'\b(?:o motor|o Vapt)\s+(?:\w+\s+)?$', re.I)
+# a biblioteca da agencia saiu na 0.19.0 (nº213): o marcador do userConfig antigo, a opcao do motor, o nome que as
+# linhas usavam no lugar da pasta, os atos da marca e o padrao da marca. A biblioteca de specs (biblioteca-specs/) e
+# outra coisa e fica: "biblioteca de specs" nunca casa aqui
+MARCADOR_BIBLIOTECA = '${user_config.biblioteca_agencia}'
+BIBLIOTECA_DA_AGENCIA = re.compile(re.escape(MARCADOR_BIBLIOTECA) + r'|--biblioteca(?![\w-])|\bBIBLIOTECA\b|'
+                                   r'(?i:biblioteca da agência|biblioteca de marcas?|marca\s+registrar|'
+                                   r'marca\s+escolher|padr[ãa]o da marca)')
 
 
-def regra_biblioteca_lida(texto):
-    """Nenhuma instrucao para ler, listar, abrir, procurar, consultar ou copiar a biblioteca da agencia, nem por
-    comando de shell."""
-    achados = []
-    for f in frases(texto):
-        for m in re.finditer(LEITURA, f, re.I):
-            if _negado(f, m.start(), LEITURA):
-                continue
-            antes = f[:m.start()]
-            if SUJEITO_MOTOR.search(antes) or (re.search(r'\bquem\s+$', antes, re.I) and
-                                               re.search(r'\bé\s+o\s+(?:motor|Vapt)\b', _resto(f, m.end()))):
-                continue
-            if re.search(ALVO_BIBLIOTECA, _resto(f, m.end())):
-                achados.append('lê a biblioteca: %s' % f.strip())
-    return achados
-
-
-def tem_regra_da_biblioteca(texto):
-    """A frase "nunca leia a biblioteca": um verbo de leitura negado (nunca, não, nem, jamais governando o verbo, ou a
-    enumeracao "nunca leia, liste nem copie") seguido da biblioteca, ou de essa pasta, que a mesma linha chama de
-    BIBLIOTECA. "Nunca deixe de listar a biblioteca" e "Nunca esqueça de levar a opção da biblioteca" nao contam."""
-    for f in frases(texto):
-        for m in re.finditer(LEITURA, f, re.I):
-            if _negado(f, m.start(), LEITURA) and \
-                    re.search(r'biblioteca|BIBLIOTECA|\b(?:essa|esta) pasta\b', _resto(f, m.end())):
-                return True
-    return False
-
-
-def regra_biblioteca_ausente(textos):
-    """Onde a skill toca a biblioteca (no SKILL.md ou nas referencias), a regra de nunca le-la esta presente; o
-    SKILL.md que leva o marcador traz a regra no proprio texto."""
-    juntos = '\n\n'.join(textos.values())
-    achados = []
-    if TOCA_BIBLIOTECA.search(juntos) and not tem_regra_da_biblioteca(juntos):
-        achados.append('sem a regra de nunca ler a biblioteca')
-    for nome, t in textos.items():
-        if MARCADOR_BIBLIOTECA in t and not tem_regra_da_biblioteca(t):
-            achados.append('%s: marcador sem a regra de nunca ler a biblioteca' % nome)
-    return achados
-
-
-def regra_biblioteca_vazia(texto):
-    """O caso de ${user_config.biblioteca_agencia} vazio: o marcador aparece uma vez (o Claude Code troca o marcador no
-    texto inteiro, e uma guarda que o cite vira sempre verdadeira), o paragrafo dele trata a pasta vazia, a tela abre
-    sempre com --biblioteca "BIBLIOTECA" entre aspas (vazio vira "" e o motor le como biblioteca ausente) e nada manda
-    tirar a opcao."""
-    achados = []
-    if MARCADOR_BIBLIOTECA in texto:
-        if texto.count(MARCADOR_BIBLIOTECA) != 1:
-            achados.append('marcador citado %d vezes' % texto.count(MARCADOR_BIBLIOTECA))
-        paragrafo = next(p for p in re.split(r'\n\s*\n', texto) if MARCADOR_BIBLIOTECA in p)
-        if not re.search(r'\bvazi[ao]\b|não configurad', paragrafo):
-            achados.append('caso vazio sem tratamento')
-        if not re.search(r'\bBIBLIOTECA\b', paragrafo):
-            achados.append('marcador sem o nome BIBLIOTECA')
-    for c in comandos_do_motor(texto):
-        if 'tela abrir' in c and '--biblioteca "BIBLIOTECA"' not in c:
-            achados.append('tela sem --biblioteca "BIBLIOTECA": %s' % c)
-        for m in re.finditer(r'--biblioteca(?:\s+|=)(\S+)', c):
-            if m.group(1) != '"BIBLIOTECA"':
-                achados.append('--biblioteca sem aspas: %s' % c)
-    for valor in ('', 'D:/Agencia/biblioteca'):
-        trocado = texto.replace(MARCADOR_BIBLIOTECA, valor)
-        if re.search(r'\b(?:tir\w*|omit\w*|remov\w*|retir\w*|sem a opção|sem a parte)\s+`?--biblioteca', trocado, re.I):
-            achados.append('manda tirar --biblioteca')
-            break
-    return achados
+def regra_sem_biblioteca_da_agencia(texto):
+    """Nenhuma citacao da biblioteca da agencia, que saiu na 0.19.0 (nº213): nem o marcador
+    ${user_config.biblioteca_agencia}, nem --biblioteca, nem o nome BIBLIOTECA, nem a biblioteca da agencia por
+    extenso, nem marca registrar, marca escolher ou o padrao da marca."""
+    return ['biblioteca da agência: %s' % m.group(0) for m in BIBLIOTECA_DA_AGENCIA.finditer(texto)]
 
 
 def regra_invocacao(nome_skill, texto):
@@ -448,8 +380,7 @@ REGRAS_DE_TEXTO = {
     'atos_e_terminal': regra_atos_e_terminal,
     'caminho_absoluto': regra_caminho_absoluto,
     'pergunta_de_modo': regra_pergunta_de_modo,
-    'biblioteca_lida': regra_biblioteca_lida,
-    'biblioteca_vazia': regra_biblioteca_vazia,
+    'sem_biblioteca_da_agencia': regra_sem_biblioteca_da_agencia,
 }
 
 
@@ -472,12 +403,14 @@ def test_skills_seguem_a_regra(regra):
     assert achados == [], '\n'.join(achados)
 
 
-def test_regra_da_biblioteca_presente_onde_a_skill_a_toca():
-    achados = []
-    for skill, arquivos in arquivos_das_skills().items():
-        textos = {_rel(a): _ler(a) for a in arquivos}
-        achados += ['%s: %s' % (skill, a) for a in regra_biblioteca_ausente(textos)]
-    assert achados == [], '\n'.join(achados)
+def test_manifesto_sem_biblioteca_da_agencia_e_com_o_teto():
+    """0.19.0 (nº213): o userConfig perde biblioteca_agencia; o teto do modo de dados segue obrigatorio."""
+    manifesto = json.loads((RAIZ_PLUGIN / '.claude-plugin' / 'plugin.json').read_text(encoding='utf-8'))
+    config = manifesto['userConfig']
+    assert 'biblioteca_agencia' not in config
+    assert set(config) == {'teto_modo_dados'}
+    assert config['teto_modo_dados']['required'] is True
+    assert config['teto_modo_dados']['options'] == ['a', 'b', 'c']
 
 
 def test_frontmatter_e_sugerir_funcoes_chamada_pelo_modelo():
@@ -565,7 +498,6 @@ CASOS_RUINS = {
         CABECALHO_BOM + 'Rode `"PY" -I -B -m vapt --envelope --teto-modo-dados TETO entregar --job "PASTA"`.\n',
         CABECALHO_BOM + '```\n"PY" -I -B -m vapt --envelope --teto-modo-dados TETO spec confirmar "PASTA"\n```\n',
         CABECALHO_BOM + '```\n"PY" -I -B -m vapt --envelope --teto-modo-dados TETO parametros-entrega "PASTA"\n```\n',
-        CABECALHO_BOM + '```\n"PY" -I -B -m vapt --envelope --teto-modo-dados TETO marca registrar "PASTA"\n```\n',
         'Peça ao DA para rodar `vapt aprovar` no terminal.',
         'Diga ao DA para abrir um terminal e rodar o render.',
         'Explique ao DA que ele roda a entrega pelo comando do Vapt.',
@@ -598,25 +530,18 @@ CASOS_RUINS = {
         'Peça ao DA o valor da margem de segurança em pixels.',
         'Peça ao DA para escolher o modo de dados aqui no chat.',
     ],
-    'biblioteca_lida': [
-        'Leia o perfil da marca na biblioteca da agência.',
-        'Liste a pasta BIBLIOTECA para achar a marca.',
-        'Copie `marcas/x/perfil-marca.json` para o job.',
-        'Procure a marca dentro da pasta BIBLIOTECA.',
-        'Rode `ls "BIBLIOTECA/marcas"` para ver as marcas.',
-        'Consulte o perfil-marca.json da marca antes de sugerir.',
-        'Rode `Get-ChildItem "BIBLIOTECA"` na PowerShell.',
-        'Nunca deixe de listar a biblioteca da agência para o DA.',
-    ],
-    'biblioteca_vazia': [
-        '2. A pasta da biblioteca é `' + MARCADOR_BIBLIOTECA + '`, chamada de BIBLIOTECA.\n',
-        '2. A biblioteca é `' + MARCADOR_BIBLIOTECA + '`, chamada de BIBLIOTECA, mesmo com ela vazia.\n\n'
-        'Se `' + MARCADOR_BIBLIOTECA + '` estiver vazio, não passe a opção.\n',
-        '2. A biblioteca é `' + MARCADOR_BIBLIOTECA + '`, chamada de BIBLIOTECA, mesmo vazia. Se ela estiver vazia, '
-        'tire `--biblioteca` do comando.\n',
-        CABECALHO_BOM + '```\n"PY" -I -B -m vapt --envelope --teto-modo-dados TETO tela abrir --job "PASTA"\n```\n',
-        CABECALHO_BOM + '```\n"PY" -I -B -m vapt --envelope --teto-modo-dados TETO --biblioteca BIBLIOTECA '
+    'sem_biblioteca_da_agencia': [
+        '2. A pasta é `' + MARCADOR_BIBLIOTECA + '`.\n',
+        CABECALHO_BOM + '```\n"PY" -I -B -m vapt --envelope --teto-modo-dados TETO --biblioteca "X" '
         'tela abrir --job "PASTA"\n```\n',
+        'A tela abre com a opção `--biblioteca` mesmo vazia.',
+        'Liste a pasta BIBLIOTECA para achar o perfil.',
+        'Nunca leia, liste nem copie a biblioteca da agência.',
+        'A Biblioteca de marcas guarda o perfil de cada cliente.',
+        'Depois da aprovação, o DA clica em marca registrar na tela.',
+        'O DA usa `marca escolher` no passo 1 da tela.',
+        'Use o padrão da marca no Design system.',
+        'O Padrao da Marca vale para o job inteiro.',
     ],
 }
 
@@ -628,22 +553,21 @@ CASOS_BONS = [
     'Não explique o `o_que_fazer` ao DA, porque ele fala de terminal.',
     'Peça o caminho absoluto da pasta do job; nunca peça nem aceite um caminho relativo.',
     'Nunca pergunte nem escolha pelo DA o modo de dados, o teto, um valor de spec, um limite ou uma regra.',
-    'Nunca leia, liste nem copie a biblioteca da agência.',
     'Na ferramenta PowerShell, ponha `& ` antes do caminho entre aspas.',
     'Pergunte ao DA se ele quer resolver agora ou seguir.',
     'Diga ao DA que ele não precisa de terminal: tudo é clique na tela.',
     'Diga ao DA que ele não precisa rodar nada, porque o render é um clique dele na tela.',
-    'Quem lê a biblioteca da agência é o motor; você nunca lê essa pasta.',
-    'O motor lê a biblioteca da agência sozinho.',
+    # a biblioteca de specs (biblioteca-specs/) e outra coisa e fica; "marca" no sentido da peca tambem
+    'O motor ou a biblioteca de specs já ligou o trecho a um campo.',
+    'A lista de funções vale para qualquer marca; o logo principal é a marca do anunciante.',
     'Peça ao DA para conferir na tela o caminho da pasta de entrega.',
     'Peça ao DA para configurar o teto do plugin em `/plugin`, opção Configure, e pare.',
     'Peça ao DA para escolher o modo de dados no passo 1 da tela.',
     # a excecao declarada da regra do teto: so o doctor, que nao toca dado de job, roda sem o teto nao configurado
     CABECALHO_BOM + 'Se o teto não estiver configurado, rode o passo 3 sem a parte `--teto-modo-dados TETO`.\n\n3. Rode:'
     '\n\n```\n"PY" -I -B -m vapt --envelope --teto-modo-dados TETO doctor\n```\n',
-    CABECALHO_BOM + '3. A pasta da biblioteca da agência é `' + MARCADOR_BIBLIOTECA + '`, chamada de BIBLIOTECA. Passe '
-    'sempre `--biblioteca "BIBLIOTECA"`, mesmo com ela vazia. Você nunca lê nem lista essa pasta.\n\n```\n'
-    '"PY" -I -B -m vapt --envelope --teto-modo-dados TETO --biblioteca "BIBLIOTECA" tela abrir --job "PASTA"\n'
+    CABECALHO_BOM + '3. Abra a tela:\n\n```\n'
+    '"PY" -I -B -m vapt --envelope --teto-modo-dados TETO tela abrir --job "PASTA"\n'
     '```\n\nLeia `${CLAUDE_PLUGIN_ROOT}/skills/x/references/y.md` e `sugestoes/pacote-modelo.json` da PASTA.\n',
 ]
 
@@ -663,26 +587,6 @@ def test_autoverificacao_casos_bons_passam(indice):
     texto = CASOS_BONS[indice]
     achados = {r: f(texto) for r, f in REGRAS_DE_TEXTO.items()}
     assert {r: a for r, a in achados.items() if a} == {}
-    assert regra_biblioteca_ausente({'x': texto}) == [] or MARCADOR_BIBLIOTECA not in texto
-
-
-def test_autoverificacao_biblioteca_sem_a_regra():
-    tocada = '2. A pasta da biblioteca da agência é `' + MARCADOR_BIBLIOTECA + '`, chamada de BIBLIOTECA, mesmo vazia.'
-    assert regra_biblioteca_ausente({'SKILL.md': tocada})
-    # a regra so na referencia nao basta para o SKILL.md que leva o marcador
-    assert regra_biblioteca_ausente({'SKILL.md': tocada, 'ref.md': 'Nunca leia a biblioteca da agência.'})
-    assert regra_biblioteca_ausente({'SKILL.md': tocada + ' Você nunca lê nem lista essa pasta.'}) == []
-    # a referencia que so cita a biblioteca vale pela regra do SKILL.md da mesma skill
-    assert regra_biblioteca_ausente({'glossario.md': 'Biblioteca da agência: a pasta das marcas.'})
-    assert regra_biblioteca_ausente({'glossario.md': 'Biblioteca da agência: a pasta das marcas.',
-                                     'SKILL.md': 'Nunca leia, liste nem copie a biblioteca da agência.'}) == []
-    # a regra e um verbo de leitura negado; frases com "nunca" e "biblioteca" que dizem outra coisa nao contam
-    assert regra_biblioteca_ausente({'SKILL.md': tocada + ' Nunca esqueça de levar a opção da biblioteca no comando.'})
-    assert regra_biblioteca_ausente({'SKILL.md': tocada + ' Nunca deixe de listar a biblioteca para o DA.'})
-    assert not tem_regra_da_biblioteca('Nunca deixe de listar a biblioteca para o DA.')
-    assert not tem_regra_da_biblioteca('Nunca esqueça de levar a opção da biblioteca no comando.')
-    assert tem_regra_da_biblioteca('Você nunca lê, lista nem copia essa pasta.')
-    assert tem_regra_da_biblioteca('Nunca procure nada na biblioteca da agência.')
 
 
 def test_autoverificacao_frontmatter():
@@ -749,7 +653,7 @@ def test_autoverificacao_skill_sem_linha_do_motor(tmp_path):
     assert skills_sem_linha_do_motor(tmp_path) == ['sugerir-funcoes']
 
 
-def _valores(tmp_path, biblioteca_valor):
+def _valores(tmp_path):
     job = tmp_path / 'job'
     (job / 'sugestoes').mkdir(parents=True, exist_ok=True)
     (job / 'estado.json').write_text('{}', encoding='utf-8')
@@ -761,7 +665,7 @@ def _valores(tmp_path, biblioteca_valor):
             # 0.18.0: --specs leva arquivos soltos e pastas
             'SPECS1': (origem / 'folha-sintetica.pdf').as_posix(), 'SPECS2': (origem / 'specs').as_posix(),
             'NOME': 'arquivo-sintetico.otf', 'ARQUIVO': (origem / 'novo-sintetico.otf').as_posix(),
-            'VEICULADOR': 'veiculador-sintetico', 'BIBLIOTECA': biblioteca_valor}
+            'VEICULADOR': 'veiculador-sintetico'}
 
 
 def _trocar(linha, valores):
@@ -772,18 +676,12 @@ def _trocar(linha, valores):
 
 @pytest.mark.parametrize('linha', LINHAS_DO_MOTOR)
 @pytest.mark.parametrize('teto', ['a', 'b', 'c'])
-@pytest.mark.parametrize('com_biblioteca', [False, True])
-def test_linha_da_skill_e_aceita_pelo_analisador_do_motor(tmp_path, linha, teto, com_biblioteca):
-    bib = (tmp_path / 'bib').as_posix() if com_biblioteca else ''
-    valores = dict(_valores(tmp_path, bib), TETO=teto)
+def test_linha_da_skill_e_aceita_pelo_analisador_do_motor(tmp_path, linha, teto):
+    valores = dict(_valores(tmp_path), TETO=teto)
     partes = shlex.split(_trocar(linha.lstrip('& ').strip(), valores), posix=True)
     assert partes[:4] == [sys.executable, '-I', '-B', '-m'] and partes[4] == 'vapt', partes
     args = cli.montar_analisador().parse_args(partes[5:])
     assert args.envelope is True and args.teto_modo_dados == teto
-    if '--biblioteca' in partes:
-        # vazio vira "" no comando, e o motor le como biblioteca ausente: o job roda sem marca
-        esperado = None if not com_biblioteca else Path(bib)
-        assert biblioteca.normalizar(args.biblioteca) == esperado
 
 
 def _gancho():
@@ -795,14 +693,10 @@ def _gancho():
 
 @pytest.mark.parametrize('linha', LINHAS_DO_MOTOR)
 @pytest.mark.parametrize('ferramenta,prefixo', [('Bash', ''), ('PowerShell', ''), ('PowerShell', '& ')])
-@pytest.mark.parametrize('com_biblioteca', [False, True])
-def test_linha_da_skill_passa_pelo_gancho(tmp_path, monkeypatch, linha, ferramenta, prefixo, com_biblioteca):
+def test_linha_da_skill_passa_pelo_gancho(tmp_path, monkeypatch, linha, ferramenta, prefixo):
     # modelado no test_skill_sugerir_funcoes.py::test_linhas_da_skill_passam_pelo_gancho, agora para toda linha de
     # toda skill: o gancho reconhece a chamada do motor ("PY" -I -B -m vapt, MOTOR_GERAL da leva 4) e deixa passar
-    bib = tmp_path / 'bib'
-    if com_biblioteca:
-        bib.mkdir()
-    valores = _valores(tmp_path, bib.as_posix() if com_biblioteca else '')
+    valores = _valores(tmp_path)
     dados = tmp_path / 'dados'
     dados.mkdir()
     (dados / 'interpretador.json').write_text(json.dumps({'python': sys.executable}), encoding='utf-8')
@@ -810,3 +704,32 @@ def test_linha_da_skill_passa_pelo_gancho(tmp_path, monkeypatch, linha, ferramen
     comando = prefixo + _trocar(linha.lstrip('& ').strip(), valores)
     ev = {'tool_name': ferramenta, 'tool_input': {'command': comando}, 'cwd': str(tmp_path)}
     assert _gancho().decidir_com_motivo(ev) == (None, None), comando
+
+
+# a linha da tela das skills ate a 0.18.0, com a opcao da biblioteca da agencia
+LINHA_ANTIGA_DA_TELA = ('"PY" -I -B -m vapt --envelope --teto-modo-dados TETO --biblioteca "BIBLIOTECA" tela abrir '
+                        '--job "PASTA"')
+
+
+@pytest.mark.parametrize('ferramenta,prefixo', [('Bash', ''), ('PowerShell', ''), ('PowerShell', '& ')])
+@pytest.mark.parametrize('com_pasta', [False, True])
+def test_linha_antiga_com_biblioteca_passa_no_analisador_e_no_gancho(tmp_path, monkeypatch, ferramenta, prefixo,
+                                                                    com_pasta):
+    """Compat da 0.19.x, sai na 0.20.0 (nº213): uma conversa com a skill antiga em cache ainda manda --biblioteca,
+    vazia ou com a pasta. O analisador do motor aceita e ignora a opcao, e o gancho deixa a linha passar."""
+    bib = tmp_path / 'bib'
+    if com_pasta:
+        bib.mkdir()
+    valores = dict(_valores(tmp_path), BIBLIOTECA=bib.as_posix() if com_pasta else '')
+    linha = re.sub(r'\b(%s)\b' % '|'.join(MARCADORES_DAS_LINHAS + ('BIBLIOTECA',)), lambda m: valores[m.group(1)],
+                   LINHA_ANTIGA_DA_TELA)
+    partes = shlex.split(linha, posix=True)
+    assert partes[:5] == [sys.executable, '-I', '-B', '-m', 'vapt'], partes
+    args = cli.montar_analisador().parse_args(partes[5:])
+    assert args.envelope is True and args.teto_modo_dados == 'a'
+    dados = tmp_path / 'dados'
+    dados.mkdir()
+    (dados / 'interpretador.json').write_text(json.dumps({'python': sys.executable}), encoding='utf-8')
+    monkeypatch.setenv('CLAUDE_PLUGIN_DATA', str(dados))
+    ev = {'tool_name': ferramenta, 'tool_input': {'command': prefixo + linha}, 'cwd': str(tmp_path)}
+    assert _gancho().decidir_com_motivo(ev) == (None, None), linha

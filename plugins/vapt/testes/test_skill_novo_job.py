@@ -4,20 +4,16 @@
 1. O o_que_fazer do motor fala com quem roda o motor e cita comandos (job proxima, spec confirmar, render, aprovar,
    entregar, parametros-entrega). A skill nunca manda repetir esse texto ao DA ao pe da letra: o Claude traduz para o
    clique na tela e nunca passa comando ao DA (no 159).
-2. O Claude Code troca ${user_config.biblioteca_agencia} pelo valor configurado em todo o texto da SKILL.md. Uma
-   guarda que cita o marcador vira, com a pasta configurada, uma condicao sempre verdadeira. A skill passa sempre
-   --biblioteca, e o motor trata o valor vazio ou sem troca como biblioteca nao configurada.
+2. A biblioteca da agencia saiu na 0.19.0 (nº213): a SKILL.md e as referencias nao citam o marcador
+   ${user_config.biblioteca_agencia} nem --biblioteca.
 3. A sinopse de job criar no README e na doc do M2 mostra --modo-dados como opcional.
 """
 import re
 from pathlib import Path
 
-from vapt import biblioteca
-
 RAIZ_PLUGIN = Path(__file__).resolve().parents[1]
 RAIZ_REPO = RAIZ_PLUGIN.parents[1]
 SKILL = RAIZ_PLUGIN / 'skills' / 'novo-job'
-MARCADOR = '${user_config.biblioteca_agencia}'
 
 
 def _textos():
@@ -45,25 +41,16 @@ def test_skill_diz_que_o_comando_do_o_que_fazer_nunca_vai_ao_da():
     assert 'entrega' in fluxo and 'próximo marco' in fluxo
 
 
-def test_biblioteca_sem_guarda_que_cite_o_marcador():
+def test_skill_e_referencias_sem_biblioteca_da_agencia():
+    """0.19.0 (nº213): a biblioteca da agencia saiu. Nenhum texto cita o marcador nem --biblioteca, e o comando da
+    tela segue sem a opcao."""
+    for nome, texto in _textos().items():
+        assert '${user_config.biblioteca_agencia}' not in texto, nome
+        assert '--biblioteca' not in texto, nome
+        assert 'BIBLIOTECA' not in texto, nome
     texto = (SKILL / 'SKILL.md').read_text(encoding='utf-8')
-    # o marcador aparece uma vez so, na definicao; nada no texto manda tirar --biblioteca
-    assert texto.count(MARCADOR) == 1
-    for valor in ('D:/Agencia/biblioteca', ''):
-        trocado = texto.replace(MARCADOR, valor)  # a troca que o Claude Code faz no texto da skill
-        assert not re.search(r'tir\w*\s+`?--biblioteca', trocado)
-        assert 'sem troca' not in trocado
-    # o comando da tela leva sempre a biblioteca
     linhas_tela = [l for l in texto.splitlines() if 'tela abrir' in l and '-m vapt' in l]
-    assert linhas_tela and all('--biblioteca "BIBLIOTECA"' in l for l in linhas_tela)
-    # o caso vazio continua tratado no texto
-    assert 'vazia' in texto
-
-
-def test_motor_trata_biblioteca_vazia_ou_sem_troca_como_nao_configurada():
-    assert biblioteca.normalizar('') is None
-    assert biblioteca.normalizar('   ') is None
-    assert biblioteca.normalizar(MARCADOR) is None
+    assert linhas_tela
 
 
 def test_sinopse_de_job_criar_mostra_modo_dados_opcional():

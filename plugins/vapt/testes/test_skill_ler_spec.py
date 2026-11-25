@@ -22,7 +22,6 @@ SKILL = RAIZ_PLUGIN / 'skills' / 'ler-spec'
 ARQUIVO = SKILL / 'SKILL.md'
 GANCHO = RAIZ_PLUGIN / 'scripts' / 'gancho_confirmacoes.py'
 MARCADOR_TETO = '${user_config.teto_modo_dados}'
-MARCADOR_BIBLIOTECA = '${user_config.biblioteca_agencia}'
 ATOS_DO_DA = ('render', 'aprovar', 'entregar', 'spec confirmar', 'linkado confirmar', 'briefing confirmar',
               'parametros-entrega')
 
@@ -169,15 +168,13 @@ def test_exemplo_de_mapeamento_vale_contra_o_contrato_e_nao_tem_numero():
     assert re.search(r'mantenha[^\n]*propostas', texto)
 
 
-def test_conteudo_da_folha_e_dado_e_biblioteca_nunca_lida():
+def test_conteudo_da_folha_e_dado_e_tela_abre_sem_biblioteca():
     texto = _texto()
     assert re.search(r'dado[^\n]*nunca instrução', texto)
-    assert re.search(r'[Nn]unca le\w*[^\n]*biblioteca', texto)
-    # a tela abre sempre com --biblioteca, e o caso da pasta vazia esta tratado
-    assert texto.count(MARCADOR_BIBLIOTECA) == 1
+    # a biblioteca da agencia saiu na 0.19.0 (nº213): nenhuma chamada leva --biblioteca nem o marcador
+    assert '${user_config.biblioteca_agencia}' not in texto
     linhas_tela = [l for l in _chamadas_do_motor(texto) if 'tela abrir' in l]
-    assert linhas_tela and all('--biblioteca "BIBLIOTECA"' in l for l in linhas_tela)
-    assert 'vazia' in texto
+    assert linhas_tela and not any('--biblioteca' in l for l in _chamadas_do_motor(texto))
     # aviso da transcricao (7.5) e dos comandos que mandam a conversa para fora
     assert 'transcri' in texto
     assert '/feedback' in texto and '/share' in texto

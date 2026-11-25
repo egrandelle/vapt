@@ -92,7 +92,7 @@
       }
     },
     "design": {
-      "description": "Regra de escala e ancora por funcao, escolhidas no Design system; null enquanto o DA nao escolheu. M7c, M4: o valor posto pelo clique em \"Usar o padrao\" leva a origem padrao_marca por campo (regra, ancora), com o ref do perfil; o DA que muda o campo tira a origem dele.",
+      "description": "Regra de escala e ancora por funcao, escolhidas no Design system; null enquanto o DA nao escolheu. A origem padrao_marca por campo (regra, ancora) e legado do clique em \"Usar o padrao\" (M7c, M4, da 0.9 a 0.18): aceita na leitura e ignorada, o valor conta como escolha do DA; sai na 0.20.0 (decisao 213).",
       "type": "object",
       "propertyNames": {
         "$ref": "#/$defs/funcao"
@@ -748,7 +748,7 @@
       }
     },
     "design_funcao": {
-      "description": "A entrada do Design system por funcao (design), com a origem por item do M7c, M4.",
+      "description": "A entrada do Design system por funcao (design); a origem por item do M7c, M4 e legado, ignorado; sai na 0.20.0.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -767,7 +767,7 @@
           "$ref": "#/$defs/design/properties/y"
         },
         "origem": {
-          "description": "So o que veio do clique em \"Usar o padrao\" (padrao da marca, arquitetura-v1.md, 5.3 e 5.7). Sem a chave, o valor e escolha do DA.",
+          "description": "Legado, ignorado; sai na 0.20.0 (decisao 213). O que veio do clique em \"Usar o padrao\" (padrao da marca, da 0.9 a 0.18), so aceito na leitura do rascunho de um job aberto: com ou sem a chave, o valor e escolha do DA.",
           "type": "object",
           "additionalProperties": false,
           "properties": {
@@ -782,6 +782,7 @@
       }
     },
     "origem_padrao": {
+      "description": "Legado, ignorado; sai na 0.20.0 (decisao 213): a origem do padrao da marca no rascunho da 0.9 a 0.18.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -793,7 +794,7 @@
           "const": "padrao_marca"
         },
         "ref": {
-          "description": "marca:<id do perfil>@v<versao>#job:<job de origem> (vapt.tela.funcoes.FORMA_DO_REF)",
+          "description": "marca:<id do perfil>@v<versao>#job:<job de origem> (a forma da 0.9 a 0.18; legado)",
           "type": "string",
           "pattern": "^marca:[0-9a-f]{32}@v[1-9][0-9]*#job:[0-9a-f]{8,64}$"
         }

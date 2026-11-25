@@ -36,6 +36,5 @@ O que o DA escolhe fica salvo sozinho no rascunho do job. "Salvar e seguir" pass
   - c: só contagens, estados e números.
   Até o DA escolher, o job fica no modo c.
 - **Teto:** o modo mais aberto que a agência autorizou, configurado no plugin.
-- **Biblioteca da agência:** a pasta, configurada no plugin, onde o Vapt guarda o padrão de cada marca. Ela é opcional.
 - **Bloqueio:** algo que pede uma decisão do DA antes de seguir.
 - **Portão:** o ponto em que o próximo passo é um clique do DA na tela.

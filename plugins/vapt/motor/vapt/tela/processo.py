@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 """Processo de fundo da tela (M7a2; M7a, fatia 1): servidor da tela e Chromium com janela, ate o DA fechar a janela.
 
-    python -I -B -m vapt.tela.processo --job <pasta> [--teto {a,b,c}] [--biblioteca <pasta>]
-
-A pasta da biblioteca da agencia (M7c, M1) entra no conteudo so pela situacao (com_biblioteca): a pagina nunca recebe
-o caminho nem a lista de marcas por aqui.
+    python -I -B -m vapt.tela.processo --job <pasta> [--teto {a,b,c}]
 
 Quem chama e o "vapt tela abrir" (vapt.tela), solto do terminal. A linha de comando nao leva segredo: o token
 da entrada e a sessao do cookie nascem aqui (vapt.tela.servidor) e vao so ao Chromium, por page.goto
@@ -58,16 +55,15 @@ def _avisar(linha):
         pass
 
 
-def executar(pasta, avisar=_avisar, ao_abrir=None, teto=None, biblioteca=None):
+def executar(pasta, avisar=_avisar, ao_abrir=None, teto=None):
     """Roda a tela do job ate a janela fechar. ao_abrir(janela, servidor): so para os testes (a janela ja aberta).
     teto: o teto do modo de dados que o tela abrir recebeu (a tela nunca oferece modo acima dele nem do estado.json).
-    biblioteca: a pasta da biblioteca da agencia que o tela abrir recebeu (M7c, M1), ou None.
     Devolve o codigo de saida do processo."""
     from vapt.chromium import aberto as chromium_aberto
     pasta = Path(pasta).resolve()
     aberto = chromium_aberto.NavegadorAberto()
     try:
-        return _executar(pasta, avisar, ao_abrir, teto, aberto, biblioteca)
+        return _executar(pasta, avisar, ao_abrir, teto, aberto)
     finally:
         # toda saida fecha o aberto (a recusa tambem); o fecho em ordem e o erro depois da montagem ja fecharam, e o
         # segundo fechar() so devolve o relatorio
@@ -81,18 +77,7 @@ def _fechar_aberto(aberto):
     return {'aberto_%s' % k: v for k, v in sorted(aberto.fechar().items())}
 
 
-def com_biblioteca(conteudo, valor):
-    """M7c, M1: a situacao da biblioteca da agencia no conteudo da montagem. 'biblioteca' e o que a pagina pode
-    receber (sem caminho; vapt.biblioteca.para_tela); 'pasta_biblioteca' e o caminho, so no processo de fundo
-    (None quando a biblioteca nao serve), para os atos da marca dos passos seguintes."""
-    from vapt import biblioteca
-    conferencia = biblioteca.conferir(valor)
-    conteudo['biblioteca'] = biblioteca.para_tela(conferencia)
-    conteudo['pasta_biblioteca'] = conferencia.pasta if conferencia.usavel else None
-    return conteudo
-
-
-def _executar(pasta, avisar, ao_abrir, teto, aberto, biblioteca=None):
+def _executar(pasta, avisar, ao_abrir, teto, aberto):
     from vapt.chromium import navegador
     from vapt.derivacao import medida_quebras
     from vapt.job import nucleo
@@ -102,14 +87,10 @@ def _executar(pasta, avisar, ao_abrir, teto, aberto, biblioteca=None):
         # o render que a janela anterior deixou pela metade: o aviso vai para a tela, e a trava do processo morto sai
         # antes da montagem, que pega a trava do job (vapt.tela.tarefas, M7b B1)
         inacabado = tarefas.recuperar(pasta)
-        # a biblioteca so quando veio (M7c, M3: a marca do job no passo 1); sem ela, a chamada fica como antes
         extra = {'teto': teto} if teto else {}
-        if biblioteca is not None:
-            extra['biblioteca'] = biblioteca
         conteudo = estado.montar(pasta, **extra)
         if inacabado:
             conteudo['render_inacabado'] = inacabado
-        com_biblioteca(conteudo, biblioteca)
     except estado.ErroTela as e:
         _registrar_recusa(pasta, motivo=e.motivo)
         avisar('%s %s' % (RECUSADO, e.motivo))
@@ -265,16 +246,12 @@ def principal(argv=None, ao_abrir=None):
     p = argparse.ArgumentParser(prog='vapt.tela.processo', add_help=False)
     p.add_argument('--job', required=True)
     p.add_argument('--teto', choices=('a', 'b', 'c'), default=None)
-    p.add_argument('--biblioteca', default=None)
     try:
         args = p.parse_args(list(sys.argv[1:] if argv is None else argv))
     except SystemExit:
         _avisar('%s uso' % RECUSADO)
         return int(Codigo.USO)
-    if args.biblioteca is None:
-        # sem a opcao, a chamada fica como antes do M7c (os testes que trocam executar seguem valendo)
-        return executar(args.job, ao_abrir=ao_abrir, teto=args.teto)
-    return executar(args.job, ao_abrir=ao_abrir, teto=args.teto, biblioteca=args.biblioteca)
+    return executar(args.job, ao_abrir=ao_abrir, teto=args.teto)
 
 
 if __name__ == '__main__':

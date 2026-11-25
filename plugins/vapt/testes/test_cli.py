@@ -177,3 +177,84 @@ def test_modo_humano_mostra_aviso_de_segredo(capsys, monkeypatch):
 def test_limites_pela_cli():
     codigo, saida, _ = rodar('limites')
     assert codigo == 0 and 'prova_pixel.limiar_diferenca' in saida
+
+
+# ------------------------------------------------------------------ --biblioteca: compat, sai na 0.20.0
+# A biblioteca da agencia saiu na 0.19.0 (nº213). A opcao global --biblioteca fica aceita e ignorada na 0.19.x, para a
+# linha antiga de uma skill em cache nao quebrar: nao valida, nao chega ao filho da tela e nao aparece no envelope.
+VALORES_ANTIGOS_DA_BIBLIOTECA = ('C:/agencia/biblioteca-secreta', '', '${user_config.biblioteca_agencia}')
+
+
+def test_compat_biblioteca_e_aceita_e_ignorada_pelo_analisador():
+    for valor in VALORES_ANTIGOS_DA_BIBLIOTECA:
+        args = cli.montar_analisador().parse_args(['--biblioteca', valor, 'doctor'])
+        assert args.comando == 'doctor'
+    # a opcao nao aparece na ajuda
+    assert '--biblioteca' not in cli.montar_analisador().format_help()
+
+
+def test_compat_doctor_com_biblioteca_da_o_mesmo_que_sem(tmp_path, capsys, monkeypatch):
+    from vapt import doctor
+    from vapt.doctor import verificacoes as v
+    chamadas = []
+
+    def rodar_verificacoes(teto, dados, **opcoes):
+        # a plataforma e um objeto novo a cada chamada: compara so a classe dela
+        if 'plat' in opcoes:
+            opcoes['plat'] = type(opcoes['plat'])
+        chamadas.append((teto, dados, opcoes))
+        return [v.Verificacao('python', 'Python')], False
+
+    monkeypatch.setattr(cli, 'COMPONENTES', (('vapt.doctor', ('doctor',)),))
+    monkeypatch.setattr(doctor, 'rodar_verificacoes', rodar_verificacoes)
+    envelopes = []
+    for antes in ([], ['--biblioteca', str(tmp_path / 'biblioteca-secreta')], ['--biblioteca', '']):
+        saida = tmp_path / ('saida%d' % len(envelopes))
+        codigo = cli.principal(['--envelope', '--teto-modo-dados', 'c', *antes, 'doctor', '--sem-isolador',
+                                '--sem-chromium', '--saida', str(saida)])
+        linha = capsys.readouterr().out.strip().splitlines()[-1]
+        assert 'biblioteca-secreta' not in linha and str(tmp_path) not in linha
+        relatorio = (saida / doctor.NOME_ARQUIVO).read_text(encoding='utf-8')
+        assert 'biblioteca' not in relatorio
+        env = envelope_de(linha)
+        envelopes.append((codigo, env['codigo'], env['situacao'], env.get('contagens')))
+    assert envelopes[0] == envelopes[1] == envelopes[2] and envelopes[0][0] == 0
+    assert chamadas[0] == chamadas[1] == chamadas[2]
+
+
+def test_compat_comando_do_filho_nao_recebe_biblioteca(tmp_path):
+    import inspect
+
+    from vapt import tela
+    assert list(inspect.signature(tela.comando_do_filho).parameters) == ['pasta', 'teto']
+    assert '--biblioteca' not in tela.comando_do_filho(tmp_path)
+    assert '--biblioteca' not in tela.comando_do_filho(tmp_path, teto='b')
+
+
+def test_compat_tela_abrir_com_biblioteca_da_o_mesmo_que_sem(tmp_path, capsys, monkeypatch):
+    from vapt import tela
+    from vapt.job import nucleo
+    job = tmp_path / 'job'
+    job.mkdir()
+    (job / nucleo.ARQUIVO_ESTADO).write_text('{}', encoding='utf-8')
+    pedidos = []
+
+    class Saida:
+        def close(self):
+            pass
+
+    class Proc:
+        stdout = Saida()
+
+    monkeypatch.setattr(tela, '_janela_presente', lambda: True)
+    monkeypatch.setattr(tela, '_soltar', lambda argv: pedidos.append(argv) or Proc())
+    monkeypatch.setattr(tela, '_ler_aviso', lambda proc, espera: 'pronto')
+    linhas = []
+    for antes in ([], ['--biblioteca', str(tmp_path / 'biblioteca-secreta')], ['--biblioteca', '']):
+        codigo = cli.principal(['--envelope', '--teto-modo-dados', 'b', *antes, 'tela', 'abrir', '--job', str(job)])
+        linha = capsys.readouterr().out.strip().splitlines()[-1]
+        assert codigo == 0 and 'biblioteca-secreta' not in linha
+        linhas.append(linha)
+    assert linhas[0] == linhas[1] == linhas[2]
+    assert pedidos[0] == pedidos[1] == pedidos[2]
+    assert '--biblioteca' not in pedidos[0] and pedidos[0][pedidos[0].index('--teto') + 1] == 'b'

@@ -277,46 +277,9 @@ def test_doctor_lista_as_verificacoes_do_m2(monkeypatch):
     assert next(x for x in lista if x.id == 'fonte_no_chromium').situacao == 'pulado'
 
 
-# ------------------------------------------------------------------ biblioteca da agencia (M7c, M1)
-def test_doctor_biblioteca_nao_configurada_passa_e_diz_onde_configurar():
-    r = v.verificar_biblioteca(None, None)
-    assert r.id == 'biblioteca_agencia' and r.situacao == 'ok'
-    assert '/plugin' in r.detalhe and 'Configure' in r.detalhe
-
-
-def test_doctor_biblioteca_boa(tmp_path):
-    pasta = tmp_path / 'biblioteca'
-    pasta.mkdir()
-    r = v.verificar_biblioteca(str(pasta), tmp_path / 'dados')
-    assert r.situacao == 'ok' and str(tmp_path) not in r.detalhe and r.o_que_fazer is None
-
-
-@pytest.mark.parametrize('caso', ['ausente', 'sem_escrita', 'dentro_do_plugin', 'dentro_dos_dados'])
-def test_doctor_acusa_biblioteca_configurada_com_problema(tmp_path, monkeypatch, caso):
-    from vapt import PASTA_PLUGIN, biblioteca
-    dados = tmp_path / 'dados'
-    dados.mkdir()
-    pasta = {'ausente': tmp_path / 'sumiu', 'sem_escrita': tmp_path / 'trancada', 'dentro_do_plugin': PASTA_PLUGIN,
-             'dentro_dos_dados': dados / 'biblioteca'}[caso]
-    if caso in ('sem_escrita', 'dentro_dos_dados'):
-        pasta.mkdir()
-    if caso == 'sem_escrita':
-        def negar(*_a, **_k):
-            raise PermissionError('negado')
-        monkeypatch.setattr(biblioteca.tempfile, 'mkstemp', negar)
-    r = v.verificar_biblioteca(str(pasta), dados)
-    assert r.situacao == 'falha' and r.o_que_fazer
-    assert r.numeros == {'configurada': 1, 'usavel': 0}
-    for texto in (r.detalhe, r.o_que_fazer):
-        assert str(pasta) not in texto and str(tmp_path) not in texto and str(PASTA_PLUGIN) not in texto
-        assert '—' not in texto and '–' not in texto
-
-
-def test_doctor_roda_a_verificacao_da_biblioteca(tmp_path):
+# ------------------------------------------------------------------ biblioteca da agencia: saiu na 0.19.0 (nº213)
+def test_doctor_nao_confere_mais_a_biblioteca_da_agencia():
     from vapt import doctor
-    lista, _sem = doctor.rodar_verificacoes('c', None, com_isolador=False, com_chromium=False,
-                                            biblioteca=str(tmp_path / 'sumiu'))
-    bib = next(x for x in lista if x.id == 'biblioteca_agencia')
-    assert bib.situacao == 'falha'
+    assert not hasattr(v, 'verificar_biblioteca')
     lista, _sem = doctor.rodar_verificacoes('c', None, com_isolador=False, com_chromium=False)
-    assert next(x for x in lista if x.id == 'biblioteca_agencia').situacao == 'ok'
+    assert 'biblioteca_agencia' not in [x.id for x in lista]

@@ -667,6 +667,8 @@ Dono: frente de derivação do M5. Arquivos: `motor/vapt/briefing/` (`modelo.py`
 
 Todo campo de decisão é `{valor, situacao, origem}` (situação `confirmado` ou `pendente`; origem `da`, `padrao_marca`, `decisao_10`, `folha` ou `fixture_de_teste`, com a referência). Cabeçalho: hashes do laudo, das specs (os formatos do job quando há formato confirmado, senão o rascunho), do design system e da conferência de fontes; origem (`da` ou `fixture_de_teste`), meio (`tela`, `terminal`, `importar_teste`), quem e quando. Campos: quadro, funções (por grupo ou por camada, com observação), cobertas (o DA aceita ou inverte a função da regra da decisão 10), regras de escala por função, regras das camadas indeterminado, âncoras por eixo (por função ou por elemento, sem padrão), lockup de governo, sujeitos, formatos (id, chave das specs, largura, altura, rotação, sufixos), famílias (faixa, base, número de mestres), mestres (a do KV e as próprias, com a caixa de cada elemento e as quebras aprovadas), opções de texto e modo de dados.
 
+Nota da 0.19.0 (nº213): a origem `padrao_marca` é legado da 0.9 a 0.18. Fica no enum de `origem.tipo` só para ler briefing antigo; nada novo grava essa origem, e o valor sai na 0.20.0.
+
 **Herança** (`modelo.resolver`): a função dada a uma camada vale sobre a do grupo mais próximo; a camada coberta no KV sem função própria pede a decisão do DA sobre a sugestão da decisão 10; camada desenhável sem função é erro. Só a função resolvida chega ao layout, à validação e aos testes. A camada fora do quadro escolhido e a invisível ficam de fora (contagem).
 
 **Conferência** (`modelo.conferir`): recusa pendente obrigatório (quadro, modo de dados, famílias), indeterminado sem observação, camada sem função, coberta sem decisão, função sem regra de escala, elemento (com tinta no canvas da mestre) sem âncora, formato repetido e mestre própria de formato que não existe. Exceção, regra e âncora pendentes não valem (a falta é conferida pelo que elas resolvem).
@@ -1048,6 +1050,8 @@ Com fonte em `motor/fontes-de-limites.json`: `entrega.peso_reprova_acima_da_leit
 
 Esta seção junta o que as seções "M7c, ..." abaixo detalham passo a passo. Fontes: decisoes-v1.md, 159, 162, 170 e 190 (Q1 a Q7); arquitetura-v1.md, 3.5, 5.7 e 7.3 a 7.6. Tudo foi conferido em fixtures sintéticas; a rodada com os três KVs autorizados (nº155) é do Duda, na tela.
 
+Na 0.19.0, a nº213 revogou a 190 em Q1, Q2, Q3, Q5 e Q6 (biblioteca da agência, perfil, marca do job e padrão da marca); Q4 (a frase do pedido de sugestões) e Q7 (as miniaturas do modo a) continuam valendo. O que saiu e o que fica por compatibilidade está na seção "0.19.0, a biblioteca da agência sai", no fim deste documento.
+
 ### Contratos novos
 
 | Contrato | Arquivo | Quem grava | Quem lê |
@@ -1055,10 +1059,10 @@ Esta seção junta o que as seções "M7c, ..." abaixo detalham passo a passo. F
 | `pacote-modelo/2` | `sugestoes/pacote-modelo.json` | motor (`sugestao.pacote`) | Claude |
 | `sugestoes/1` | `sugestoes/sugestoes.json` e `sugestoes/sugestoes-validadas.json` | Claude (o primeiro); motor (o validado) | motor; tela |
 | `medicoes-sugestao/1` | `medicoes/sugestao.json` | motor, ao salvar | Trezion e testes |
-| `perfil-marca/1` | `<biblioteca>/marcas/<id>/perfil-marca.json` | motor, pelo ato da tela | tela |
-| `marca-job/1` | `briefing/marca.json` | motor, pelo ato da tela | tela; o Claude vê só `contagens.marca_escolhida` |
+| `perfil-marca/1` (revogado na 0.19.0, nº213) | `<biblioteca>/marcas/<id>/perfil-marca.json` | motor, pelo ato da tela | tela |
+| `marca-job/1` (revogado na 0.19.0, nº213) | `briefing/marca.json` | motor, pelo ato da tela | tela; o Claude vê só `contagens.marca_escolhida` |
 
-`estado/1` aceita `modo_dados` nulo (job criado sem modo); `rascunho-tela/1` aceita a origem `padrao_marca` por função no Design system; `medicoes-tela/1` ganha o passo 2. `pacote-modelo/1` fica só para ler job antigo.
+`estado/1` aceita `modo_dados` nulo (job criado sem modo); `rascunho-tela/1` aceita a origem `padrao_marca` por função no Design system (na 0.19.x, legado tolerado e ignorado; sai na 0.20.0); `medicoes-tela/1` ganha o passo 2. `pacote-modelo/1` fica só para ler job antigo.
 
 ### Fluxo da sugestão de função
 
@@ -1070,6 +1074,8 @@ Esta seção junta o que as seções "M7c, ..." abaixo detalham passo a passo. F
 6. Modo que cai (ato da tela ou teto da agência): `conferir_modo` refaz ou fecha os pacotes no próximo `tela abrir`, `job proxima`, `ler`, `spec importar`, `job trocar-entrada`, `sugestao pacote`, `sugestao importar` ou `sugestao acerto`, e a tela deixa de mostrar sugestão. Os pacotes ficam fora da validade das fases (`Fase.refeitas`), então a troca de modo não deixa fase desatualizada.
 
 ### Perfil de marca e biblioteca da agência
+
+**Revogado na 0.19.0 (nº213).** A biblioteca da agência, a marca do job, o padrão citado no Design system e o registro do padrão saíram. Ver "0.19.0, a biblioteca da agência sai", no fim deste documento.
 
 - Biblioteca: `userConfig.biblioteca_agencia` (`directory`, opcional), passada ao motor por `--biblioteca`. `biblioteca.conferir` diz `ok`, `nao_configurada`, `ausente`, `sem_escrita`, `dentro_do_plugin`, `dentro_dos_dados` ou `marcas_bloqueada`; os envelopes que vão ao Claude (o do doctor e o da tela) levam só a situação, nunca o caminho nem a lista de marcas. A lista de marcas (id e nome) vai só à página da tela, no estado da página (`tela.estado.marca_na_tela`, que chama `marca.job.na_tela`), para o passo 1. Sem biblioteca que sirva, o job roda sem marca.
 - Marca do job: passo 1, ato `marca` (`marca escolher`), com as marcas da biblioteca, "Marca nova" e "Sem marca", nenhuma marcada; opcional.
@@ -1086,13 +1092,13 @@ Esta seção junta o que as seções "M7c, ..." abaixo detalham passo a passo. F
 | `sugestoes/sugestoes-validadas.json` | não | não (`MOTIVO_SUGESTOES`) |
 | `sugestoes/segredos-bloqueados.json` e o resto do job (`estado.json`, `entrada/`, `laudo/`, `briefing/`, `derivacao/`, `ds/`, `specs/`, `fontes/`, `medicoes/`, `render/`, `entrega/`) | não (`MOTIVO_LEITURA`) | negada nos arquivos do DA (`ARQUIVOS_DO_DA`: `briefing/`, `derivacao/`, `estado.json`, `specs/confirmacoes.json`, o master e o contrato do render, `entrega/` e afins) |
 | fora de um job: PSD, PSB, arquivo de fonte | não | sem regra própria |
-| qualquer caminho com o segmento `marcas` (biblioteca da agência) | não | não (`MOTIVO_MARCA`) |
+| qualquer caminho com o segmento `marcas` (biblioteca da agência; na 0.19.x, biblioteca antiga, regra mantida até a 0.20.0) | não | não (`MOTIVO_MARCA`) |
 
-Vale para Read, Glob, Grep, Bash, PowerShell, Monitor, as ferramentas `mcp__*`, `Artifact` e `SendUserFile`. Passam os três comandos do motor que recebem PSD ou fonte (`job criar`, `job trocar-entrada`, `job remover-entrada`). O código do perfil e do registro (`vapt.marca`) e as funções da tela que leem o perfil são negados ao Claude. `marca escolher` e `marca registrar` são atos da tela (`humano.ATOS_DA_TELA`), sem comando de terminal.
+Vale para Read, Glob, Grep, Bash, PowerShell, Monitor, as ferramentas `mcp__*`, `Artifact` e `SendUserFile`. Passam os três comandos do motor que recebem PSD ou fonte (`job criar`, `job trocar-entrada`, `job remover-entrada`). O código do perfil e do registro (`vapt.marca`) e as funções da tela que leem o perfil são negados ao Claude. `marca escolher` e `marca registrar` são atos da tela (`humano.ATOS_DA_TELA`), sem comando de terminal. Revogado na 0.19.0 (nº213): o pacote `vapt.marca` e as funções da tela que liam o perfil saíram, e os dois atos saíram de `humano.ATOS_DA_TELA`.
 
 ### Skills (tabela 3.5)
 
-`novo-job`, `continuar`, `doctor`, `sugerir-funcoes` e `ler-spec`. Toda chamada do motor sai pelo Python do `interpretador.json`, com `--envelope --teto-modo-dados TETO`; nenhuma pergunta de modo, teto, valor ou regra; nenhum ato do DA; nunca ler a biblioteca da agência. `sugerir-funcoes` e `ler-spec` rodam só quando o DA pede (`disable-model-invocation: false`); `novo-job` e `continuar`, só pela chamada do DA. O teste `test_skills.py` confere essas regras em todas as skills.
+`novo-job`, `continuar`, `doctor`, `sugerir-funcoes` e `ler-spec`. Toda chamada do motor sai pelo Python do `interpretador.json`, com `--envelope --teto-modo-dados TETO`; nenhuma pergunta de modo, teto, valor ou regra; nenhum ato do DA; nunca ler a biblioteca da agência. `sugerir-funcoes` e `ler-spec` rodam só quando o DA pede (`disable-model-invocation: false`); `novo-job` e `continuar`, só pela chamada do DA. O teste `test_skills.py` confere essas regras em todas as skills. Revogado na 0.19.0 (nº213): as skills não citam mais a biblioteca da agência nem passam `--biblioteca`.
 
 ## M7c S1: miniaturas permitidas do modo (a) (`vapt/sugestao/miniaturas.py`)
 
@@ -1122,11 +1128,13 @@ Testes: `testes/test_sugestao_miniaturas.py`, com laudos sintéticos para cada r
 - `schemas/estado-1.json`: `modo_dados` aceita `null`. O esquema continua `estado/1`, porque o job antigo, com o modo gravado, segue válido sem migração.
 - O envelope do `job criar` sai em (c), com ou sem `--modo-dados`.
 
-A skill `skills/novo-job/` foi reescrita para o DA que não usa terminal: doctor, criação do job com caminhos absolutos (com a dica de "Copiar como caminho" no Explorador de Arquivos e de "Copiar como nome de caminho" no Finder), as cinco fases pelo `job proxima` e a abertura da tela com `tela abrir`, passando `--biblioteca` só quando `${user_config.biblioteca_agencia}` está configurada. Saíram da skill a pergunta de modo, `--modo-dados`, toda instrução de terminal ao DA, a entrega (M8), a leitura do relatório de entrega, os parâmetros de cor, o valor de `--teto-memoria-bytes` dito no chat e o mapeamento de specs (vai para a skill `ler-spec`). As regras do modelo, o fluxo fase a fase e o glossário ficaram em `skills/novo-job/references/`.
+A skill `skills/novo-job/` foi reescrita para o DA que não usa terminal: doctor, criação do job com caminhos absolutos (com a dica de "Copiar como caminho" no Explorador de Arquivos e de "Copiar como nome de caminho" no Finder), as cinco fases pelo `job proxima` e a abertura da tela com `tela abrir`, passando `--biblioteca` só quando `${user_config.biblioteca_agencia}` está configurada. Saíram da skill a pergunta de modo, `--modo-dados`, toda instrução de terminal ao DA, a entrega (M8), a leitura do relatório de entrega, os parâmetros de cor, o valor de `--teto-memoria-bytes` dito no chat e o mapeamento de specs (vai para a skill `ler-spec`). As regras do modelo, o fluxo fase a fase e o glossário ficaram em `skills/novo-job/references/`. Revogado na 0.19.0 (nº213): a skill não passa mais `--biblioteca` à tela.
 
 Testes: `test_job.py::test_criar_sem_modo_grava_o_job_sem_modo` e `test_cli.py::test_job_criar_sem_modo_dados_sai_em_c`; os testes de CLI que passavam `--modo-dados` sem precisar dele criam o job sem a opção.
 
 ## M7c, M1: biblioteca da agência (`vapt/biblioteca.py`)
+
+**Revogado na 0.19.0 (nº213).** `vapt/biblioteca.py`, o `userConfig.biblioteca_agencia`, a verificação `biblioteca_agencia` do doctor e o `--biblioteca` do processo de fundo da tela saíram. Na 0.19.x, a opção global `--biblioteca` continua aceita e ignorada (fora da ajuda), e sai na 0.20.0.
 
 - `plugin.json` declara `userConfig.biblioteca_agencia`: `type` `directory`, `required` false, sem `default`. O DA escolhe a pasta em `/plugin`, aba Installed, plugin vapt, opção Configure, por clique. A referência do manifesto (https://code.claude.com/docs/en/plugins/manifest-reference.md, User configuration) confirma o tipo `directory`, mas não diz o que `${user_config.biblioteca_agencia}` deixa no texto da skill quando a opção fica vazia. Por isso o motor trata como não configurada a opção ausente, vazia, só com espaços ou com a substituição sem fazer (qualquer valor com `${`). A skill pode passar o texto como veio.
 - Opção global da CLI: `vapt [--envelope] [--teto-modo-dados {a,b,c}] [--biblioteca <pasta>] <comando> ...`. Nenhum envelope leva a pasta nem a lista de marcas.
@@ -1170,9 +1178,9 @@ Testes: `test_gancho_leitura.py` (novo).
 `skills/continuar/SKILL.md` (nova) retoma um job que já existe (arquitetura-v1.md, 3.5: "Lê o estado e segue da próxima fase"). Ela não tem `references/` própria: lê as três referências da `novo-job` (`regras-do-modelo.md`, `fluxo.md`, `glossario.md`), e os passos 2, 6, 7 e 8 têm o mesmo número e o mesmo sentido nas duas skills, porque as referências citam "passo 2", "passo 7" e "passo 8 da skill".
 
 - Estado: só pelo envelope de `job estado` (`situacao`, `codigo`, `fase`, `contagens.fases_validas`, `contagens.fases`, `contagens.bloqueios_pendentes`); a skill nunca lê arquivo da pasta do job (7.4, P1).
-- Decisão: `codigo` diferente de 0, explica sem comando (pasta que não é job: pede o caminho de novo ou indica `/vapt:novo-job`; 21: espera); `contagens.fases_validas` menor que `contagens.fases`: roda `job proxima` uma fase por vez, mesmo com bloqueio pendente, porque aí a `fase` é a próxima do motor e não a do bloqueio (o portão e o `concluido` levam à tela); fases em dia com bloqueio pendente: a `fase` é a do bloqueio, a skill explica por ela e oferece trocar fonte ou folha (passo 7) ou a tela (passo 8); `fase` nula e sem bloqueio: é o `concluido`, o que falta é clique do DA, e a skill reabre a tela com `tela abrir --biblioteca "BIBLIOTECA"`.
+- Decisão: `codigo` diferente de 0, explica sem comando (pasta que não é job: pede o caminho de novo ou indica `/vapt:novo-job`; 21: espera); `contagens.fases_validas` menor que `contagens.fases`: roda `job proxima` uma fase por vez, mesmo com bloqueio pendente, porque aí a `fase` é a próxima do motor e não a do bloqueio (o portão e o `concluido` levam à tela); fases em dia com bloqueio pendente: a `fase` é a do bloqueio, a skill explica por ela e oferece trocar fonte ou folha (passo 7) ou a tela (passo 8); `fase` nula e sem bloqueio: é o `concluido`, o que falta é clique do DA, e a skill reabre a tela com `tela abrir --biblioteca "BIBLIOTECA"`. Na 0.19.0 (nº213), a linha da tela saiu sem `--biblioteca`.
 - Resíduo do K1: o texto `FIM` de `job/fases.py` e os `o_que_fazer` do núcleo citam comandos de terminal. A skill nunca os repassa ao DA; ela não roda outro comando citado no `o_que_fazer` (`spec importar`, `ds montar`, `fontes conferir`): fase que falha duas vezes seguidas leva ao doctor e, depois dele, ao aviso à Trezion.
-- Mantidos da `novo-job`: `--teto-modo-dados TETO` em toda chamada do motor, `--biblioteca` sempre passada à tela (o motor trata a vazia como não configurada), a pasta do job só por caminho absoluto com a dica de "Copiar como caminho", nenhuma pergunta de modo, teto, valor ou regra, os avisos de `/feedback`, `/bug`, `/share`, da limpeza das transcrições e da entrega no próximo marco. `disable-model-invocation: true`, como a `novo-job`: a skill roda só quando o DA a chama.
+- Mantidos da `novo-job`: `--teto-modo-dados TETO` em toda chamada do motor, `--biblioteca` sempre passada à tela (o motor trata a vazia como não configurada), a pasta do job só por caminho absoluto com a dica de "Copiar como caminho", nenhuma pergunta de modo, teto, valor ou regra, os avisos de `/feedback`, `/bug`, `/share`, da limpeza das transcrições e da entrega no próximo marco. `disable-model-invocation: true`, como a `novo-job`: a skill roda só quando o DA a chama. O `--biblioteca` saiu na 0.19.0 (nº213).
 - Tela já aberta nesta conversa: a skill pergunta se a janela continua aberta antes de abrir outra.
 
 Testes: `test_skill_continuar.py` (novo): texto da skill (teto, subcomandos permitidos, sem ato do DA, sem terminal, sem pergunta de modo, biblioteca vazia sem guarda que cite o marcador, passos alinhados com as referências da `novo-job`, caminhos só pela raiz do plugin, sem travessão) e o contrato do envelope que a skill lê (`job estado` de um job novo: `fase` `ler`, 0 bloqueio, modo c; pasta que não é job: código diferente de 0; fases em dia: `fase` nula e o texto `FIM`; bloqueio na fase `fontes` com `ds` por rodar: `fase` `ds`; o ramo de bloqueio do passo 5 só vale com `fases_validas` igual a `fases`).
@@ -1185,11 +1193,13 @@ O mapeamento de specs saiu da `novo-job` (K1) para `plugins/vapt/skills/ler-spec
 - O modo vem do campo `modo_dados` do envelope de `job estado` (o modo efetivo, com o teto da linha de comando). No modo (c), a skill para sem ler `sugestoes/pacote-specs.json`. Nos modos (a) e (b), roda `job proxima` até a fase `specs` estar em dia e depois `sugestao pacote --job`, que refaz os dois pacotes no modo de agora (o DA pode ter escolhido o modo na tela depois de a esteira rodar, e `briefing/modo-dados.json` não é entrada da fase `specs`). Só então lê o pacote e confere que o `modo_dados` dele bate com o do envelope do `sugestao pacote` e que `exposto.textos` é verdadeiro; se não bater, não propõe nada.
 - Escreve `sugestoes/mapeamento-specs.json` (`mapeamento-specs/1`) só com `folha`, `trecho`, `campo`, `alvo`, `recorte_texto` e `adicionais`, sem número nem valor, e mantém as propostas que já estavam no arquivo (o motor aplica o arquivo inteiro a cada rodada). Depois roda `job proxima`, que refaz a fase `specs` porque o arquivo de propostas é entrada dela, e lê `propostas_do_modelo`, `propostas_ignoradas` e `propostas_ignoradas_modo_c`. Arquivo de propostas fora do contrato volta como `codigo` 20 na fase `specs`, com `contagens.codigo_da_fase` 3: a skill reescreve uma vez e, se continuar, volta às propostas que já existiam (ou à lista vazia), sem repassar ao DA o `o_que_fazer`, que fala de terminal.
 - Sem folha no job, pede o caminho absoluto da folha e roda `job trocar-entrada` com `entrada/specs/<veiculador>/<arquivo>`.
-- A confirmação de cada valor continua com o DA, na tela ("Valores de spec", passo 1). A skill abre a tela com `tela abrir --job` e `--biblioteca` sempre passado. Toda chamada do motor leva `--envelope --teto-modo-dados`; o `o_que_fazer` nunca chega ao DA com comando; nenhuma pergunta de modo, teto, valor ou regra.
+- A confirmação de cada valor continua com o DA, na tela ("Valores de spec", passo 1). A skill abre a tela com `tela abrir --job` e `--biblioteca` sempre passado (o `--biblioteca` saiu na 0.19.0, nº213). Toda chamada do motor leva `--envelope --teto-modo-dados`; o `o_que_fazer` nunca chega ao DA com comando; nenhuma pergunta de modo, teto, valor ou regra.
 
 Teste: `plugins/vapt/testes/test_skill_ler_spec.py` (o exemplo da skill vale contra `mapeamento-specs/1`; os arquivos do job citados pela skill estão em `PERMITIDOS_NO_JOB` do gancho; a `novo-job` aponta para a `ler-spec` e não escreve mais o arquivo de propostas).
 
 ## M7c, M2: esquema e módulo do perfil de marca (`vapt/marca/perfil.py`, `schemas/perfil-marca-1.json`)
+
+**Revogado na 0.19.0 (nº213).** `vapt/marca/perfil.py` e `schemas/perfil-marca-1.json` saíram, e com eles o `CODIGO_DA_MARCA` do gancho. Na 0.19.x, o gancho continua negando ao Claude a escrita em `marcas/` e em `perfil-marca.json` (`decidir_marca_por_arquivo`, `SEGMENTO_MARCAS`, `NOME_MARCAS`, `ESCRITA_EM_MARCAS`, `ARQUIVOS_DO_DA`), com o `MOTIVO_MARCA` reescrito: a pasta é a biblioteca antiga da agência, o Vapt não a usa mais, e quem decide sobre ela é o DA. A regra sai na 0.20.0.
 
 Conteúdo pela decisoes-v1.md, 190, Q1 e Q3. Arquivo: `<biblioteca>/marcas/<id>/perfil-marca.json`, contrato `perfil-marca/1`.
 
@@ -1306,6 +1316,8 @@ Testes: `testes/test_sugestao_importar.py` (novo; esquema, importador, CLI, enve
 
 ## M7c, M3: a marca do job no passo 1 (`vapt/marca/job.py`, `schemas/marca-job-1.json`)
 
+**Revogado na 0.19.0 (nº213).** O bloco "Marca do job" do passo 1, o ato `marca escolher`, `vapt/marca/job.py`, `schemas/marca-job-1.json` e `contagens.marca_escolhida` do envelope de `job estado` saíram. O `briefing/marca.json` de job antigo fica órfão: nada o lê, e o Vapt nunca o apaga.
+
 Pela decisoes-v1.md, 190 (Q5). No passo 1 da tela, o bloco "Marca do job (opcional)", logo abaixo do modo de dados, mostra as marcas da biblioteca da agência, "Sem marca" e o campo "Marca nova", nenhuma marcada. A escolha é opcional: não entra em `faltam` nem em `salvar.pendencias`, e o "Salvar e seguir" segue sem ela.
 
 - Arquivo: `briefing/marca.json`, contrato `marca-job/1`: `esquema`, `job_id`, `escolha` (`marca` ou `sem_marca`), `marca_id` (o id do perfil, 32 hexadecimais; `null` em `sem_marca`), `origem` (`da`, ou `fixture_de_teste` no modo de teste da tela) e `escolhido_por` (`usuario`, `maquina`, `meio` `tela` ou `medicao`, `quando`). O nome da marca fica só no perfil da biblioteca, nunca no job. Sem o arquivo, o job não tem marca escolhida.
@@ -1346,10 +1358,10 @@ Revisão do K5:
 `plugins/vapt/skills/sugerir-funcoes/SKILL.md` (nova) e `references/taxonomia-funcoes.md` (cópia da lista de funções, versão de 29/10/2026 com a revisão da decisão 12, sem exemplo de cliente, com o id de cada função do `$defs.funcao` do `briefing/1` e a regra de rotular por grupo traduzida para a sugestão). Pela decisoes-v1.md, 190 (Q4): o DA grava o modo (a) ou (b) na tela e escreve ao Claude "quero sugestões"; a tela nunca chama o Claude.
 
 - `disable-model-invocation: false`: a descrição casa com "quero sugestões" e "quero sugestões de função" e diz que a skill roda só quando o DA pede, só nos modos a e b.
-- Fluxo: `interpretador.json`; teto e biblioteca (`--biblioteca "BIBLIOTECA"` sempre passado à tela, a vazia tratada pelo motor); pasta do job só por caminho absoluto; `sugestao pacote --job` com o teto, que dá o modo (`modo_dados` do envelope) e o `ids.pacote_sha256` (S3) que o arquivo cita; no modo (c), diz que a tela segue sem sugestão e para sem ler o pacote; sem `pacote_sha256` (leitura do KV por terminar), indica `/vapt:continuar`; lê `sugestoes/pacote-modelo.json`, confere que o `modo_dados` dele bate com o do envelope e o `esquema` é `pacote-modelo/2`, e, só no modo (a), lê as imagens listadas no campo `miniaturas` do pacote; escreve `sugestoes/sugestoes.json` (`sugestoes/1`), uma função e uma alternativa por alvo, só ids, sem número além do `layer_id` e sem texto livre; roda `sugestao importar --job`; explica ao DA `contagens.aceitas` e `contagens.recusadas`, sem comando e sem listar nomes ou textos.
+- Fluxo: `interpretador.json`; teto e biblioteca (`--biblioteca "BIBLIOTECA"` sempre passado à tela, a vazia tratada pelo motor); pasta do job só por caminho absoluto; `sugestao pacote --job` com o teto, que dá o modo (`modo_dados` do envelope) e o `ids.pacote_sha256` (S3) que o arquivo cita; no modo (c), diz que a tela segue sem sugestão e para sem ler o pacote; sem `pacote_sha256` (leitura do KV por terminar), indica `/vapt:continuar`; lê `sugestoes/pacote-modelo.json`, confere que o `modo_dados` dele bate com o do envelope e o `esquema` é `pacote-modelo/2`, e, só no modo (a), lê as imagens listadas no campo `miniaturas` do pacote; escreve `sugestoes/sugestoes.json` (`sugestoes/1`), uma função e uma alternativa por alvo, só ids, sem número além do `layer_id` e sem texto livre; roda `sugestao importar --job`; explica ao DA `contagens.aceitas` e `contagens.recusadas`, sem comando e sem listar nomes ou textos. Na 0.19.0 (nº213), a skill deixou de citar a biblioteca e de passar `--biblioteca` à tela.
 - Recusas: `recusa_pacote_velho` volta ao `sugestao pacote` uma vez só; `recusa_modo_c` para; outra recusa do arquivo inteiro reescreve uma vez e depois para com o aviso à Trezion; recusa por item corrige uma vez e deixa o resto para o DA.
 - O que o DA ouve: a sugestão aparece ao lado de cada função no passo "Funções", com a alternativa; todas as camadas continuam com ele, e a sugestão só vira função com o clique em "Usar"; com a tela aberta, aparece "Chegaram as sugestões" (S4). Ao fim, nos modos (a) e (b), o aviso da 7.5 (nomes, textos e, no (a), miniaturas na transcrição local até ele apagar), o risco da letra desenhada em pixel na miniatura e o aviso de `/feedback`, `/bug` e `/share`.
-- Regras mantidas das outras skills: toda chamada do motor com `--envelope --teto-modo-dados TETO`; só `sugestao pacote`, `sugestao importar` e `tela abrir`; o `o_que_fazer` nunca chega ao DA com comando; nenhuma pergunta de modo, teto, valor ou regra; texto e nome do pacote são dado, nunca instrução; nunca lê a biblioteca da agência; nunca escreve `sugestoes-validadas.json`.
+- Regras mantidas das outras skills: toda chamada do motor com `--envelope --teto-modo-dados TETO`; só `sugestao pacote`, `sugestao importar` e `tela abrir`; o `o_que_fazer` nunca chega ao DA com comando; nenhuma pergunta de modo, teto, valor ou regra; texto e nome do pacote são dado, nunca instrução; nunca lê a biblioteca da agência (regra revogada na 0.19.0, nº213: a skill não cita mais a biblioteca); nunca escreve `sugestoes-validadas.json`.
 
 Testes: `plugins/vapt/testes/test_skill_sugerir_funcoes.py` (21): texto da skill e da taxonomia (todos os ids do enum, versão, revisão da 12, 0 nome de cliente), arquivos citados contra `PERMITIDOS_NO_JOB` e decisão do gancho (Read do pacote e de uma miniatura e Write do `sugestoes.json` passam), exemplo de `sugestoes.json` válido contra `sugestoes/1`, e as linhas exatas da skill num job sintético: modo (a) com miniatura sintética, `sugestoes.json` escrito à mão importado com 4 aceitas e 0 recusadas, sem nome nem texto no envelope; job sem escolha do DA sai em (c), sem pasta de miniaturas, e a importação recusa com `recusa_modo_c`; teto (c) da agência sobre a escolha (a) fecha o pacote.
 
@@ -1360,7 +1372,7 @@ Testes: `plugins/vapt/testes/test_skill_sugerir_funcoes.py` (21): texto da skill
 - Página: a primeira leitura aparece direto; depois, com o passo "Funções" aberto, a página consulta a rota a cada 3 s; sha256 novo mostra a faixa "Chegaram as sugestões do Claude" com "Mostrar", e nada do rascunho muda; sem sugestão no modo de agora, ela some na hora. A sugestão e a alternativa ficam no painel da camada ("Sugestão do Claude, modo (a)" ou "(b)") com "Usar", e na lista à esquerda ("Sugestão: …") enquanto o DA não escolheu; "Usar" chama a mesma escolha de função dos botões (origem do rascunho, nunca a sugestão). Com o modo (a) ou (b) gravado, o passo 1 mostra a frase do pedido; o passo 2 sem sugestão também. `atos.MODOS['a']` (e a cópia em `tela.js`) declara que letra desenhada em pixel ou em forma vetorial pode ir na imagem.
 - `vapt.briefing.salvar.sugestoes_ref(pasta)` → o `sha256` mostrado agora, ou None; `salvar.montar` grava esse valor em `sugestoes_ref` do briefing.
 - Cronômetro: o sinal de `/api/medicao` aceita, além dos quatro campos de antes, o par `passo_2` e `sugestao` (os dois booleanos, `passo_2` só com `familia` null); a página só os manda com o passo 2 aberto. `cronometro.passo_do_sinal(dados)`; `Cronometro.sinal(..., passo_2=False, sugestao=False)`. `medicoes-tela/1` ganha, opcionais, `sessoes[].passo_2` (`aberta_em`, `ultima_atividade_em`, `ativo_s`, `total_s`, `ativo_com_sugestao_s`, `sugestao_na_tela`) e a soma `passo_2` (`sessoes`, `sessoes_com_sugestao`, `ativo_s`, `total_s`, `ativo_com_sugestao_s`). O tempo desde um sinal do passo 2 é dele até `tela.mestre_pausa_max_s`; o total vai do primeiro clique no passo ao último instante contado. A falha ao gravar segue sem chegar ao DA.
-- Revisão do M3: `.modo:focus-visible` tem o anel por dentro da borda; a lista de marcas, que rola, cortava o anel e deixava uma linha escura embaixo da marca escolhida.
+- Revisão do M3: `.modo:focus-visible` tem o anel por dentro da borda; a lista de marcas, que rola, cortava o anel e deixava uma linha escura embaixo da marca escolhida. A lista de marcas saiu na 0.19.0 (nº213); o anel do `.modo:focus-visible` fica.
 - Revisão do S4: a frase do passo 1 aparece com o modo (a) ou (b) gravado e valendo (o `modo` da rota, a mesma conta da importação; com o teto em (c) ou a escolha de teste, nada); a página lê a rota de novo depois de qualquer ato. Com a faixa "Chegaram" à espera do "Mostrar", o passo 2 sem camada aberta deixa de mostrar a frase do pedido. `sugestoes_na_tela` guarda o sha256 do KV e os `layer_id` do laudo por arquivo e só lê e valida o laudo de novo quando ele muda (data de modificação ou tamanho); o arquivo validado acima de `importar.LIMITE_BYTES` não se lê. `salvar.sugestoes_ref(pasta, conteudo=None)`: com o conteúdo da tela, usa a mesma leitura da rota, com o teto da tela (o da linha de comando também); `salvar.montar` passa o conteúdo.
 
 Testes: `test_tela_funcoes.py` (+12: leitura nos modos (a) e (b), modo (c), teto, outro modo, outro KV, outro job, alvo que saiu, arquivo ilegível, pendências iguais com sugestão, rota com cookie e sha256 novo, `montar` com a rota, texto do modo (a) igual na página, `sugestoes_ref` no helper e no briefing montado, e a página no Chromium com a rota sintética; na revisão, +3: a chegada das primeiras sugestões no Chromium, o laudo lido uma vez por versão e o validado grande demais, e `sugestoes_ref` com o teto da tela; o teste no Chromium também cobre a escolha (a) que vale (c)); `test_cronometro_mestre.py` (+12, relógio falso).
@@ -1402,7 +1414,11 @@ Depois da revisão, as regras ficaram mais largas:
 - ler a biblioteca inclui procurar, consultar, ver e os comandos de shell (`ls`, `dir`, `cat`, `Get-ChildItem` e outros); "o motor lê a biblioteca" passa; a regra "nunca leia" só conta com um verbo de leitura negado seguido da biblioteca;
 - pedir ao DA a pasta do job sem a palavra caminho também tem de dizer absoluto, e um caminho que sobe de nível depois de uma barra (`/../`) conta como caminho relativo.
 
+Revogado em parte na 0.19.0 (nº213): `marca registrar` saiu dos atos do DA; as regras da biblioteca da agência ("nunca leia" e o caso vazio de `${user_config.biblioteca_agencia}`), o marcador `BIBLIOTECA` e o analisador com a biblioteca vazia ou configurada deram lugar a uma regra única: nenhuma skill cita a biblioteca da agência, `${user_config.biblioteca_agencia}`, `--biblioteca`, o marcador `BIBLIOTECA`, `marca registrar` nem o padrão da marca. A biblioteca de specs continua citada sem problema.
+
 ## M7c, M4: o padrão da marca como sugestão citada no Design system
+
+**Revogado na 0.19.0 (nº213, que revoga também a parte da decisão 2 sobre o padrão da marca).** O quadro "Padrão da marca", o "Usar o padrão", `funcoes.padrao_da_marca`, `padrao_invalido`, `sem_padrao_invalido` e a pendência `padrao_marca_desatualizado` saíram. O gravador carimba toda decisão com a origem `da`. Na 0.19.x, o `rascunho-tela/1` ainda aceita a origem `padrao_marca` por função (tolerada e ignorada), e o `briefing/1` ainda aceita `padrao_marca` no enum, só para ler job antigo; os dois saem na 0.20.0.
 
 Pela arquitetura-v1.md, 5.3 e 5.7, e pela decisoes-v1.md, 162 e 190 (Q1 e Q3). O padrão aparece ao lado do campo com a fonte e nunca é valor: só o clique do DA em "Usar o padrão" põe a regra e a âncora no rascunho.
 
@@ -1423,6 +1439,8 @@ Riscos que ficam: o job de origem aparece ao DA pelo id (8 caracteres), porque o
 Revisão do M4: o `ref` continua `marca:<id>@v<N>#job:<id>` com a versão em que o DA clicou, e cada regra e âncora do padrão leva `desde`, a primeira versão, na sequência que chega à atual, com o mesmo valor e o mesmo job de origem (`funcoes._desde`). O clique vale com a mesma marca e o mesmo job de origem numa versão entre `desde` e a atual (`funcoes._ref_vale`, e `refVale` na página): a versão nova que muda só outra função não derruba o job já salvo. Na página, o clique do DA no mesmo valor de um campo com a origem vencida tira essa origem (o valor fica como escolha dele); o card com origem vencida não se diz pronto; sem padrão na tela (Sem marca), o aviso pede o clique no tamanho e na âncora em vez de "Usar o padrão"; a nota do quadro do padrão com valor já escolhido diz que o valor marcado fica gravado. Testes: `test_tela_funcoes.py` (+1, versão nova sem mudar a função) e `test_tela_salvar.py` (+3, job salvo continua salvo e a origem vencida no Chromium, com versão nova e com Sem marca). Fica aberto: o gancho deixa o Claude chamar `vapt.tela.funcoes.padrao_da_marca` e `vapt.tela.estado.marca_na_tela` por `python -c` (o gancho não é deste passo).
 
 ## M7c, M5: registrar o padrão da marca (`vapt/marca/registrar.py`)
+
+**Revogado na 0.19.0 (nº213).** `vapt/marca/registrar.py`, o ato `marca registrar`, o botão "Guardar o padrão desta marca" e a faixa `#registro-marca` do passo 5 saíram. O arquivo `.perfil-marca.trava` pode ficar nas pastas antigas da biblioteca, no disco do DA; nenhum código o apaga.
 
 Pela decisoes-v1.md, 190 (Q1, Q2 e Q3) e pela arquitetura-v1.md, 4.14 e 5.7. O DA guarda o padrão num botão da tela, com a confirmação dentro da janela; o Claude não registra.
 
@@ -1479,6 +1497,8 @@ Segunda revisão da correção A (leva 6). Pacote com chave repetida: o `json.lo
 
 ## M7c, E2
 
+**Revogado na 0.19.0 (nº213).** O roteiro `testes/e2e/test_marca_tres_jobs.py` e a variável `VAPT_MEDICAO_MARCA_TRES_JOBS` saíram com a biblioteca da agência.
+
 Roteiro da marca com três jobs, só com testes (`testes/e2e/test_marca_tres_jobs.py`, novo), pelo plano do M7c (E2 e seção 4). Uma marca sintética numa biblioteca em pasta temporária e três jobs do mesmo PSD sintético (`test_derivacao_apoio.psd_derivacao`), cada um com o seu id, com a fonte inventada dos testes do M5. Os ajudantes são os do `test_marca_registrar.py` (a marca do job com origem `da` e meio `tela`, o briefing gravado como a tela grava, com a entrada no índice encadeado, e o encoder de teste com os parâmetros que não dependem do master).
 
 O roteiro:
@@ -1519,6 +1539,8 @@ Documentação e versão do M7c, pelo plano do M7c (E3).
 
 ## M7c, ajuste nome
 
+**Revogado na 0.19.0 (nº213).** O nome do job no perfil saiu com o perfil. Os perfis antigos no disco guardam o nome da pasta do job, que pode trazer o nome do cliente: é um dos motivos de o gancho continuar negando ao Claude a leitura de `marcas/` na 0.19.x.
+
 Resposta do Duda ao ponto 3 (13/11): o padrão da marca mostra o nome do job de origem, e não os 8 primeiros caracteres do id. Entra antes da rodada.
 
 - O nome do job é o nome da pasta do job. A skill `novo-job` pede ao DA "a pasta nova do job", e é esse o nome que ele dá ao job; o `estado/1` guarda só o `job_id` (32 hexadecimais ao acaso) e não tem campo de nome. `registrar.nome_do_job(pasta)` devolve o nome da pasta resolvida, ou None quando ele não cabe no perfil (`perfil.nome_de_job_serve`: de 1 a 120 caracteres, sem barra, sem controle, sem extensão de arquivo de fonte e sem bytes de fonte codificados, as regras do nome da marca).
@@ -1535,6 +1557,8 @@ Testes (vermelho antes, verde depois, no mesmo conjunto: 18 falhas e 309 passand
 Riscos que ficam: o nome é o da pasta no momento do registro, e a pasta renomeada depois só aparece no próximo registro do mesmo job; dois jobs com a mesma pasta em lugares diferentes aparecem com o mesmo nome (o `title` do quadro mostra o id); o nome da pasta pode trazer o nome do cliente, e ele fica na biblioteca da agência, fora do repositório e negada ao Claude; o perfil escrito à mão pode pôr qualquer nome que o esquema aceite (risco do M2).
 
 ## M7c, ajuste nome, revisão
+
+**Revogado na 0.19.0 (nº213).** Saiu junto com o ajuste nome.
 
 A revisão do ajuste nome achou dois defeitos, os dois confirmados pelas provas do revisor e corrigidos com teste antes (vermelho) e depois (verde).
 
@@ -2241,3 +2265,36 @@ Ficou de fora (perguntas ao Duda):
 - A borda tracejada de um elemento pode riscar o nome numa etiqueta vizinha (anterior; mexer muda a ordem do clique).
 - `/preferencias` fica fora de `ROTA_DA_TELA` no gancho; sem o cookie e o CSRF a rota sempre recusa.
 - Não provado: a causa exata da barra cortada no Chromium (a correção pelo grid tirou o sintoma), o tema do Windows de verdade, sem emulação, e as regras de forced-colors num Chromium com alto contraste.
+
+## 0.19.0, a biblioteca da agência sai
+
+Caso: o pedido do Duda em 25/11, tirar do Vapt a biblioteca da agência (a biblioteca de marca) inteira. A decisão nova é a nº213 (decisoes-v1.md). Ela revoga a 190 em Q1, Q2, Q3, Q5 e Q6, a 191, a 207 e a parte da 2 sobre o padrão da marca. Q4 (a frase do pedido de sugestões) e Q7 (as miniaturas do modo a) continuam valendo. As seções "M7c, M1", "M2", "M3", "M4", "M5", "E2", "ajuste nome" e "ajuste nome, revisão" ficam como registro, com a nota de revogação.
+
+A biblioteca de specs (`plugins/vapt/biblioteca-specs/`, `dev/gerar_biblioteca_specs.py`, `specs/importar.py`) é outra coisa e não muda.
+
+O que saiu:
+
+- Motor: `vapt/biblioteca.py`, o pacote `vapt/marca/` (`job.py`, `perfil.py`, `registrar.py`) e os esquemas `marca-job-1.json` e `perfil-marca-1.json`. Os contratos `perfil-marca/1` e `marca-job/1` deixam de existir.
+- Plugin: o `userConfig.biblioteca_agencia` do `plugin.json`, isto é, o campo "Biblioteca da agência" em `/plugin`.
+- Doctor: a verificação `biblioteca_agencia` e o parâmetro `biblioteca` de `rodar_verificacoes`.
+- Tela: o bloco "Marca do job" do passo 1, o quadro "Padrão da marca" e o "Usar o padrão" no Design system, a faixa `#registro-marca` com o botão "Guardar o padrão desta marca" no passo 5, os atos `marca escolher` e `marca registrar` (fora de `humano.ATOS_DA_TELA`), `marca_na_tela`, `funcoes.padrao_da_marca` e o bloco do padrão, a pendência `padrao_marca_desatualizado` do salvar e a chave `pasta_biblioteca` do conteúdo da montagem. O gravador carimba toda decisão com a origem `da`.
+- Processo de fundo da tela: perde `--biblioteca` já, porque pai e filho saem sempre da mesma versão do plugin. `comando_do_filho(pasta, teto=None)` e `montar(pasta, teto=None)`.
+- Envelope de `job estado`: perde `contagens.marca_escolhida`.
+- Gancho: o `CODIGO_DA_MARCA` (o código `vapt.marca` não existe mais).
+- Skills: `--biblioteca`, o marcador `BIBLIOTECA` e as frases da biblioteca da agência.
+- Testes: `test_biblioteca.py`, `test_marca_registrar.py`, `test_marca_perfil.py` (os casos do gancho que continuam valendo foram para os testes do gancho) e `e2e/test_marca_tres_jobs.py`.
+
+O que fica na 0.19.x, só por compatibilidade, e sai na 0.20.0:
+
+- `briefing/1`: o valor `padrao_marca` no enum de `origem.tipo`, só para ler briefing antigo. Nada novo grava essa origem.
+- CLI: a opção global `--biblioteca` continua aceita e ignorada (`help=argparse.SUPPRESS`), para a conversa com a skill antiga em cache. Não valida, não vai ao processo de fundo da tela nem ao envelope, e aceita o valor vazio e o literal `${user_config.biblioteca_agencia}`.
+- `rascunho-tela/1`: a origem `padrao_marca` por função no Design system (`design_funcao.origem` e `$defs.origem_padrao`) é tolerada e ignorada, sem migração. Sem isso, o rascunho de um job aberto falharia no esquema e o DA perderia famílias, edições e confirmações.
+- Gancho: a leitura de qualquer caminho com o segmento `marcas` continua negada ao Claude (`PASTA_DE_MARCAS`, a busca recursiva, `TEXTO_QUE_SOBE`), porque os perfis antigos no disco guardam nome de marca e nome de pasta de job. A escrita em `marcas/` e em `perfil-marca.json` continua negada, com o `MOTIVO_MARCA` reescrito: a pasta `marcas` é a biblioteca antiga da agência, o Vapt não a usa mais, o Claude não grava nem apaga nela, e quem decide é o DA. Segue o falso positivo em qualquer pasta chamada "marcas" (logos da agência, por exemplo).
+
+O que acontece com o job antigo:
+
+- `briefing/marca.json` fica órfão. Nada o lê, e o Vapt nunca o apaga.
+- As linhas `marca_escolhida` e `padrao_da_marca_registrado` de `log/eventos.jsonl` ficam; nada as analisa.
+- O briefing confirmado com a origem `padrao_marca` continua válido pelo enum e passa em `conferir_para_entrega`. Na tela, o job que usou "Usar o padrão" aparece "não salvo" uma vez, porque o briefing montado agora leva a origem `da`; um "Salvar e seguir" a mais resolve, sem aviso na tela. A origem não entra na impressão do formato, então esse salvar não refaz o layout e a aprovação fica.
+- O rascunho com a origem antiga é lido sem perda, e o valor vai ao briefing como escolha do DA.
+- A pasta antiga da biblioteca no disco do DA (`<biblioteca>/marcas/` e os `.perfil-marca.trava`) fica como está. Só o CHANGELOG fala dela: o doctor e a tela não falam, e nenhum código a apaga.

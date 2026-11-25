@@ -7,8 +7,8 @@
    o Claude reabre a tela com tela abrir.
 3. Residuo do K1: o texto FIM do motor (job/fases.py) e o o_que_fazer do nucleo citam comandos de terminal. A skill
    nunca os repassa ao DA (no 159).
-4. Toda chamada do motor leva --teto-modo-dados; a biblioteca vazia fica tratada sem guarda que cite o marcador; a
-   skill nunca le a biblioteca e nunca pergunta modo, teto, valor ou regra.
+4. Toda chamada do motor leva --teto-modo-dados e nenhuma leva --biblioteca (a biblioteca da agencia saiu na 0.19.0,
+   nº213); a skill nunca pergunta modo, teto, valor ou regra.
 """
 import json
 import re
@@ -22,7 +22,6 @@ from vapt.job import nucleo
 RAIZ_PLUGIN = Path(__file__).resolve().parents[1]
 SKILL = RAIZ_PLUGIN / 'skills' / 'continuar'
 ARQ = SKILL / 'SKILL.md'
-MARCADOR_BIBLIOTECA = '${user_config.biblioteca_agencia}'
 MARCADOR_TETO = '${user_config.teto_modo_dados}'
 # o que a skill pode rodar do motor: so o que nao e ato do DA
 SUBCOMANDOS_PERMITIDOS = ('job estado', 'job proxima', 'job trocar-entrada', 'job remover-entrada', 'tela abrir')
@@ -82,8 +81,7 @@ def test_toda_chamada_do_motor_leva_o_teto():
 
 def test_so_roda_o_que_nao_e_ato_do_da():
     for l in _chamadas_do_motor(_texto()):
-        resto = l.split('--teto-modo-dados TETO', 1)[1]
-        resto = resto.replace('--biblioteca "BIBLIOTECA"', '').strip()
+        resto = l.split('--teto-modo-dados TETO', 1)[1].strip()
         assert resto.startswith(SUBCOMANDOS_PERMITIDOS), l
         for ato in humano.COMANDOS:
             assert ' %s ' % ato not in ' %s ' % resto.split('"')[0], l
@@ -93,7 +91,7 @@ def test_fase_do_motor_roda_e_clique_do_da_reabre_a_tela():
     texto = _texto()
     assert any('job proxima' in l for l in _chamadas_do_motor(texto))
     tela = [l for l in _chamadas_do_motor(texto) if 'tela abrir' in l]
-    assert tela and all('--biblioteca "BIBLIOTECA"' in l for l in tela)
+    assert tela and not any('--biblioteca' in l for l in _chamadas_do_motor(texto))
     # a decisao sai dos campos do envelope de job estado
     for campo in ('fase', 'contagens.bloqueios_pendentes', 'situacao', 'codigo'):
         assert '`%s`' % campo in texto, campo
@@ -101,11 +99,11 @@ def test_fase_do_motor_roda_e_clique_do_da_reabre_a_tela():
 
 
 def test_passos_alinhados_com_as_referencias_do_novo_job():
-    """A skill usa o fluxo.md e o regras-do-modelo.md do novo-job, que citam 'passo 2', 'passo 7' e 'passo 8 da
-    skill'. Os mesmos numeros aqui dizem a mesma coisa."""
+    """A skill usa o fluxo.md e o regras-do-modelo.md do novo-job, que citam 'passo 7' e 'passo 8 da skill'. Os
+    mesmos numeros aqui dizem a mesma coisa. O passo 2 segue sendo o teto (a biblioteca saiu na 0.19.0, nº213)."""
     texto = _texto()
     passos = _passos(texto)
-    assert 'BIBLIOTECA' in passos[2] and MARCADOR_BIBLIOTECA in passos[2]
+    assert MARCADOR_TETO in passos[2] and 'biblioteca' not in passos[2].lower()
     assert 'trocar-entrada' in passos[7] and 'remover-entrada' in passos[7]
     assert 'tela abrir' in passos[8]
     assert any('job proxima' in l for l in passos[6].splitlines())
@@ -128,17 +126,6 @@ def test_pasta_do_job_so_por_caminho_absoluto():
     texto = _texto()
     assert 'caminho absoluto' in texto and 'Copiar como caminho' in texto
     assert re.search(r'nunca[^.\n]*caminho relativo', texto, re.I)
-
-
-def test_biblioteca_vazia_tratada_sem_guarda_que_cite_o_marcador():
-    texto = _texto()
-    assert texto.count(MARCADOR_BIBLIOTECA) == 1
-    for valor in ('D:/Agencia/biblioteca', ''):
-        trocado = texto.replace(MARCADOR_BIBLIOTECA, valor)  # a troca que o Claude Code faz no texto
-        assert not re.search(r'tir\w*\s+`?--biblioteca', trocado)
-        assert 'sem troca' not in trocado
-    assert 'vazia' in texto
-    assert re.search(r'[Nn]unca l\w*[^.\n]*biblioteca|biblioteca[^.\n]*nunca l\w*', texto)
 
 
 def test_nunca_repassa_o_o_que_fazer_nem_o_fim_do_motor():

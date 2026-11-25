@@ -42,14 +42,13 @@ Le da entrada padrao o JSON do evento (tool_name e tool_input) e nega (permissio
     com outro caminho continua de fora (risco declarado na 7.6). Desde a revisao do P1, no terminal (Bash, PowerShell e
     Monitor) o caminho do job e conferido com qualquer verbo (decidir_leitura_por_comando), o alvo real de uma ligacao
     simbolica e a ligacao fisica na lista permitida tambem, e o root do Artifact e base dos caminhos de files.
-  - desde o M7c (M2), a escrita na biblioteca de marcas (perfil de marca, <biblioteca>/marcas/<id>/perfil-marca.json,
-    so muda pelo registro do padrao da marca, ato do DA na tela): nas ferramentas de arquivo, caminho com um segmento
-    marcas (pelo nome pedido, relativo ao cwd, e pelo alvo real); no terminal, caminho com um segmento marcas (ou o
-    cwd dentro de marcas) junto com escrita, apagamento ou criacao de pasta (ESCRITA_EM_MARCAS), o perfil-marca.json
-    em ARQUIVOS_DO_DA e o codigo que chama vapt.marca.perfil ou vapt.marca.registrar (CODIGO_DA_MARCA), com o
-    motivo MOTIVO_MARCA. A leitura de marcas ja era negada desde o P1. Revisao do M2: o pacote vapt.marca por
-    qualquer forma de import, o pasta_marcas do motor, o segmento marcas. (o Windows tira o ponto), o nome marcas
-    sozinho com verbo que apaga ou grava por codigo, e o curinga ou a ligacao que cai na biblioteca.
+  - desde o M7c (M2), a escrita na biblioteca de marcas (perfil de marca, <biblioteca>/marcas/<id>/perfil-marca.json;
+    desde a 0.19.0, nº213, e a biblioteca antiga da agencia, sem uso pelo motor, e a regra sai na 0.20.0): nas
+    ferramentas de arquivo, caminho com um segmento marcas (pelo nome pedido, relativo ao cwd, e pelo alvo real); no
+    terminal, caminho com um segmento marcas (ou o cwd dentro de marcas) junto com escrita, apagamento ou criacao de
+    pasta (ESCRITA_EM_MARCAS) e o perfil-marca.json em ARQUIVOS_DO_DA, com o motivo MOTIVO_MARCA. A leitura de marcas
+    ja era negada desde o P1. Revisao do M2: o segmento marcas. (o Windows tira o ponto), o nome marcas sozinho com
+    verbo que apaga ou grava por codigo, e o curinga ou a ligacao que cai na biblioteca.
   - desde o M7c (S3), a escrita do Claude no que so o motor grava em sugestoes/ (sugestoes/miniaturas/**,
     pacote-modelo.json, pacote-specs.json e sugestoes-validadas.json), com o motivo MOTIVO_SUGESTOES: nas ferramentas
     de arquivo pelo caminho pedido e pelo alvo real; no terminal pelo alvo de redirecao, pelo destino de copia,
@@ -110,11 +109,11 @@ MOTIVO_LEITURA = ('O Vapt recusa esta leitura pelo Claude. Dentro da pasta de um
                   'o modelo e as sugestões, na pasta sugestoes/; o PSD, os arquivos de fonte, o laudo, o briefing, o '
                   'render, a entrega e a biblioteca de marcas não chegam ao Claude nem à API. O que o DA precisa ver '
                   'está na tela do Vapt. Não tente outro caminho para o mesmo efeito.')
-# M7c, M2: o perfil de marca da biblioteca da agencia so muda pelo registro do padrao da marca, ato do DA
-MOTIVO_MARCA = ('O Vapt recusa esta gravação pelo Claude: o perfil de marca da biblioteca da agência só muda '
-                'quando o DA registra o padrão da marca, por um clique na tela do Vapt. Diga ao DA que isso se faz '
-                'na tela, onde o Vapt mostra o que entra no perfil e grava. Não tente outro caminho para o mesmo '
-                'efeito.')
+# M7c, M2; nº213: a pasta marcas e a biblioteca antiga da agencia, sem uso pelo motor desde a 0.19.0; o Claude nao
+# grava nem apaga nela (a regra sai na 0.20.0)
+MOTIVO_MARCA = ('O Vapt recusa esta gravação pelo Claude: a pasta marcas é a biblioteca antiga da agência, e o Vapt '
+                'não a usa mais. O Claude não grava nem apaga nela; o que fazer com essa pasta, quem decide é o DA. '
+                'Não tente outro caminho para o mesmo efeito.')
 # M7c, S3: o pacote para o modelo, as miniaturas e as sugestoes conferidas so o motor grava
 MOTIVO_SUGESTOES = ('O Vapt recusa esta gravação pelo Claude: o pacote para o modelo, o pacote das specs, as '
                     'miniaturas e as sugestões conferidas só o motor grava. O Claude escreve só sugestoes/sugestoes.json '
@@ -217,13 +216,13 @@ ARQUIVOS_DO_DA = re.compile(r'(^|[\\/])((?<!skills[\\/])(?:(?<!vapt[\\/])briefin
                             # os formatos digitados pelo DA na tela (0.9.2), tambem so pelo nome
                             r'formatos-digitados\.json\b|'
                             # o perfil de marca (M7c, M2): marcas/<id>/perfil-marca.json, ou so o nome, com o cwd na
-                            # pasta da marca
+                            # pasta da marca. Biblioteca antiga, sem uso pelo motor; sai na 0.20.0 (nº213)
                             r'(?:marcas[\\/][^\\/]+[\\/])?perfil-marca\.json\b)' % {'f': FONTE_DO_PACOTE},
                             re.IGNORECASE)
-# a biblioteca de marcas no texto de um comando: o segmento marcas de um caminho (M7c, M2). docs/marcas.md e o
-# codigo-fonte vapt/marca/ ficam de fora
+# a biblioteca de marcas no texto de um comando: o segmento marcas de um caminho (M7c, M2). Um arquivo chamado
+# marcas.md fica de fora
 # Revisao do M2: o segmento marcas. ou "marcas. " tambem conta, porque o Windows tira o ponto e o espaco do fim do
-# segmento ao abrir o caminho (docs/marcas.md continua de fora)
+# segmento ao abrir o caminho (o arquivo marcas.md continua de fora)
 SEGMENTO_MARCAS = re.compile(r'(?<![\w.-])marcas[.\s]*[\\/]|[\\/]marcas(?![\w.-])|[\\/]marcas\.+(?![.\w-])',
                              re.IGNORECASE)
 # revisao do M2: o nome marcas sozinho (um argumento de codigo como os.path.join(b, 'marcas'), ou rm -rf marcas depois
@@ -239,27 +238,6 @@ LIMITE_DO_CURINGA = 2000  # numero-neutro: so limita o tempo do gancho num curin
 ESCRITA_EM_MARCAS = re.compile(r'(?<![\w-])(?:rm|rmdir|rd|del|erase|mkdir|md|touch|truncate|unlink|ln|mklink|ri|ni|'
                                r'Remove-Item|Clear-Content|rmtree|makedirs|remove|removedirs|chmod|attrib|icacls)'
                                r'(?![\w-])', re.IGNORECASE)
-# o codigo do perfil de marca e do registro (M7c, M2; o registrar e do passo M5): o Claude nao le nem grava o perfil
-# pelo codigo do motor (a leitura da biblioteca e negada desde o P1)
-# Revisao do M2: qualquer referencia ao pacote vapt.marca (por __import__, import_module, getattr, sys.modules ou
-# __import__('vapt').marca), o import do perfil com a pasta do pacote no sys.path, o arquivo do perfil rodado ou
-# carregado (run_path, spec_from_file_location, python <arquivo>) e o caminho da biblioteca pelo motor
-# (vapt.biblioteca.pasta_marcas e PASTA_MARCAS), com que o texto do comando nunca traz o segmento marcas/. O codigo
-# montado em variavel ou num script gravado antes continua passando (risco declarado do P1)
-# revisao do M4: as funcoes da tela que carregam o perfil da biblioteca (padrao_da_marca, marca_na_tela)
-CODIGO_DA_MARCA = re.compile(r'\b(?:padrao_da_marca|marca_na_tela)\b|'
-                             r'vapt[\s\'")\]]*\.\s*marca(?![\w-])|'
-                             r'from\s+(?:vapt\s*\.\s*)?marca\s+import\b|'
-                             r'from\s+vapt\s+import\s+[^\n;]*\bmarca\b|\bmarca\s*\.\s*(?:perfil|registrar)\b|'
-                             r'(?:fromlist|getattr|import_module|__import__|find_spec|run_module|sys\s*\.\s*modules)'
-                             r'[^\n;]*?[\'"]\.?marca(?:\.\w+)?[\'"]|'
-                             r'(?:run_path|spec_from_file_location|SourceFileLoader|runpy|exec\s*\(|compile\s*\(|'
-                             r'sys\s*\.\s*path|PYTHONPATH)[^\n]*marca(?![\w-])|'
-                             r'marca[\\/][^\n]*(?:\bimport\s+(?:perfil|registrar)\b|from\s+(?:perfil|registrar)\s+import)|'
-                             r'(?:^|[\s|;&(\'"])(?:[^\s|;&\'"]*[\\/])?py(?:thon[\d.]*)?(?:\.exe)?[\'"]?\s+(?:-\S+\s+)*'
-                             r'[^\s|;&]*marca[\\/]+(?:perfil|registrar)|'
-                             r'\bpasta_marcas\b|\bPASTA_MARCAS\b',
-                             re.IGNORECASE)
 # tela de briefing (M7a2; decisoes-v1.md, 159; proposta do M7, 160c): o Claude abre a tela ("vapt tela abrir"
 # passa), mas nao pede as rotas do servidor dela no loopback (a entrada, a api, a fonte, os assets e o controle), nao
 # chama o processo de fundo nem o servidor pelo codigo e nao toca no perfil temporario do navegador da tela (pastas
@@ -327,7 +305,8 @@ PERMITIDOS_NO_JOB = ('sugestoes/pacote-modelo.json', 'sugestoes/pacote-specs.jso
                      'sugestoes/mapeamento-specs.json')
 PASTA_PERMITIDA_NO_JOB = 'sugestoes/miniaturas'
 RAIZ_DE_BUSCA_NO_JOB = 'sugestoes'
-# a biblioteca da agencia (perfis de marca): negada em qualquer lugar
+# a biblioteca da agencia (perfis de marca): negada em qualquer lugar. Biblioteca antiga, sem uso pelo motor; sai na
+# 0.20.0 (nº213)
 PASTA_DE_MARCAS = 'marcas'
 # ferramentas que sobem arquivo local para fora ou agem sem o DA: mcp__* (navegador e uso do computador inclusive),
 # Artifact e SendUserFile. A entrada inteira e conferida como texto
@@ -1227,13 +1206,11 @@ def decidir_marca_por_arquivo(caminho, cwd):
 
 
 def decidir_marca_por_comando(comando, cwd):
-    """'deny' quando um comando da Bash, da PowerShell ou da Monitor grava, apaga ou cria pasta na biblioteca de marcas,
-    ou chama o codigo do perfil de marca ou do registro (M7c, M2)."""
+    """'deny' quando um comando da Bash, da PowerShell ou da Monitor grava, apaga ou cria pasta na biblioteca de marcas
+    (M7c, M2)."""
     cwd_em_marcas = bool(cwd) and (_tem_marcas(cwd) or _tem_marcas(_real(cwd)))
     escreve_algum = False
     for c in (comando, normalizar(comando)):
-        if CODIGO_DA_MARCA.search(c):
-            return 'deny'
         escreve = _escreve(c) or ESCRITA_EM_MARCAS.search(c)
         escreve_algum = escreve_algum or bool(escreve)
         if escreve and (SEGMENTO_MARCAS.search(c) or cwd_em_marcas or re.search(r'perfil-marca\.json\b', c, re.I)):

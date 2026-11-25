@@ -57,12 +57,10 @@ VARIAVEIS_DO_CLAUDE = ('CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_CODE_SESS
 COMANDOS = ('render', 'linkado confirmar', 'spec confirmar', 'briefing confirmar', 'aprovar', 'entregar',
             'parametros-entrega')
 # atos que so existem como botao da tela, sem comando de terminal (decisoes-v1.md, 159 e 170): o Disparo deles sai so
-# por exigir_tela. Ficam fora de COMANDOS e do gancho, que so conhece os comandos de terminal. 'marca escolher' e a
-# marca do job no passo 1 (M7c, M3; decisoes-v1.md, 190, Q5); 'marca registrar' guarda o padrao da marca no perfil da
-# biblioteca da agencia quando todos os formatos estao aprovados (M7c, M5; decisoes-v1.md, 190, Q2); 'fonte como imagem'
+# por exigir_tela. Ficam fora de COMANDOS e do gancho, que so conhece os comandos de terminal. 'fonte como imagem'
 # e a declaracao do DA de que a face nao tem arquivo e o texto vai como imagem (0.9.1, vapt.fontes.como_imagem);
 # 'formatos digitados' e a lista de formatos que o DA escreve na tela, sem folha de spec (0.9.2, vapt.specs.digitados)
-ATOS_DA_TELA = ('modo dados escolher', 'familia confirmar', 'marca escolher', 'marca registrar', 'fonte como imagem',
+ATOS_DA_TELA = ('modo dados escolher', 'familia confirmar', 'fonte como imagem',
                 'formatos digitados',
                 # decisao 199 (0.10.0): trocar o arquivo de edicao, separar um arquivo em familia propria e junta-lo
                 # de volta (vapt.tela.rascunho)

@@ -741,7 +741,7 @@ def test_situacao_na_tela_usa_a_mesma_leitura_das_sugestoes_do_salvar(job, model
     def ler():
         lidas.append(1)
         return conteudo['sugestoes']() if callable(conteudo.get('sugestoes')) else {'sha256': None}
-    assert bs.situacao_na_tela(job, _familias(conteudo), None, ler)['salvo'] is True
+    assert bs.situacao_na_tela(job, _familias(conteudo), sugestoes=ler)['salvo'] is True
     assert lidas
 
 
@@ -1131,656 +1131,69 @@ def test_salvar_e_seguir_no_chromium(job, modelo):
     assert _deriv(job, REF_VERTICAL)['caminho'] == 'galeria' and _deriv(job, 'v1')['caminho'] == 'familia'  # decisao 199
 
 
-# ------------------------------------------------------------------ M7c, M3: a marca do job no passo 1
-# decisoes-v1.md, 190 (Q5): a lista das marcas da biblioteca da agencia, "Marca nova" e "Sem marca", nenhuma marcada;
-# a escolha e opcional e nunca trava o "Salvar e seguir". Nomes de marca sinteticos.
-# decisao 207 (revisa a 190 Q5): sem marca na biblioteca, ou sem biblioteca usavel, "Sem marca" ja vem marcada na pagina,
-# so no visual: o motor continua sem briefing/marca.json ate o clique do DA (escolhida None).
-MARCA_UM = 'Marca Sintetica Um'
-MARCA_DOIS = 'Marca Sintetica Dois'
+# ------------------------------------------------------------------ 0.19.0: a biblioteca de marca saiu (nº213)
+# Compat do job aberto antes da 0.19.0, so na 0.19.x (sai na 0.20.0): briefing/marca.json fica orfao (nada le nem
+# apaga), a origem padrao_marca do rascunho (design[f].origem) e tolerada pelo esquema e ignorada, e o briefing ja
+# gravado com padrao_marca continua valido pelo enum do briefing/1. Ref e id de marca sinteticos.
+ORIGEM_ANTIGA = {'tipo': 'padrao_marca', 'ref': 'marca:%s@v2#job:%s' % ('a' * 32, 'b' * 16)}
 
 
-@pytest.fixture
-def biblioteca(tmp_path):
-    """A biblioteca da agencia com duas marcas sinteticas, criadas pelo modulo do perfil (M2)."""
-    from vapt.marca import perfil
-    bib = tmp_path / 'biblioteca-da-agencia'
-    bib.mkdir()
-    ids = {perfil.criar(bib, nome)['id']: nome for nome in (MARCA_UM, MARCA_DOIS)}
-    return bib, ids
+def _marca_orfa(job):
+    """briefing/marca.json como a 0.18 o deixava num job com marca escolhida."""
+    arq = job / 'briefing' / 'marca.json'
+    arq.write_text(json.dumps({'esquema': 'marca-job/1', 'escolha': 'marca', 'marca_id': 'a' * 32}), encoding='utf-8')
+    return arq
 
 
-def _marca_na_tela(conteudo):
-    return conteudo['estado']['lido']['marca']
+def _passo_2_com_origem_antiga(modelo):
+    """O passo 2 com o Design system como o "Usar o padrao" da 0.18 o deixava no rascunho: a regra e a ancora do titulo
+    e a ancora do logo com a origem padrao_marca."""
+    p2 = _passo_2(modelo['funcoes'])
+    p2['design']['titulo'] = dict(p2['design']['titulo'],
+                                  origem={'regra': dict(ORIGEM_ANTIGA), 'ancora': dict(ORIGEM_ANTIGA)})
+    p2['design']['logo_principal'] = dict(p2['design']['logo_principal'], origem={'ancora': dict(ORIGEM_ANTIGA)})
+    return p2
 
 
-def test_marca_sem_biblioteca_mostra_so_sem_marca(job):
-    from vapt.marca import job as mj
+def _com_origem_antiga(b):
+    """O briefing b como a 0.18 o gravava depois de "Usar o padrao": toda regra e ancora por funcao com a origem
+    padrao_marca e o ref (muda b no lugar)."""
+    n = 0
+    for r in b['regras_escala']:
+        if r.get('funcao'):
+            r['regra']['origem'] = dict(ORIGEM_ANTIGA)
+            n += 1
+    for a in b['ancoras']:
+        if a.get('funcao'):
+            a['x']['origem'] = dict(ORIGEM_ANTIGA)
+            a['y']['origem'] = dict(ORIGEM_ANTIGA)
+            n += 1
+    assert n
+    return b
+
+
+def test_compat_job_com_marca_orfa_e_origem_antiga_no_rascunho_salva_como_escolha_do_da(job, modelo):
+    # compat, sai na 0.20.0: a tela abre sem bloco de marca, o rascunho com a origem antiga grava, nada fica pendente
+    # e o briefing sai com a origem do Disparo (no modo de teste, fixture_de_teste) e o valor mantido
+    orfa = _marca_orfa(job)
+    antes = orfa.read_bytes()
     conteudo = te.montar(job)
-    m = _marca_na_tela(conteudo)
-    assert m['biblioteca']['configurada'] is False and m['biblioteca']['usavel'] is False
-    assert m['biblioteca']['o_que_fazer']  # a nota simples de onde configurar
-    assert m['marcas'] == [] and m['escolhida'] is None and m['pode_criar'] is False
-    # nada falta por causa da marca: ela e opcional
-    assert not any('marca' in f['texto'].lower() for f in conteudo['estado']['faltam'])
+    assert 'marca' not in conteudo['estado']['lido']
+    assert 'biblioteca' not in conteudo and 'pasta_biblioteca' not in conteudo
+    atos = ta.atos_do_job(job, conteudo=conteudo)
+    assert 'marca' not in atos and 'marca_registrar' not in atos
+    assert 'padrao_marca_desatualizado' not in ta.MOTIVOS_DO_SALVAR
+    assert 'padrao_marca_desatualizado' not in ta.ORDEM_DO_SALVAR
     s = _servidor(job, conteudo)
     try:
         biscoito = tts._entrar(s)
-        # sem biblioteca, so "Sem marca" passa
-        assert _ato(s, biscoito, 'marca', {'escolha': 'nova', 'nome': MARCA_UM})[0] == 403
-        assert _ato(s, biscoito, 'marca', {'escolha': 'marca', 'id': '0' * 32})[0] == 403
-        codigo, c2, p = _ato(s, biscoito, 'marca', {'escolha': 'sem_marca'})
-        assert codigo == 200 and c2 == 200 and p['sim'] == 'Confirmar'
-        assert '—' not in p['texto'] and '–' not in p['texto']
-        _c, _cab, corpo = tts._pedir(s, '/api/estado', cookie=biscoito)[:3]
-        assert json.loads(corpo)['lido']['marca']['escolhida'] == {'escolha': 'sem_marca', 'id': None, 'nome': None}
-    finally:
-        s.parar()
-    reg = mj.ler(job)
-    assert reg['escolha'] == 'sem_marca' and reg['marca_id'] is None
-
-
-def test_marca_lista_a_biblioteca_sem_nenhuma_marcada_e_sem_caminho(job, biblioteca):
-    bib, ids = biblioteca
-    conteudo = te.montar(job, biblioteca=str(bib))
-    m = _marca_na_tela(conteudo)
-    assert m['biblioteca']['usavel'] is True and m['pode_criar'] is True
-    assert [x['nome'] for x in m['marcas']] == sorted(ids.values(), key=str.casefold)
-    assert {x['id'] for x in m['marcas']} == set(ids)
-    assert m['escolhida'] is None
-    # o caminho da biblioteca nunca vai a pagina
-    texto = json.dumps(conteudo['estado'], ensure_ascii=False, default=str)
-    assert str(bib) not in texto and bib.as_posix() not in texto and str(bib.parent) not in texto
-    assert not any('marca' in f['texto'].lower() for f in conteudo['estado']['faltam'])
-
-
-def test_marca_biblioteca_vazia_ou_com_problema_mostra_so_sem_marca(job, tmp_path):
-    vazia = tmp_path / 'biblioteca-vazia'
-    vazia.mkdir()
-    m = _marca_na_tela(te.montar(job, biblioteca=str(vazia)))
-    assert m['biblioteca']['usavel'] is True and m['marcas'] == [] and m['pode_criar'] is True
-    m = _marca_na_tela(te.montar(job, biblioteca=str(tmp_path / 'nao-existe')))
-    assert m['biblioteca']['usavel'] is False and m['marcas'] == [] and m['pode_criar'] is False
-    assert m['biblioteca']['o_que_fazer']
-
-
-def test_escolher_a_marca_grava_fecha_e_reabre_igual(job, biblioteca):
-    from vapt.marca import job as mj
-    bib, ids = biblioteca
-    alvo = next(i for i, n in ids.items() if n == MARCA_DOIS)
-    conteudo = te.montar(job, biblioteca=str(bib))
-    s = _servidor(job, conteudo)
-    try:
-        biscoito = tts._entrar(s)
-        # id que nao e da biblioteca, campo a mais ou escolha fora da lista: recusado antes do dialogo
-        assert _ato(s, biscoito, 'marca', {'escolha': 'marca', 'id': 'f' * 32})[0] == 403
-        assert _ato(s, biscoito, 'marca', {'escolha': 'marca', 'id': alvo, 'nome': 'x'})[0] == 403
-        assert _ato(s, biscoito, 'marca', {'escolha': 'outra'})[0] == 403
-        assert _ato(s, biscoito, 'marca', {})[0] == 403
-        assert not (job / mj.ARQUIVO).exists()
-        codigo, c2, p = _ato(s, biscoito, 'marca', {'escolha': 'marca', 'id': alvo})
-        assert codigo == 200 and c2 == 200
-        assert MARCA_DOIS in p['texto'] and alvo not in p['texto']
-        _c, _cab, corpo = tts._pedir(s, '/api/estado', cookie=biscoito)[:3]
-        assert json.loads(corpo)['lido']['marca']['escolhida'] == {'escolha': 'marca', 'id': alvo, 'nome': MARCA_DOIS}
-    finally:
-        s.parar()
-    reg = contratos.ler(job / mj.ARQUIVO, mj.ESQUEMA)
-    assert reg['escolha'] == 'marca' and reg['marca_id'] == alvo
-    # no modo de teste da tela, o Disparo sai com a origem de teste e o meio medicao, como os outros atos
-    assert reg['origem'] == humano.ORIGEM_FIXTURE and reg['escolhido_por']['meio'] == humano.MEIO_MEDICAO
-    # o nome da marca fica so na biblioteca: o arquivo do job leva o id
-    assert MARCA_DOIS not in (job / mj.ARQUIVO).read_text(encoding='utf-8')
-    # fechar e reabrir a tela: a mesma marca escolhida
-    reaberta = _marca_na_tela(te.montar(job, biblioteca=str(bib)))
-    assert reaberta['escolhida'] == {'escolha': 'marca', 'id': alvo, 'nome': MARCA_DOIS}
-    # reabrir sem a biblioteca configurada: a escolha continua, sem o nome
-    sem_bib = _marca_na_tela(te.montar(job))
-    assert sem_bib['escolhida'] == {'escolha': 'marca', 'id': alvo, 'nome': None}
-
-
-def test_marca_nova_cria_o_perfil_na_biblioteca_e_vale_para_o_job(job, biblioteca):
-    from vapt.marca import job as mj
-    from vapt.marca import perfil
-    bib, ids = biblioteca
-    conteudo = te.montar(job, biblioteca=str(bib))
-    s = _servidor(job, conteudo)
-    try:
-        biscoito = tts._entrar(s)
-        # nome vazio, so espacos, com barra, longo demais, de outro tipo ou de uma marca que ja existe: recusado
-        for ruim in ('', '   ', 'marca/com-barra', 'x' * 121, 7, MARCA_UM.upper()):
-            assert _ato(s, biscoito, 'marca', {'escolha': 'nova', 'nome': ruim})[0] == 403, ruim
-        assert len(perfil.listar(bib)) == 2
-        codigo, c2, p = _ato(s, biscoito, 'marca', {'escolha': 'nova', 'nome': '  Marca Sintetica Tres '})
-        assert codigo == 200 and c2 == 200 and 'Marca Sintetica Tres' in p['texto']
-        _c, _cab, corpo = tts._pedir(s, '/api/estado', cookie=biscoito)[:3]
-        m = json.loads(corpo)['lido']['marca']
-    finally:
-        s.parar()
-    novas = [x for x in perfil.listar(bib) if x['id'] not in ids]
-    assert [x['marca'] for x in novas] == ['Marca Sintetica Tres']
-    nova = novas[0]['id']
-    assert perfil.ler(bib, nova)['versao'] == 0  # o perfil nasce sem registro (M2)
-    assert mj.ler(job)['marca_id'] == nova
-    assert m['escolhida'] == {'escolha': 'marca', 'id': nova, 'nome': 'Marca Sintetica Tres'}
-    assert 'Marca Sintetica Tres' in [x['nome'] for x in m['marcas']]
-
-
-def test_trocar_a_marca_por_sem_marca(job, biblioteca):
-    from vapt.marca import job as mj
-    bib, ids = biblioteca
-    conteudo = te.montar(job, biblioteca=str(bib))
-    s = _servidor(job, conteudo)
-    try:
-        biscoito = tts._entrar(s)
-        assert _ato(s, biscoito, 'marca', {'escolha': 'marca', 'id': next(iter(ids))})[1] == 200
-        assert _ato(s, biscoito, 'marca', {'escolha': 'sem_marca'})[1] == 200
-    finally:
-        s.parar()
-    reg = mj.ler(job)
-    assert reg['escolha'] == 'sem_marca' and reg['marca_id'] is None
-    assert _marca_na_tela(te.montar(job, biblioteca=str(bib)))['escolhida']['escolha'] == 'sem_marca'
-
-
-def test_marca_nao_trava_salvar_e_seguir(job, modelo, biblioteca):
-    from vapt.marca import job as mj
-    bib, _ids = biblioteca
-    conteudo = te.montar(job, biblioteca=str(bib))
-    s = _servidor(job, conteudo)
-    try:
-        biscoito = tts._entrar(s)
-        _preparar_rascunho(job, modelo, s, biscoito, conteudo)
-        assert bs.pendencias(job, conteudo) == []
-        assert _salvar(s, biscoito, job)[1] == 200
-    finally:
-        s.parar()
-    assert not (job / mj.ARQUIVO).exists()
-
-
-def test_marca_e_ato_humano_da_tela(job, biblioteca, pessoa):
-    from vapt.marca import job as mj
-    bib, ids = biblioteca
-    assert mj.COMANDO in humano.ATOS_DA_TELA and mj.COMANDO not in humano.COMANDOS
-    # sem o Disparo do clique, ou com o de outro ato, nada e gravado
-    with pytest.raises(humano.ErroHumano):
-        mj.gravar(job, {'escolha': 'sem_marca'}, disparo=None)
-    with pytest.raises(humano.ErroHumano):
-        mj.gravar(job, {'escolha': 'sem_marca'}, disparo=pessoa.exigir('render'))
-    assert not (job / mj.ARQUIVO).exists()
-    sessao = humano.abrir_sessao_tela(teste=True)
-    try:
-        d = humano.exigir_tela(mj.COMANDO, sessao, confirmado=True)
-        mj.gravar(job, {'escolha': 'marca', 'id': next(iter(ids))}, disparo=d, biblioteca=bib)
-        # o Disparo vale um ato so
-        with pytest.raises(humano.ErroHumano):
-            mj.gravar(job, {'escolha': 'sem_marca'}, disparo=d)
-    finally:
-        humano.fechar_sessao_tela(sessao)
-
-
-def test_envelope_do_claude_diz_so_se_ha_marca(job, biblioteca, capsys):
-    from vapt import cli
-    from vapt.marca import job as mj
-    bib, ids = biblioteca
-    alvo = next(iter(ids))
-
-    def envelope():
-        capsys.readouterr()
-        cli.principal(['--envelope', 'job', 'estado', str(job)])
-        return capsys.readouterr().out
-
-    saida = envelope()
-    assert json.loads(saida)['contagens']['marca_escolhida'] == 0
-    sessao = humano.abrir_sessao_tela(teste=True)
-    try:
-        mj.gravar(job, {'escolha': 'marca', 'id': alvo}, disparo=humano.exigir_tela(mj.COMANDO, sessao, True),
-                  biblioteca=bib)
-    finally:
-        humano.fechar_sessao_tela(sessao)
-    saida = envelope()
-    assert json.loads(saida)['contagens']['marca_escolhida'] == 1
-    assert alvo not in saida and ids[alvo] not in saida and str(bib) not in saida
-
-
-def test_gancho_nega_ao_claude_ler_e_escrever_a_marca_do_job(job):
-    import importlib.util
-
-    from conftest import RAIZ_PLUGIN
-    from vapt.marca import job as mj
-    spec = importlib.util.spec_from_file_location('gancho_m3', RAIZ_PLUGIN / 'scripts' / 'gancho_confirmacoes.py')
-    g = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(g)
-    alvo = job / mj.ARQUIVO
-    alvo.write_text('{}', encoding='utf-8')
-    c, p = str(alvo), alvo.as_posix()
-    eventos = [('Read', {'file_path': c}), ('Grep', {'pattern': 'x', 'path': c}),
-               ('Write', {'file_path': c, 'content': '{}'}),
-               ('Edit', {'file_path': c, 'old_string': '{}', 'new_string': '[]'}),
-               ('Bash', {'command': 'cat "%s"' % p}), ('Bash', {'command': 'echo {} > "%s"' % p}),
-               ('PowerShell', {'command': 'Get-Content -Raw "%s"' % c}),
-               ('PowerShell', {'command': 'Set-Content -Path "%s" -Value x' % c})]
-    for ferramenta, entrada in eventos:
-        evento = {'tool_name': ferramenta, 'tool_input': entrada, 'cwd': str(job.parent)}
-        assert g.decidir(evento) == 'deny', (ferramenta, entrada)
-
-
-JS_MARCAS_MARCADAS = '''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
-    .filter(b => b.getAttribute("aria-pressed") === "true").map(b => b.textContent)'''
-# decisao 207: a linha marcada por ser a unica escolha possivel (sem gravar)
-JS_MARCA_UNICA = '''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca][data-unica]"))
-    .map(b => b.querySelector(".modo-nome").textContent)'''
-# o textContent da linha "Sem marca" e o nome seguido do texto de apoio
-SEM_MARCA_LINHA = 'Sem marcaO job segue sem padrão de marca.'
-JS_TEXTO_DA_MARCA = '() => document.getElementById("lido-marca").textContent'
-JS_TITLE_SEM_MARCA = '''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
-    .find(b => b.querySelector(".modo-nome").textContent === "Sem marca").title'''
-# a nota de abertura do bloco: so quando nada vem marcado (decisao 207)
-NOTA_ABERTURA = 'nada muda sem o seu clique'
-JA_MARCADA = 'já vem marcada'
-
-
-def _abrir_passo_1(pw, srv):
-    from vapt.chromium import navegador
-    nav = pw.chromium.launch(headless=True, args=list(navegador.ARGUMENTOS))
-    pg = nav.new_context(viewport={'width': 1440, 'height': 900}, device_scale_factor=1).new_page()  # numero-neutro: janela de teste
-    try:
-        pg.goto(srv.url_entrada, wait_until='commit')
-    except Exception:  # noqa: BLE001 - o 204 nao completa a navegacao
-        pass
-    pg.goto(srv.url_pagina, wait_until='load')
-    tp._esperar(pg, tp.JS_PRONTO)
-    pg.evaluate('() => document.querySelector("#passos [data-passo=lido]").click()')
-    pg.evaluate('() => document.getElementById("bloco-marca").scrollIntoView()')
-    return nav, pg
-
-
-def _confirmar_na_janela(pg):
-    tp._esperar(pg, '() => document.getElementById("confirmacao").open ? "1" : ""')
-    # nenhuma resposta em foco: Enter nao grava nada
-    assert pg.evaluate('() => document.activeElement.tagName') != 'BUTTON'
-    texto = pg.evaluate('() => document.getElementById("confirmacao-texto").textContent')
-    pg.evaluate('''() => Array.from(document.querySelectorAll("#confirmacao button"))
-        .find(b => b.textContent === "Confirmar").click()''')
-    tp._esperar(pg, '() => document.documentElement.dataset.estadoAto === "feito" ? "1" : ""')
-    return texto
-
-
-def test_marca_no_chromium_escolher_fechar_e_reabrir(job, biblioteca, capturas=None):
-    """A marca no passo 1 da pagina: nenhuma marcada, a escolha pela janela, a marca nova pelo campo e, depois de
-    fechar e abrir a tela de novo, a mesma marca marcada. capturas: pasta para as fotos da verificacao (fora do
-    repositorio), ou None."""
-    from playwright.sync_api import sync_playwright
-
-    from vapt.chromium import navegador
-    from vapt.marca import job as mj
-    bib, ids = biblioteca
-    navegador.apontar_playwright()
-
-    def foto(pg, nome):
-        if capturas is not None:
-            pg.locator('#bloco-marca').screenshot(path=str(capturas / ('%s.png' % nome)))
-
-    conteudo = te.montar(job, biblioteca=str(bib))
-    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
-                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
-        nav, pg = _abrir_passo_1(pw, srv)
-        try:
-            nomes = pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
-                .map(b => b.querySelector(".modo-nome").textContent)''')
-            assert nomes == sorted(ids.values(), key=str.casefold) + ['Sem marca']
-            assert pg.evaluate(JS_MARCAS_MARCADAS) == [] and pg.evaluate(JS_MARCA_UNICA) == []
-            # com marcas na biblioteca, a nota de abertura continua (decisao 207 nao a tira daqui)
-            assert NOTA_ABERTURA in pg.evaluate(JS_TEXTO_DA_MARCA)
-            assert pg.evaluate('() => document.getElementById("marca-nova-criar").disabled') is True
-            foto(pg, '1-nenhuma-marcada')
-            # a marca dois, pela janela de confirmacao
-            pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
-                .find(b => b.textContent === "%s").click()''' % MARCA_DOIS)
-            assert MARCA_DOIS in _confirmar_na_janela(pg)
-            assert pg.evaluate(JS_MARCAS_MARCADAS) == [MARCA_DOIS]
-            foto(pg, '2-marca-escolhida')
-            # a marca nova: o nome repetido mostra o erro e nao deixa criar
-            pg.fill('#marca-nova-nome', MARCA_UM.lower())
-            assert pg.evaluate('() => document.getElementById("marca-nova-erro").hidden') is False
-            assert pg.evaluate('() => document.getElementById("marca-nova-criar").disabled') is True
-            foto(pg, '3-marca-nova-repetida')
-            pg.fill('#marca-nova-nome', 'Marca Sintetica Tres')
-            assert pg.evaluate('() => document.getElementById("marca-nova-criar").disabled') is False
-            pg.click('#marca-nova-criar')
-            assert 'Marca Sintetica Tres' in _confirmar_na_janela(pg)
-            assert pg.evaluate(JS_MARCAS_MARCADAS) == ['Marca Sintetica Tres']
-            assert pg.evaluate('() => document.getElementById("marca-nova-nome").value') == ''
-            foto(pg, '4-marca-nova-escolhida')
-            texto = pg.evaluate(tp.JS_TEXTO_DA_MOLDURA)
-            assert '—' not in texto and '–' not in texto
-            assert str(bib) not in pg.content()
-        finally:
-            nav.close()
-    escolhido = mj.ler(job)['marca_id']
-    # fechar a tela e abrir de novo: a mesma marca marcada
-    conteudo = te.montar(job, biblioteca=str(bib))
-    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
-                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
-        nav, pg = _abrir_passo_1(pw, srv)
-        try:
-            assert pg.evaluate(JS_MARCAS_MARCADAS) == ['Marca Sintetica Tres']
-            foto(pg, '5-reaberta')
-        finally:
-            nav.close()
-    assert mj.ler(job)['marca_id'] == escolhido
-
-
-def test_marca_no_chromium_sem_biblioteca(job, capturas=None):
-    from playwright.sync_api import sync_playwright
-
-    from vapt.chromium import navegador
-    from vapt.marca import job as mj
-    navegador.apontar_playwright()
-    conteudo = te.montar(job)
-    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
-                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
-        nav, pg = _abrir_passo_1(pw, srv)
-        try:
-            nomes = pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
-                .map(b => b.querySelector(".modo-nome").textContent)''')
-            # decisao 207: "Sem marca" e a unica escolha, entao ja vem marcada, com o title que diz isso
-            assert nomes == ['Sem marca'] and pg.evaluate(JS_MARCAS_MARCADAS) == [SEM_MARCA_LINHA]
-            assert pg.evaluate(JS_MARCA_UNICA) == ['Sem marca']
-            assert 'nica escolha' in pg.evaluate(JS_TITLE_SEM_MARCA)
-            assert pg.evaluate('() => document.getElementById("marca-nova-nome")') is None
-            texto = pg.evaluate(JS_TEXTO_DA_MARCA)
-            assert 'Configure' in texto and JA_MARCADA in texto and NOTA_ABERTURA not in texto
-            assert '—' not in texto and '–' not in texto
-            if capturas is not None:
-                pg.locator('#bloco-marca').screenshot(path=str(capturas / '6-sem-biblioteca.png'))
-        finally:
-            nav.close()
-    # a marcacao e so visual: nada foi gravado
-    assert not (job / mj.ARQUIVO).exists()
-    # "Sem marca" gravada de proposito (pelo servidor, como o fluxo da janela): a linha continua marcada, mas pela
-    # escolha gravada, nao por ser a unica; a nota volta a ser a de sempre
-    s = _servidor(job, conteudo)
-    try:
-        biscoito = tts._entrar(s)
-        assert _ato(s, biscoito, 'marca', {'escolha': 'sem_marca'})[1] == 200
-    finally:
-        s.parar()
-    assert mj.ler(job)['escolha'] == 'sem_marca'
-    conteudo = te.montar(job)
-    assert _marca_na_tela(conteudo)['escolhida']['escolha'] == 'sem_marca'
-    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
-                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
-        nav, pg = _abrir_passo_1(pw, srv)
-        try:
-            assert pg.evaluate(JS_MARCAS_MARCADAS) == [SEM_MARCA_LINHA] and pg.evaluate(JS_MARCA_UNICA) == []
-            assert pg.evaluate(JS_TITLE_SEM_MARCA) == ''
-            texto = pg.evaluate(JS_TEXTO_DA_MARCA)
-            assert 'O job segue sem marca.' in texto and JA_MARCADA not in texto
-        finally:
-            nav.close()
-
-
-def test_marca_no_chromium_escolhida_fora_da_biblioteca(job, biblioteca):
-    """decisao 207: a marca gravada com a biblioteca que depois deixou de servir. Nada vem marcado, nem "Sem marca"
-    (ha escolha gravada), e a nota diz que a marca escolhida nao aparece nesta janela."""
-    from playwright.sync_api import sync_playwright
-
-    from vapt.chromium import navegador
-    bib, ids = biblioteca
-    navegador.apontar_playwright()
-    conteudo = te.montar(job, biblioteca=str(bib))
-    s = _servidor(job, conteudo)
-    try:
-        biscoito = tts._entrar(s)
-        assert _ato(s, biscoito, 'marca', {'escolha': 'marca', 'id': next(iter(ids))})[1] == 200
-    finally:
-        s.parar()
-    conteudo = te.montar(job)
-    assert _marca_na_tela(conteudo)['escolhida']['escolha'] == 'marca'
-    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
-                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
-        nav, pg = _abrir_passo_1(pw, srv)
-        try:
-            assert pg.evaluate(JS_MARCAS_MARCADAS) == [] and pg.evaluate(JS_MARCA_UNICA) == []
-            texto = pg.evaluate(JS_TEXTO_DA_MARCA)
-            assert 'não aparece na biblioteca' in texto and JA_MARCADA not in texto
-            assert 'A marca vale para o job inteiro' in texto
-        finally:
-            nav.close()
-
-
-def test_marca_no_chromium_biblioteca_vazia(job, tmp_path, capturas=None):
-    """decisao 207: biblioteca usavel e sem marca. "Sem marca" ja vem marcada sem gravar; o campo da marca nova
-    continua; o clique em "Sem marca" grava como sempre, pela janela, e a marca deixa de ser "a unica"."""
-    from playwright.sync_api import sync_playwright
-
-    from vapt.chromium import navegador
-    from vapt.marca import job as mj
-    navegador.apontar_playwright()
-    vazia = tmp_path / 'biblioteca-vazia'
-    vazia.mkdir()
-    conteudo = te.montar(job, biblioteca=str(vazia))
-    assert _marca_na_tela(conteudo)['escolhida'] is None
-    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
-                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
-        nav, pg = _abrir_passo_1(pw, srv)
-        try:
-            nomes = pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
-                .map(b => b.querySelector(".modo-nome").textContent)''')
-            assert nomes == ['Sem marca'] and pg.evaluate(JS_MARCAS_MARCADAS) == [SEM_MARCA_LINHA]
-            assert pg.evaluate(JS_MARCA_UNICA) == ['Sem marca']
-            # o campo da marca nova esta a vista: o title nao diz que e a unica escolha, diz que da para criar
-            title = pg.evaluate(JS_TITLE_SEM_MARCA)
-            assert title.startswith('Já marcada') and 'criar uma abaixo' in title and 'nica escolha' not in title
-            assert pg.evaluate('() => document.getElementById("marca-nova-nome")') is not None
-            texto = pg.evaluate(JS_TEXTO_DA_MARCA)
-            assert JA_MARCADA in texto and NOTA_ABERTURA not in texto
-            assert '—' not in texto and '–' not in texto
-            assert not (job / mj.ARQUIVO).exists()
-            if capturas is not None:
-                pg.locator('#bloco-marca').screenshot(path=str(capturas / '9-biblioteca-vazia.png'))
-            # o clique em "Sem marca" grava de proposito, pela janela, como hoje
-            pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-marca button[data-ato=marca]"))
-                .find(b => b.querySelector(".modo-nome").textContent === "Sem marca").click()''')
-            _confirmar_na_janela(pg)
-            assert pg.evaluate(JS_MARCAS_MARCADAS) == [SEM_MARCA_LINHA]
-            assert pg.evaluate(JS_MARCA_UNICA) == [] and pg.evaluate(JS_TITLE_SEM_MARCA) == ''
-            texto = pg.evaluate(JS_TEXTO_DA_MARCA)
-            assert 'Crie a primeira abaixo' in texto and JA_MARCADA not in texto
-        finally:
-            nav.close()
-    reg = mj.ler(job)
-    assert reg['escolha'] == 'sem_marca' and reg['marca_id'] is None
-
-
-# revisao do M3: o mesmo nome escrito de outro jeito (Unicode NFD, espacos repetidos ou de outro tipo, maiusculas que
-# so o casefold junta) e a mesma marca; o nome novo entra na biblioteca na forma NFC, com um espaco so entre as palavras
-CAFE = 'Café Sintético'
-STRASSE = 'Marca Straße'
-
-
-def _iguais_a_cafe_e_strasse():
-    import unicodedata
-    return (unicodedata.normalize('NFD', CAFE), 'Café  Sintético', 'Café Sintético',
-            'CAFÉ SINTÉTICO', 'MARCA STRASSE', 'Marca　Straße')
-
-
-def test_marca_nova_recusa_o_mesmo_nome_escrito_de_outro_jeito(job, tmp_path):
-    import unicodedata
-
-    from vapt.marca import job as mj
-    from vapt.marca import perfil
-    bib = tmp_path / 'biblioteca-da-agencia'
-    bib.mkdir()
-    perfil.criar(bib, CAFE)
-    perfil.criar(bib, STRASSE)
-    for nome in _iguais_a_cafe_e_strasse():
-        assert mj.nome_novo(nome, bib) is None, ascii(nome)
-    # o controle continua recusado, mesmo entre as palavras
-    assert mj.nome_novo('Marca\tTab', bib) is None
-    # o nome novo vai na forma NFC, com um espaco so
-    assert mj.nome_novo(unicodedata.normalize('NFD', 'Marca Cinco Sintética'), bib) == 'Marca Cinco Sintética'
-    assert mj.nome_novo(' Marca   Seis ', bib) == 'Marca Seis'
-    conteudo = te.montar(job, biblioteca=str(bib))
-    s = _servidor(job, conteudo)
-    try:
-        biscoito = tts._entrar(s)
-        for nome in _iguais_a_cafe_e_strasse():
-            assert _ato(s, biscoito, 'marca', {'escolha': 'nova', 'nome': nome})[0] == 403, ascii(nome)
-        codigo, c2, p = _ato(s, biscoito, 'marca', {'escolha': 'nova',
-                                                    'nome': unicodedata.normalize('NFD', 'Marca  Sete Sintética')})
-        assert codigo == 200 and c2 == 200 and 'Marca Sete Sintética' in p['texto']
-    finally:
-        s.parar()
-    nomes = [m['marca'] for m in perfil.listar(bib)]
-    assert len(nomes) == 3 and 'Marca Sete Sintética' in nomes
-    assert all(unicodedata.is_normalized('NFC', n) for n in nomes)
-
-
-def test_marca_nova_no_chromium_avisa_o_nome_que_o_motor_recusa(job, biblioteca, capturas=None):
-    """revisao do M3: o nome que o motor recusa (extensao de arquivo de fonte, a mesma marca escrita de outro jeito)
-    desliga o "Criar e usar" com o motivo na linha do campo. O que so o motor sabe recusar volta como aviso no campo,
-    sem a frase de tentar de novo, e o botao fica desligado ate o DA mudar o nome."""
-    from playwright.sync_api import sync_playwright
-
-    from vapt.chromium import navegador
-    from vapt.marca import perfil
-    bib, ids = biblioteca
-    perfil.criar(bib, CAFE)
-    perfil.criar(bib, STRASSE)
-    navegador.apontar_playwright()
-    js_erro = '() => { const e = document.getElementById("marca-nova-erro"); return e.hidden ? "" : e.textContent; }'
-    js_desligado = '() => document.getElementById("marca-nova-criar").disabled'
-    conteudo = te.montar(job, biblioteca=str(bib))
-    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
-                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
-        nav, pg = _abrir_passo_1(pw, srv)
-        try:
-            for nome in ('Studio.otf', 'Marca.TTF', 'Logo.woff2 final'):
-                pg.fill('#marca-nova-nome', nome)
-                assert pg.evaluate(js_desligado) is True, nome
-                assert 'fonte' in pg.evaluate(js_erro), nome
-            for nome in _iguais_a_cafe_e_strasse() + (MARCA_UM.upper(),):
-                pg.fill('#marca-nova-nome', nome)
-                assert pg.evaluate(js_desligado) is True, ascii(nome)
-                assert 'lista acima' in pg.evaluate(js_erro), ascii(nome)
-            if capturas is not None:
-                pg.locator('#bloco-marca').screenshot(path=str(capturas / '7-nome-repetido-de-outro-jeito.png'))
-            # o nome que so o motor recusa (bytes de fonte em base64): o aviso fica no campo
-            pg.fill('#marca-nova-nome', 'T1RUTw')
-            assert pg.evaluate(js_desligado) is False and pg.evaluate(js_erro) == ''
-            pg.click('#marca-nova-criar')
-            tp._esperar(pg, '() => document.documentElement.dataset.estadoAto === "erro" ? "1" : ""')
-            assert pg.evaluate('() => document.getElementById("confirmacao").open') is False
-            aviso = pg.evaluate(js_erro)
-            assert 'não aceitou esse nome' in aviso, aviso
-            assert '—' not in aviso and '–' not in aviso
-            assert pg.evaluate(js_desligado) is True
-            assert 'Tente de novo' not in pg.evaluate('() => document.getElementById("selo").textContent')
-            if capturas is not None:
-                pg.locator('#bloco-marca').screenshot(path=str(capturas / '8-nome-recusado-pelo-motor.png'))
-            # mudar o nome tira o aviso e liga o botao de novo
-            pg.fill('#marca-nova-nome', 'Marca Sintetica Oito')
-            assert pg.evaluate(js_desligado) is False and pg.evaluate(js_erro) == ''
-        finally:
-            nav.close()
-    assert len(perfil.listar(bib)) == 4
-
-
-# ------------------------------------------------------------------ M7c, M4: o padrao da marca no Design system
-# decisoes-v1.md, 162 e 190 (Q1 e Q3): o segundo job da mesma marca abre com o padrao citado (regra de escala e ancora
-# por funcao, com a versao e o job de origem) e nenhum campo preenchido; so o clique do DA em "Usar o padrao" poe o
-# valor no rascunho, com a origem padrao_marca, e o "Salvar e seguir" leva essa origem, com o ref, ao briefing. O ref
-# que nao bate com o perfil atual e recusado. Perfis sinteticos (test_tela_funcoes.perfil_m4), em pasta temporaria.
-@pytest.fixture
-def marca_m4(job, tmp_path):
-    """A biblioteca com a marca sintetica de duas versoes, escolhida no job (como o ato da tela grava)."""
-    import test_tela_funcoes as ttf
-    bib = tmp_path / 'biblioteca-m4'
-    bib.mkdir()
-    id_ = ttf.perfil_m4(bib)
-    ttf.marca_do_job_m4(job, id_)
-    return bib, id_
-
-
-def _rascunho_sem_design(modelo):
-    return {'funcoes': {str(k): {'funcao': v, 'observacao': None} for k, v in modelo['funcoes'].items()}}
-
-
-def _design_do_da(*funcoes):
-    return {f: {'regra': USADAS[f][0], 'x': USADAS[f][1], 'y': USADAS[f][2]} for f in funcoes}
-
-
-def test_segundo_job_da_marca_abre_com_o_padrao_citado_e_nada_preenchido(job, modelo, marca_m4):
-    import test_tela_funcoes as ttf
-    from vapt.tela import funcoes as tf
-    bib, id_ = marca_m4
-    conteudo = te.montar(job, biblioteca=str(bib))
-    padrao = _marca_na_tela(conteudo)['padrao']
-    assert padrao == tf.padrao_da_marca(job, bib)
-    assert padrao['versao'] == 2 and set(padrao['funcoes']) == {'titulo', 'estrutura', 'logo_principal'}
-    assert padrao['funcoes']['titulo']['regra']['ref'] == 'marca:%s@v2#job:%s' % (id_, ttf.JOB_P1)
-    # 0 campo preenchido: nada no rascunho, e o Design system continua faltando as funcoes do padrao
-    s = _servidor(job, conteudo)
-    try:
-        biscoito = tts._entrar(s)
-        assert _gravar_rascunho(s, biscoito, _escolhas(conteudo), _rascunho_sem_design(modelo)) == 200
+        escolhas = _escolhas(conteudo)
+        assert _gravar_rascunho(s, biscoito, escolhas, _passo_2_com_origem_antiga(modelo)) == 200
+        assert _ato(s, biscoito, 'modo_dados', {'modo': 'c'})[1] == 200
+        _confirmar_todas(s, biscoito, escolhas)
+        # o rascunho guarda a origem antiga, tolerada no esquema rascunho-tela/1
         dados = contratos.ler(job / tr.ARQUIVO, tr.ESQUEMA)
-        assert not dados.get('design')
-        laudo = contratos.ler(job / 'laudo' / 'laudo.json', 'laudo/1')
-        pend = tf.pendencias(laudo, dados)
-        for f in ('titulo', 'logo_principal'):
-            assert {'tipo': 'regra', 'funcao': f} in pend and {'tipo': 'ancora', 'funcao': f} in pend
-        # a escolha de outra marca na tela muda o padrao citado na hora (recarregar)
-        assert _ato(s, biscoito, 'marca', {'escolha': 'sem_marca'})[1] == 200
-        assert conteudo['recarregar']()['lido']['marca']['padrao'] is None
-    finally:
-        s.parar()
-
-
-def test_sem_marca_ou_sem_biblioteca_o_design_system_segue_sem_padrao(job, modelo, tmp_path):
-    import test_tela_funcoes as ttf
-    assert _marca_na_tela(te.montar(job))['padrao'] is None
-    vazia = tmp_path / 'biblioteca-vazia'
-    vazia.mkdir()
-    assert _marca_na_tela(te.montar(job, biblioteca=str(vazia)))['padrao'] is None
-    ttf.marca_do_job_m4(job, None)
-    conteudo = te.montar(job, biblioteca=str(vazia))
-    assert _marca_na_tela(conteudo)['padrao'] is None
-    s = _servidor(job, conteudo)
-    try:
-        biscoito = tts._entrar(s)
-        _preparar_rascunho(job, modelo, s, biscoito, conteudo)
-        assert bs.pendencias(job, conteudo) == []
-        assert _salvar(s, biscoito, job)[1] == 200
-    finally:
-        s.parar()
-
-
-def _salvar_com_padrao(job, modelo, bib, design, conteudo=None):
-    """Grava o rascunho com o design pedido, o modo e as familias confirmadas; devolve (conteudo, servidor, cookie)."""
-    conteudo = conteudo or te.montar(job, biblioteca=str(bib))
-    s = _servidor(job, conteudo)
-    biscoito = tts._entrar(s)
-    escolhas = _escolhas(conteudo)
-    assert _gravar_rascunho(s, biscoito, escolhas, dict(_rascunho_sem_design(modelo), design=design)) == 200
-    assert _ato(s, biscoito, 'modo_dados', {'modo': 'c'})[1] == 200
-    for gid, f in escolhas.items():
-        assert _ato(s, biscoito, 'familia', {'familia': gid, 'versao': f['versao'], 'edicoes': f['edicoes']})[1] == 200
-    return conteudo, s, biscoito
-
-
-def test_usar_o_padrao_e_salvar_grava_a_origem_padrao_marca_com_o_ref(job, modelo, marca_m4):
-    import test_tela_funcoes as ttf
-    from vapt.tela import funcoes as tf
-    bib, id_ = marca_m4
-    p = tf.padrao_da_marca(job, bib)
-    design = dict(ttf.design_do_padrao(p, 'titulo', 'logo_principal'), **_design_do_da('fundo', 'texto_de_apoio'))
-    # o DA trocou a regra do logo depois do clique: a pagina tira a origem da regra e deixa a da ancora
-    design['logo_principal']['regra'] = 'largura'
-    del design['logo_principal']['origem']['regra']
-    conteudo, s, biscoito = _salvar_com_padrao(job, modelo, bib, design)
-    try:
+        assert dados['design']['titulo']['origem']['regra'] == ORIGEM_ANTIGA
         assert bs.pendencias(job, conteudo) == []
         assert _salvar(s, biscoito, job)[1] == 200
     finally:
@@ -1788,347 +1201,75 @@ def test_usar_o_padrao_e_salvar_grava_a_origem_padrao_marca_com_o_ref(job, model
     b = mb.ler(job)
     regras = {r['funcao']: r['regra'] for r in b['regras_escala']}
     ancoras = {a['funcao']: a for a in b['ancoras'] if 'funcao' in a}
-    ref_1 = 'marca:%s@v2#job:%s' % (id_, ttf.JOB_P1)
-    ref_2 = 'marca:%s@v2#job:%s' % (id_, ttf.JOB_P2)
-    assert regras['titulo'] == {'valor': 'raiz_area', 'situacao': 'confirmado',
-                                'origem': {'tipo': 'padrao_marca', 'ref': ref_1}}
-    assert ancoras['titulo']['x']['origem'] == ancoras['titulo']['y']['origem'] == {'tipo': 'padrao_marca', 'ref': ref_1}
-    assert regras['logo_principal']['valor'] == 'largura'
-    assert regras['logo_principal']['origem']['tipo'] == humano.ORIGEM_FIXTURE
-    assert ancoras['logo_principal']['x']['origem'] == {'tipo': 'padrao_marca', 'ref': ref_2}
-    assert regras['fundo']['origem']['tipo'] == humano.ORIGEM_FIXTURE
-    contratos.validar(b, mb.ESQUEMA)
-    # o briefing/1 nao mudou: o ref e texto na origem que o esquema ja tinha
+    da_tela = {'tipo': humano.ORIGEM_FIXTURE, 'ref': bs.REF_RASCUNHO}
+    assert regras['titulo'] == {'valor': USADAS['titulo'][0], 'situacao': 'confirmado', 'origem': da_tela}
+    for f in ('titulo', 'logo_principal'):
+        assert (ancoras[f]['x']['valor'], ancoras[f]['y']['valor']) == USADAS[f][1:], f
+        assert ancoras[f]['x']['origem'] == ancoras[f]['y']['origem'] == da_tela, f
+    texto = (job / mb.ARQUIVO).read_text(encoding='utf-8')
+    assert 'padrao_marca' not in texto and 'marca:' not in texto
+    # o arquivo orfao fica como estava: o Vapt nao o le nem o apaga
+    assert orfa.read_bytes() == antes
+
+
+def test_compat_briefing_antigo_com_origem_padrao_marca_valida_e_passa_na_entrega(job):
+    # compat, sai na 0.20.0: o briefing gravado pela 0.18 com a origem padrao_marca continua briefing/1 valido e passa
+    # na conferencia da entrega; o valor fica no enum da origem so para a leitura
+    b = _com_origem_antiga(contratos.ler(job / mb.ARQUIVO, 'briefing/1'))
+    _briefing_do_da(job, regras_escala=b['regras_escala'], ancoras=b['ancoras'])
+    gravado = contratos.ler(job / mb.ARQUIVO, 'briefing/1')
+    assert {r['regra']['origem']['tipo'] for r in gravado['regras_escala'] if r.get('funcao')} == {'padrao_marca'}
+    assert mb.conferir_para_entrega(job) == (True, None)
     assert 'padrao_marca' in contratos.carregar_esquema(mb.ESQUEMA)['$defs']['origem']['properties']['tipo']['enum']
 
 
-def test_salvar_recusa_o_padrao_que_nao_bate_com_o_perfil_atual(job, modelo, marca_m4):
-    import test_tela_funcoes as ttf
-    from vapt.marca import perfil
-    from vapt.tela import funcoes as tf
-    bib, id_ = marca_m4
-    p = tf.padrao_da_marca(job, bib)
-    design = dict(ttf.design_do_padrao(p, 'titulo', 'logo_principal'), **_design_do_da('fundo', 'texto_de_apoio'))
-    conteudo, s, biscoito = _salvar_com_padrao(job, modelo, bib, design)
-    try:
-        assert bs.pendencias(job, conteudo) == []
-        # a marca ganha a versao 3 com a tela aberta: o clique na versao 2 deixa de valer, e nada e gravado
-        atual = perfil.ler(bib, id_)['atual']
-        base = {k: atual[k] for k in ('regras_escala', 'ancoras', 'faces')}
-        base['regras_escala'] = [r for r in base['regras_escala'] if r['funcao'] != 'logo_principal']
-        base['ancoras'] = [a for a in base['ancoras'] if a['funcao'] != 'logo_principal']
-        ttf.registrar_m4(bib, id_, base, regra_titulo='lado_curto')
-        pend = bs.pendencias(job, conteudo)
-        # revisao do M4: so o titulo, que mudou na versao 3, cai; o logo segue igual e o clique nele continua valendo
-        assert {'codigo': 'padrao_marca_desatualizado', 'funcoes': ['titulo']} in pend
-        assert _salvar(s, biscoito, job)[0] == 403
-        assert not (job / mb.ARQUIVO).read_text(encoding='utf-8').count('padrao_marca')
-    finally:
-        s.parar()
-    # sem a biblioteca na tela (o motor nao confere o perfil), a origem do padrao tambem e recusada
-    sem_bib = te.montar(job)
-    assert any(x['codigo'] == 'padrao_marca_desatualizado' for x in bs.pendencias(job, sem_bib))
-    # o salvar direto pelo gravador tambem recusa
-    sessao = humano.abrir_sessao_tela(teste=True)
-    try:
-        with pytest.raises(bs.ErroSalvar) as e:
-            bs.salvar(job, conteudo, humano.exigir_tela(bs.COMANDO, sessao, True))
-    finally:
-        humano.fechar_sessao_tela(sessao)
-    assert any(x['codigo'] == 'padrao_marca_desatualizado' for x in e.value.pendencias)
-
-
-def test_versao_nova_que_nao_muda_a_funcao_nao_derruba_o_job_salvo(job, modelo, marca_m4):
-    """Revisao do M4: o job salvo com o padrao da versao 2 no titulo e no logo continua salvo e sem pendencia quando
-    outra campanha da marca registra a versao 3 mudando so a estrutura (titulo e logo iguais, mesmo job de origem)."""
-    import test_tela_funcoes as ttf
-    from vapt.marca import perfil
-    from vapt.tela import funcoes as tf
-    bib, id_ = marca_m4
-    p = tf.padrao_da_marca(job, bib)
-    design = dict(ttf.design_do_padrao(p, 'titulo', 'logo_principal'), **_design_do_da('fundo', 'texto_de_apoio'))
-    conteudo, s, biscoito = _salvar_com_padrao(job, modelo, bib, design)
-    try:
-        assert _salvar(s, biscoito, job)[1] == 200
-    finally:
-        s.parar()
-    assert te.montar(job, biblioteca=str(bib))['estado']['briefing']['salvo'] is True
-    v = {k: json.loads(json.dumps(perfil.ler(bib, id_)['atual'][k])) for k in ('regras_escala', 'ancoras', 'faces')}
-    for r in v['regras_escala']:
-        if r['funcao'] == 'estrutura':
-            r.update(regra='largura', job_origem='c3' * 16)
-    perfil.nova_versao(bib, id_, campanha=ttf._campanha_m4('c3' * 16), quando='2026-11-14T10:00:00-03:00', **v)
-    depois = te.montar(job, biblioteca=str(bib))
-    assert depois['estado']['briefing']['salvo'] is True
-    assert not [x for x in bs.pendencias(job, depois) if x['codigo'] == 'padrao_marca_desatualizado']
-
-
-def _abrir_design_no_chromium(job, conteudo, pw, card):
-    from vapt.chromium import navegador
-    srv = ts.ServidorTela(conteudo, pasta=job, modo_teste=True, atos=ta.atos_do_job(job, conteudo=conteudo))
-    srv.__enter__()
-    nav = pw.chromium.launch(headless=True, args=list(navegador.ARGUMENTOS))
-    pg = nav.new_context(viewport={'width': 1600, 'height': 900}, device_scale_factor=1).new_page()
-    try:
-        pg.goto(srv.url_entrada, wait_until='commit')
-    except Exception:  # noqa: BLE001 - o 204 nao completa a navegacao
-        pass
-    pg.goto(srv.url_pagina, wait_until='load')
-    tp._esperar(pg, tp.JS_PRONTO)
-    pg.evaluate('() => document.querySelector("#passos [data-passo=design]").click()')
-    tp._esperar(pg, '() => document.querySelector(%s) ? "1" : ""' % json.dumps(card + ' .funcao-ds-topo'))
-    pg.evaluate('(s) => document.querySelector(s).click()', card + ' .funcao-ds-topo')
-    return srv, nav, pg
-
-
-@pytest.mark.parametrize('caso', ['versao_nova', 'sem_marca'])
-def test_origem_vencida_sai_quando_o_da_clica_de_novo_no_mesmo_valor(job, modelo, marca_m4, caso):
-    """Revisao do M4: o DA usou o padrao (versao 2) no titulo; depois a marca ganhou a versao 3 com outra regra de
-    titulo, ou o job passou a "Sem marca". O card avisa, nao se diz pronto, e a nota do padrao nao diz que nada esta
-    gravado. O DA que quer ficar com o mesmo valor clica de novo na regra e na ancora marcadas: a origem vencida sai do
-    rascunho e o aviso some (o valor fica como escolha dele). Sem marca, o aviso nao manda usar um padrao que nao
-    existe mais."""
-    from playwright.sync_api import sync_playwright
-
-    import test_tela_funcoes as ttf
-    from vapt.chromium import navegador
-    from vapt.marca import perfil
-    from vapt.tela import funcoes as tf
-    bib, id_ = marca_m4
-    navegador.apontar_playwright()
-    p = tf.padrao_da_marca(job, bib)
-    design = dict(ttf.design_do_padrao(p, 'titulo'), **_design_do_da('fundo', 'texto_de_apoio'))
-    conteudo = te.montar(job, biblioteca=str(bib))
+def test_compat_salvar_de_novo_o_briefing_antigo_nao_refaz_formato(job, modelo):
+    # compat, sai na 0.20.0: o job salvo pela 0.18 com "Usar o padrao" aparece nao salvo uma vez (a origem mudou), sem
+    # layout a refazer; o "Salvar e seguir" a mais troca so a origem: nenhum formato e refeito (afetados vazio) e a
+    # derivacao e a impressao de cada formato ficam, entao a aprovacao dele (que guarda a impressao) fica
+    from vapt.briefing import historico as bh
+    from vapt.render import derivado
+    conteudo = te.montar(job)
+    familias = _familias(conteudo)
     s = _servidor(job, conteudo)
     try:
-        assert _gravar_rascunho(s, tts._entrar(s), _escolhas(conteudo),
-                                dict(_rascunho_sem_design(modelo), design=design)) == 200
-    finally:
-        s.parar()
-    if caso == 'versao_nova':
-        v = {k: json.loads(json.dumps(perfil.ler(bib, id_)['atual'][k])) for k in ('regras_escala', 'ancoras', 'faces')}
-        v['regras_escala'][0] = {'funcao': 'titulo', 'regra': 'lado_curto', 'job_origem': 'c3' * 16}
-        v['ancoras'][0] = {'funcao': 'titulo', 'x': 'direita', 'y': 'base', 'job_origem': 'c3' * 16}
-        perfil.nova_versao(bib, id_, campanha=ttf._campanha_m4('c3' * 16), quando='2026-11-14T10:00:00-03:00', **v)
-    else:
-        ttf.marca_do_job_m4(job, None)
-    conteudo = te.montar(job, biblioteca=str(bib))
-    card = '#resumo-design [data-chave="ftitulo"]'
-    texto = '(s) => { const a = document.querySelector(s); return a ? a.innerText : null; }'
-    with sync_playwright() as pw:
-        srv, nav, pg = _abrir_design_no_chromium(job, conteudo, pw, card)
-        try:
-            aviso = pg.evaluate(texto, card + ' .aviso-padrao')
-            assert aviso, 'sem aviso'
-            assert not any(x in aviso for x in ('—', '–')), aviso
-            if caso == 'sem_marca':
-                assert pg.evaluate('(s) => document.querySelector(s)', card + ' .padrao-marca') is None
-                assert 'Use o padrão' not in aviso, aviso
-            else:
-                nota = pg.evaluate(texto, card + ' .padrao-marca .sugestao-nota')
-                assert 'Nada fica gravado' not in nota, nota
-            assert 'pronta' not in pg.evaluate(texto, card + ' .funcao-ds-topo')
-            pg.evaluate('(s) => document.querySelector(s).click()', card + ' button[data-regra="raiz_area"]')
-            pg.evaluate('(s) => document.querySelector(s).click()', card + ' button[data-x="esquerda"][data-y="topo"]')
-            tp._esperar(pg, '() => ["pendente", "salvando"].includes(document.documentElement.dataset.rascunho)'
-                            ' ? "" : "1"')
-            tp._esperar(pg, '() => document.documentElement.dataset.rascunho === "salvo" ? "1" : ""')
-            assert pg.evaluate(texto, card + ' .aviso-padrao') is None
-            d = contratos.ler(job / tr.ARQUIVO, tr.ESQUEMA)['design']['titulo']
-            assert (d['regra'], d['x'], d['y']) == ('raiz_area', 'esquerda', 'topo') and 'origem' not in d
-            assert tf.padrao_invalido({'design': {'titulo': d}}, tf.padrao_da_marca(job, bib)) == []
-        finally:
-            nav.close()
-            srv.__exit__(None, None, None)
-
-
-def test_envelope_do_claude_nao_leva_marca_nem_padrao(job, modelo, marca_m4, capsys):
-    import test_tela_funcoes as ttf
-    from vapt import cli
-    from vapt.marca import perfil
-    from vapt.tela import funcoes as tf
-    bib, id_ = marca_m4
-    p = tf.padrao_da_marca(job, bib)
-    design = dict(ttf.design_do_padrao(p, 'titulo', 'logo_principal'), **_design_do_da('fundo', 'texto_de_apoio'))
-    conteudo, s, biscoito = _salvar_com_padrao(job, modelo, bib, design)
-    try:
+        biscoito = tts._entrar(s)
+        escolhas = _escolhas(conteudo)
+        assert _gravar_rascunho(s, biscoito, escolhas, _passo_2_com_origem_antiga(modelo)) == 200
+        assert _ato(s, biscoito, 'modo_dados', {'modo': 'c'})[1] == 200
+        _confirmar_todas(s, biscoito, escolhas)
+        assert _salvar(s, biscoito, job)[1] == 200
+        # a origem antiga do rascunho nao deixa o job nao salvo
+        assert bs.situacao_na_tela(job, familias)['salvo'] is True
+        # o briefing como a 0.18 o gravava (briefing de teste: grava sem disparo, com o historico)
+        mb.gravar_com_historico(job, _com_origem_antiga(mb.ler(job)))
+        antes = _shas_da_derivacao(job)
+        situacao = bs.situacao_na_tela(job, familias)
+        assert situacao['salvo'] is False and 'refazer_layout' not in situacao
+        for fid, _w, _h in FORMATOS:
+            d = _deriv(job, fid)
+            assert nd.impressao_de_agora(job, d) == d['impressao_formato'], fid
         assert _salvar(s, biscoito, job)[1] == 200
     finally:
         s.parar()
+    assert _shas_da_derivacao(job) == antes
+    assert bh.ler(job)['entradas'][-1]['formatos_afetados'] == []
+    assert _eventos(job, 'briefing_confirmado')[-1]['afetados'] == []
+    assert bh.conferir(job) == []
+    assert 'padrao_marca' not in (job / mb.ARQUIVO).read_text(encoding='utf-8')
+    assert bs.situacao_na_tela(job, familias)['salvo'] is True
+    for fid, _w, _h in FORMATOS:
+        d = _deriv(job, fid)
+        assert nd.impressao_de_agora(job, d) == d['impressao_formato'], fid
+        assert derivado.montar(job, fid)[1] == [], fid
+
+
+def test_compat_envelope_do_job_estado_sem_marca_escolhida(job, capsys):
+    # 0.19.0: o envelope do "job estado" perde a contagem marca_escolhida, tambem com briefing/marca.json orfao
+    from vapt import cli
+    _marca_orfa(job)
     capsys.readouterr()
     cli.principal(['--envelope', 'job', 'estado', str(job)])
     saida = capsys.readouterr().out
-    nome = perfil.ler(bib, id_)['marca']
-    for proibido in (id_, nome, 'marca:', 'padrao_marca', ttf.JOB_P1, str(bib)):
-        assert proibido not in saida, proibido
-
-
-def test_padrao_da_marca_no_chromium(job, modelo, marca_m4, capturas=None, telas=((1600, 900),)):
-    """A pagina no Design system: o padrao citado com a fonte ao lado de cada funcao, nada marcado; "Usar o padrao"
-    poe a regra e a ancora no rascunho com a origem padrao_marca; trocar a regra tira so a origem dela; depois do
-    Salvar e seguir, o briefing grava a origem com o ref. capturas: pasta das fotos da verificacao (fora do
-    repositorio), ou None; telas: os tamanhos de janela das fotos."""
-    from playwright.sync_api import sync_playwright
-
-    import test_tela_funcoes as ttf
-    from vapt.chromium import navegador
-    from vapt.tela import funcoes as tf
-    bib, id_ = marca_m4
-    navegador.apontar_playwright()
-    conteudo = te.montar(job, biblioteca=str(bib))
-    js_rascunho = '() => document.documentElement.dataset.rascunho'
-    padrao = '#resumo-design [data-chave="f%s"] .padrao-marca'
-    # as funcoes do passo 2 ja escolhidas (a entrada da pagina e de uso unico: o rascunho vai por outra janela antes)
-    s = _servidor(job, conteudo)
-    try:
-        assert _gravar_rascunho(s, tts._entrar(s), _escolhas(conteudo), _rascunho_sem_design(modelo)) == 200
-    finally:
-        s.parar()
-    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
-                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
-        largura, altura = telas[0]
-        nav = pw.chromium.launch(headless=True, args=list(navegador.ARGUMENTOS))
-        pg = nav.new_context(viewport={'width': largura, 'height': altura}, device_scale_factor=1).new_page()
-        try:
-            try:
-                pg.goto(srv.url_entrada, wait_until='commit')
-            except Exception:  # noqa: BLE001 - o 204 nao completa a navegacao
-                pass
-            pg.goto(srv.url_pagina, wait_until='load')
-            tp._esperar(pg, tp.JS_PRONTO)
-            pg.evaluate('() => document.querySelector("#passos [data-passo=design]").click()')
-            tp._esperar(pg, '() => document.querySelector(%s) ? "1" : ""' % json.dumps(padrao % 'titulo'))
-            # o padrao citado nas funcoes que o perfil tem, com a fonte; a funcao sem regra no perfil fica sem
-            for f in ('titulo', 'logo_principal'):
-                fonte = pg.evaluate('(s) => document.querySelector(s).innerText', padrao % f)
-                assert 'Padrão da marca, versão 2, do job' in fonte, fonte
-                job_origem = ttf.JOB_P1 if f == 'titulo' else ttf.JOB_P2
-                assert job_origem[:8] in fonte and id_ not in fonte
-            assert pg.evaluate('(s) => document.querySelector(s)', padrao % 'fundo') is None
-            # nada marcado: so o topo da funcao aberta
-            assert pg.evaluate('() => document.querySelectorAll("#passo-design .regras [aria-pressed=true],'
-                               ' #passo-design .grade-ancora [aria-pressed=true]").length') == 0
-            assert not contratos.ler(job / tr.ARQUIVO, tr.ESQUEMA).get('design')
-            texto = pg.evaluate('() => document.getElementById("passo-design").innerText')
-            assert not any(x in texto for x in ('—', '–', 'marca:', 'padrao_marca')), texto
-            for w, h in telas:
-                if capturas is not None:
-                    pg.set_viewport_size({'width': w, 'height': h})
-                    pg.screenshot(path=str(capturas / ('m4-1-padrao-citado-%dx%d.png' % (w, h))))
-            pg.set_viewport_size({'width': largura, 'height': altura})
-            # "Usar o padrao" no titulo e no logo
-            for f in ('titulo', 'logo_principal'):
-                pg.evaluate('(s) => document.querySelector(s).click()', (padrao % f) + ' button[data-usar-padrao]')
-            tp._esperar(pg, '() => ["pendente", "salvando"].includes(document.documentElement.dataset.rascunho)'
-                            ' ? "" : "1"')
-            tp._esperar(pg, '() => document.documentElement.dataset.rascunho === "salvo" ? "1" : ""')
-            d = contratos.ler(job / tr.ARQUIVO, tr.ESQUEMA)['design']
-            p = tf.padrao_da_marca(job, bib)
-            assert d['titulo'] == ttf.design_do_padrao(p, 'titulo')['titulo']
-            em_uso = pg.evaluate('(s) => document.querySelector(s).innerText', padrao % 'titulo')
-            assert 'Em uso' in em_uso, em_uso
-            for w, h in telas:
-                if capturas is not None:
-                    pg.set_viewport_size({'width': w, 'height': h})
-                    pg.screenshot(path=str(capturas / ('m4-2-padrao-em-uso-%dx%d.png' % (w, h))))
-            pg.set_viewport_size({'width': largura, 'height': altura})
-            # o DA troca a regra do logo: a origem da regra sai, a da ancora fica
-            pg.evaluate('() => document.querySelector(\'#resumo-design [data-chave="flogo_principal"] .funcao-ds-topo\')'
-                        '.click()')
-            pg.evaluate('() => document.querySelector(\'#resumo-design [data-chave="flogo_principal"]'
-                        ' button[data-regra="largura"]\').click()')
-            # e escolhe a regra e a ancora das funcoes sem padrao
-            for f in ('fundo', 'texto_de_apoio'):
-                r, x, y = USADAS[f]
-                base = '#resumo-design [data-chave="f%s"]' % f
-                pg.evaluate('(s) => document.querySelector(s).click()', base + ' .funcao-ds-topo')
-                pg.evaluate('(s) => document.querySelector(s).click()', base + ' button[data-regra="%s"]' % r)
-                pg.evaluate('(s) => document.querySelector(s).click()',
-                            base + ' button[data-x="%s"][data-y="%s"]' % (x, y))
-            tp._esperar(pg, '() => ["pendente", "salvando"].includes(document.documentElement.dataset.rascunho)'
-                            ' ? "" : "1"')
-            tp._esperar(pg, '() => document.documentElement.dataset.rascunho === "salvo" ? "1" : ""')
-            d = contratos.ler(job / tr.ARQUIVO, tr.ESQUEMA)['design']
-            assert d['logo_principal']['regra'] == 'largura'
-            assert set(d['logo_principal']['origem']) == {'ancora'}
-            assert 'origem' not in d['fundo']
-            fonte = pg.evaluate('(s) => document.querySelector(s).innerText', padrao % 'logo_principal')
-            assert 'Usar o padrão' in fonte, fonte
-            for w, h in telas:
-                if capturas is not None:
-                    pg.set_viewport_size({'width': w, 'height': h})
-                    pg.screenshot(path=str(capturas / ('m4-3-regra-trocada-%dx%d.png' % (w, h))))
-            assert pg.evaluate(js_rascunho) == 'salvo'
-        finally:
-            nav.close()
-        assert srv.contagem['csrf_recusado'] == 0 and srv.contagem['dado_recusado'] == 0
-    # Salvar e seguir numa tela aberta de novo (o passo 3 com o Design system novo)
-    dados = contratos.ler(job / tr.ARQUIVO, tr.ESQUEMA)
-    conteudo = te.montar(job, biblioteca=str(bib))
-    _c, s, biscoito = _salvar_com_padrao(job, modelo, bib, dados['design'], conteudo=conteudo)
-    try:
-        assert _salvar(s, biscoito, job)[1] == 200
-    finally:
-        s.parar()
-    b = mb.ler(job)
-    regras = {r['funcao']: r['regra'] for r in b['regras_escala']}
-    assert regras['titulo']['origem'] == {'tipo': 'padrao_marca', 'ref': 'marca:%s@v2#job:%s' % (id_, ttf.JOB_P1)}
-    assert regras['logo_principal']['origem']['tipo'] == humano.ORIGEM_FIXTURE
-
-
-def test_padrao_da_marca_com_o_nome_do_job_no_chromium(job, modelo, tmp_path, capturas=None, telas=((1600, 900),)):
-    """Ajuste nome (resposta do Duda ao ponto 3, 13/11): o quadro do padrao diz "do job <nome>", com o nome que o
-    perfil guarda, e nao o id curto; o id fica so no title. O clique em "Usar o padrao" continua gravando o ref pelo
-    id."""
-    from playwright.sync_api import sync_playwright
-
-    import test_tela_funcoes as ttf
-    from vapt.chromium import navegador
-    bib = tmp_path / 'biblioteca-nomes'
-    bib.mkdir()
-    id_ = ttf.perfil_m4(bib, nomes=True)
-    ttf.marca_do_job_m4(job, id_)
-    navegador.apontar_playwright()
-    conteudo = te.montar(job, biblioteca=str(bib))
-    padrao = '#resumo-design [data-chave="f%s"] .padrao-marca'
-    s = _servidor(job, conteudo)
-    try:
-        assert _gravar_rascunho(s, tts._entrar(s), _escolhas(conteudo), _rascunho_sem_design(modelo)) == 200
-    finally:
-        s.parar()
-    with ts.ServidorTela(conteudo, pasta=job, modo_teste=True,
-                         atos=ta.atos_do_job(job, conteudo=conteudo)) as srv, sync_playwright() as pw:
-        largura, altura = telas[0]
-        nav = pw.chromium.launch(headless=True, args=list(navegador.ARGUMENTOS))
-        pg = nav.new_context(viewport={'width': largura, 'height': altura}, device_scale_factor=1).new_page()
-        try:
-            try:
-                pg.goto(srv.url_entrada, wait_until='commit')
-            except Exception:  # noqa: BLE001 - o 204 nao completa a navegacao
-                pass
-            pg.goto(srv.url_pagina, wait_until='load')
-            tp._esperar(pg, tp.JS_PRONTO)
-            pg.evaluate('() => document.querySelector("#passos [data-passo=design]").click()')
-            tp._esperar(pg, '() => document.querySelector(%s) ? "1" : ""' % json.dumps(padrao % 'titulo'))
-            for f, job_origem in (('titulo', ttf.JOB_P1), ('logo_principal', ttf.JOB_P2)):
-                fonte = pg.evaluate('(s) => document.querySelector(s).innerText', padrao % f)
-                assert 'Padrão da marca, versão 2, do job %s' % ttf.NOMES_M4[job_origem] in fonte, fonte
-                assert job_origem[:8] not in fonte and id_ not in fonte
-            for w, h in telas:
-                if capturas is not None:
-                    pg.set_viewport_size({'width': w, 'height': h})
-                    pg.wait_for_timeout(300)  # numero-neutro: a entrada do quadro termina
-                    pg.screenshot(path=str(capturas / ('nome-2-padrao-citado-%dx%d.png' % (w, h))))
-            pg.set_viewport_size({'width': largura, 'height': altura})
-            pg.evaluate('(s) => document.querySelector(s).click()', (padrao % 'titulo') + ' button[data-usar-padrao]')
-            tp._esperar(pg, '() => ["pendente", "salvando"].includes(document.documentElement.dataset.rascunho)'
-                            ' ? "" : "1"')
-            tp._esperar(pg, '() => document.documentElement.dataset.rascunho === "salvo" ? "1" : ""')
-            d = contratos.ler(job / tr.ARQUIVO, tr.ESQUEMA)['design']
-            ref = 'marca:%s@v2#job:%s' % (id_, ttf.JOB_P1)
-            assert d['titulo']['origem'] == {'regra': {'tipo': 'padrao_marca', 'ref': ref},
-                                             'ancora': {'tipo': 'padrao_marca', 'ref': ref}}
-            # o rascunho nao leva o nome do job
-            assert 'Campanha Sintetica' not in (job / tr.ARQUIVO).read_text(encoding='utf-8')
-        finally:
-            nav.close()
+    assert 'marca_escolhida' not in json.loads(saida)['contagens']
+    assert 'a' * 32 not in saida

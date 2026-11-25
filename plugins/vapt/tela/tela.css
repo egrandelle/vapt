@@ -81,7 +81,7 @@
   --t-13: 13px; /* barras de ferramenta, listas densas */
   --t-14: 14px; /* corpo dos passos de leitura */
   --t-16: 16px; /* titulos de bloco e de janela */
-  --t-15: 15px; /* nome das linhas de escolha e da marca */
+  --t-15: 15px; /* nome das linhas de escolha */
   --t-17: 17px; /* titulos de bloco */
   --t-20: 20px; /* numeros de resumo */
   --t-22: 22px; /* titulo do detalhe */
@@ -584,18 +584,7 @@ main { flex: 1; min-height: 0; display: flex; }
   border: solid var(--on-acao); border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
 
-/* M7c, M3: a marca do job, no mesmo desenho do modo de dados (linhas de escolha, nenhuma marcada ate o clique; desde a
-   decisao 207, "Sem marca" ja vem marcada quando e a unica escolha, sem gravar). A lista da biblioteca rola sozinha
-   quando passa de umas oito marcas; "Sem marca" fica sempre a vista, separada; a "Marca nova" e um campo com o rotulo
-   em cima e o botao ao lado */
-.opcional { margin-left: 6px; font-weight: 400; font-size: var(--t-15); color: var(--text2); }
-.marcas { max-height: 384px; overflow-y: auto; overscroll-behavior: contain; margin-bottom: 10px; }
-.marca-linha { padding: 13px 20px; align-items: center; }
-.marca-linha .modo-marca { margin-top: 0; }
-.marca-linha .modo-nome { overflow-wrap: anywhere; }
-.marca-sem { margin-bottom: 12px; }
-/* M7c, S4: o anel de foco da linha de escolha fica por dentro da borda. Por fora, a lista das marcas (que rola)
-   cortava o anel e sobrava so uma linha escura embaixo da marca escolhida */
+/* M7c, S4: o anel de foco da linha de escolha fica por dentro da borda, para nenhuma lista que rola cortar o anel */
 .modo:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 /* M7c, S4 (decisao 190, Q4): a frase que o DA escreve ao Claude, com o pedido destacado como algo para digitar */
@@ -617,41 +606,6 @@ main { flex: 1; min-height: 0; display: flex; }
   box-shadow: 0 0 0 1px var(--stroke); animation: surgir 0.25s var(--curva) both;
 }
 .passo-pedido { margin-top: 12px; font-size: 13px; }
-.marca-nova { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--sep); max-width: 62ch; }
-.marca-nova label { font-weight: 600; }
-.marca-nova-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
-.marca-nova input {
-  font: inherit;
-  color: inherit;
-  min-width: 0;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--borda-campo);
-  border-radius: var(--raio-p);
-  background: var(--card);
-  transition: border-color 0.2s var(--curva);
-}
-.marca-nova input:hover:not(:disabled) { border-color: var(--text2); }
-.marca-nova input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.marca-nova input[aria-invalid="true"] { border-color: var(--bad); }
-.marca-nova .botao { height: 32px; }
-.marca-nova .ajuda { font-size: 12px; }
-.marca-escolhida-fora { margin-bottom: 10px; }
-/* 0.9.2 (M7): a explicacao longa fica dentro de "Como configurar", uma linha a vista */
-.saiba-mais { margin: 0 0 var(--e-3); }
-.saiba-mais summary {
-  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--link); font-size: var(--t-13);
-  font-weight: 500; list-style: none; border-radius: var(--raio-s); min-height: 24px; /* revisao do 0.9.2: alvo de 24 px */
-}
-.saiba-mais summary::-webkit-details-marker { display: none; }
-/* a seta ">" do mockup, que gira para baixo quando abre */
-.saiba-mais summary::before {
-  content: ""; flex: none; width: 6px; height: 6px; margin: 0 2px 0 1px; border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform var(--t-rapido) var(--curva);
-}
-.saiba-mais[open] summary::before { transform: rotate(45deg); }
-.saiba-mais summary:hover { color: var(--accent); }
-.saiba-mais .nota { margin-top: 6px; }
 /* 0.9.2 (A2): o fim do Design system, com o caminho para as familias */
 .design-fim { display: grid; gap: var(--e-2); justify-items: start; margin-top: var(--e-4); padding-top: var(--e-4); border-top: 1px solid var(--sep); }
 
@@ -1055,17 +1009,6 @@ main { flex: 1; min-height: 0; display: flex; }
 .ancora-sugerida .explica { margin: 0; flex: 1 1 18ch; }
 .ancoras-do-kv { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
 .ancoras-do-kv .sugestao-nota { margin: 0; flex: 1 1 28ch; }
-/* M7c, M4: o padrao da marca no card da funcao, no desenho da sugestao do Claude (borda tracejada: sugestao citada,
-   nunca valor). Os dois campos lado a lado; o que ja esta em uso ganha o traco do acento */
-.padrao-marca { margin: 6px 0 4px; gap: 8px; }
-.padrao-marca:focus { outline: none; }
-.padrao-marca:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.padrao-linhas { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 16px; }
-.padrao-linha { display: grid; gap: 0; min-width: 0; padding-left: 8px; border-left: 2px solid var(--sep); transition: border-color 0.2s var(--curva); }
-.padrao-linha.em-uso { border-left-color: var(--accent); }
-.padrao-pe { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding-top: 6px; border-top: 1px solid var(--sep); }
-.padrao-pe .sugestao-nota { margin: 0; flex: 1 1 22ch; }
-.aviso-padrao { margin: 6px 0 4px; padding: 8px 12px; background: var(--tip-bg); border-radius: var(--raio-p); font-size: 12px; }
 .vazio-design { border: 1px dashed var(--stroke-forte); border-radius: var(--raio-g); background: var(--card); padding: 20px; display: grid; gap: 8px; justify-items: start; }
 .vazio-titulo { font-weight: 600; }
 
@@ -2494,58 +2437,16 @@ button.membro:active { transform: scale(0.98); }
   .painel-coluna { padding: 24px 24px 32px; }
 }
 
-/* ---------------------------------------------------------------- o padrao da marca (M7c, M5)
-   Uma faixa no fio da lista, com o acento: aparece so quando todos os formatos estao aprovados e o job tem marca. A
-   janela do registro lista, por linhas e sem cartoes, o que vai ao perfil: funcao, valor e o job de origem. */
-.registro-marca {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px 24px;
-  margin: 0 0 20px;
-  padding: 14px 18px;
-  border: 0;
-  border-radius: var(--raio-g);
-  background: var(--tip-bg);
-  box-shadow: 0 0 0 1px var(--accent-stroke);
-  animation: subir 0.3s var(--curva) both;
-}
-.registro-marca[data-situacao="guardado"] { background: var(--ok-bg); box-shadow: 0 0 0 1px var(--ok-stroke); }
-.registro-textos { min-width: 0; display: grid; gap: 2px; }
-.registro-selo { color: var(--link); font-size: 12px; font-weight: 600; letter-spacing: 0.01em; overflow-wrap: anywhere; }
-.registro-marca[data-situacao="guardado"] .registro-selo { color: var(--ok); }
-.registro-marca h2 { font-size: var(--t-15); font-weight: 600; letter-spacing: -0.01em; }
-.registro-nota { font-size: 12px; max-width: 72ch; color: var(--text2); }
-.registro-guardar { flex: none; white-space: nowrap; }
+/* ---------------------------------------------------------------- janelas com grupos
+   O que a janela de confirmacao mostra alem do texto do motor, em grupos com titulo e conta: as camadas do texto
+   como imagem e os valores do lote de specs. Da 0.19.0 em diante, sem o registro do padrao da marca (nº213). */
 .registro-extra { display: grid; gap: 18px; }
 .registro-grupo-topo { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 .registro-grupo h3 { font-size: 12px; font-weight: 600; color: var(--text2); margin: 0; }
 .registro-conta { color: var(--text2); font-size: var(--t-12); font-variant-numeric: tabular-nums; }
-.registro-lista { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--sep); }
-.registro-linha {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(0, 1.3fr) auto;
-  align-items: baseline;
-  gap: 12px;
-  padding: 7px 2px;
-  border-bottom: 1px solid var(--sep);
-  animation: subir 0.25s var(--curva) both;
-}
-.registro-funcao { font-weight: 600; overflow-wrap: anywhere; }
-.registro-valor { color: var(--text); overflow-wrap: anywhere; }
-/* ajuste nome: o nome do job de origem pode ser longo; quebra dentro da coluna, sem alargar a linha */
-.registro-origem { color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; max-width: 24ch; overflow-wrap: anywhere; text-align: right; }
-.registro-faces .chip { font-variant-numeric: normal; overflow-wrap: anywhere; }
-.registro-fora { font-size: 12px; padding-top: 2px; }
-@media (max-width: 1280px) {
-  .registro-marca { grid-template-columns: minmax(0, 1fr); }
-  .registro-guardar { justify-self: start; }
-  .registro-linha { grid-template-columns: minmax(96px, 0.9fr) minmax(0, 1.2fr) auto; gap: 8px; }
-}
 @media (min-width: 900px) {
   .registro-extra { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 28px; }
-  .registro-extra > .registro-grupo:nth-child(3), .registro-extra > .registro-fora { grid-column: 1 / -1; }
-  .registro-extra .registro-linha { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) auto; }
+  .registro-extra > .registro-grupo:nth-child(3) { grid-column: 1 / -1; }
 }
 
 /* 0.10.0 (decisao 199): na janela baixa e estreita, a faixa "Como fica em cada arquivo" fica embaixo do palco, e o

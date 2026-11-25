@@ -6,10 +6,10 @@ psd-tools com o extra composite, versao fixada do fontTools, do Playwright, do p
 navegadores do motor, o carregamento de uma fonte sintetica pelo @font-face com conferencia por CDP, o autoteste do
 caminho PDF + PDFium do render com a fonte gerada pelo motor (M4), o isolador (um filho dentro do teto e outro que
 estoura), o teto do modo de dados e o encoder da entrega (M6: JPEG e sem libimagequant; outra build so avisa), o
-Chromium com janela da tela de briefing e as pastas de perfil dsd-tela- orfas, apagadas com aviso (M7a1), e a
-biblioteca da agencia (M7c, M1: existe, grava e fica fora das pastas do plugin; sem caminho no relatorio).
+Chromium com janela da tela de briefing e as pastas de perfil dsd-tela- orfas, apagadas com aviso (M7a1). A
+conferencia da biblioteca da agencia saiu na 0.19.0 (nº213).
 
-    vapt [--envelope] [--teto-modo-dados {a,b,c}] [--biblioteca <pasta>] doctor [--saida <pasta>] [--sem-isolador] [--sem-chromium]
+    vapt [--envelope] [--teto-modo-dados {a,b,c}] doctor [--saida <pasta>] [--sem-isolador] [--sem-chromium]
 
 Sem --saida, o doctor.json vai para a pasta de dados do plugin, quando o motor roda no ambiente criado pelo
 gancho; fora dele (desenvolvimento), so com --saida.
@@ -39,7 +39,7 @@ def registrar(subparsers):
     p.set_defaults(executar=executar, nome_comando='doctor')
 
 
-def rodar_verificacoes(teto, dados, *, com_isolador=True, plat=None, com_chromium=True, biblioteca=None):
+def rodar_verificacoes(teto, dados, *, com_isolador=True, plat=None, com_chromium=True):
     """Lista de Verificacao e se o sistema nao tem isolador. Uma verificacao que quebra vira falha, nunca excecao."""
     from vapt.doctor import chromium as vc
     plat = plat or plataforma.obter()
@@ -100,11 +100,6 @@ def rodar_verificacoes(teto, dados, *, com_isolador=True, plat=None, com_chromiu
         lista.append(v.Verificacao('isolador', 'Isolador', situacao='pulado',
                                    detalhe='Pulado: o doctor rodou sem a conferência do isolador.'))
     lista.append(v.verificar_teto(teto, dados))
-    # M7c, M1: a biblioteca da agencia (opcional; sem caminho no relatorio nem no envelope)
-    try:
-        lista.append(v.verificar_biblioteca(biblioteca, dados))
-    except Exception as e:  # noqa: BLE001
-        lista.append(_quebrou('biblioteca_agencia', e))
     return lista, sem_suporte
 
 
@@ -139,8 +134,7 @@ def executar(args):
     dados = v.pasta_dados()
     plat = plataforma.obter()
     lista, sem_suporte = rodar_verificacoes(teto, dados, com_isolador=not args.sem_isolador, plat=plat,
-                                            com_chromium=not getattr(args, 'sem_chromium', False),
-                                            biblioteca=getattr(args, 'biblioteca', None))
+                                            com_chromium=not getattr(args, 'sem_chromium', False))
     resumo = resumir(lista)
     falhas = [x for x in lista if x.situacao == 'falha']
     so_isolador = all(x.id.startswith('isolador') for x in falhas)

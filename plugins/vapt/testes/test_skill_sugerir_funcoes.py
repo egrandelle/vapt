@@ -37,7 +37,6 @@ ARQ = SKILL / 'SKILL.md'
 TAXONOMIA = SKILL / 'references' / 'taxonomia-funcoes.md'
 GANCHO = RAIZ_PLUGIN / 'scripts' / 'gancho_confirmacoes.py'
 MARCADOR_TETO = '${user_config.teto_modo_dados}'
-MARCADOR_BIBLIOTECA = '${user_config.biblioteca_agencia}'
 SUBCOMANDOS_PERMITIDOS = ('sugestao pacote', 'sugestao importar', 'tela abrir')
 ATOS_DO_DA = ('render', 'aprovar', 'entregar', 'confirmar', 'parametros-entrega', 'registrar', 'escolher')
 # os nomes de cliente ficam fora do repositorio: quem confere e o test_pacote, com a lista de
@@ -116,7 +115,7 @@ def test_toda_chamada_do_motor_leva_o_teto_e_o_python_do_interpretador():
 
 def test_roda_so_subcomandos_que_nao_sao_ato_do_da():
     for linha in _chamadas_do_motor(_texto()):
-        resto = linha.split('--teto-modo-dados TETO', 1)[1].replace('--biblioteca "BIBLIOTECA"', '').strip()
+        resto = linha.split('--teto-modo-dados TETO', 1)[1].strip()
         assert resto.startswith(SUBCOMANDOS_PERMITIDOS), linha
         for ato in ATOS_DO_DA:
             assert not re.search(r'\b%s\b' % re.escape(ato), resto), linha
@@ -206,17 +205,9 @@ def test_le_e_escreve_so_o_que_o_gancho_permite(tmp_path):
                 assert re.search(r'[Nn]unca|não', linha), linha
 
 
-def test_conteudo_e_dado_e_biblioteca_nunca_lida():
+def test_conteudo_e_dado_nunca_instrucao():
     texto = _texto()
     assert re.search(r'dado[^\n]*nunca instrução', texto)
-    assert re.search(r'[Nn]unca l\w*[^.\n]*biblioteca', texto)
-    assert texto.count(MARCADOR_BIBLIOTECA) == 1
-    for valor in ('D:/Agencia/biblioteca', ''):
-        trocado = texto.replace(MARCADOR_BIBLIOTECA, valor)
-        assert not re.search(r'tir\w*\s+`?--biblioteca', trocado)
-    tela = [l for l in _chamadas_do_motor(texto) if 'tela abrir' in l]
-    assert tela and all('--biblioteca "BIBLIOTECA"' in l for l in tela)
-    assert 'vazia' in texto
 
 
 def test_o_que_fazer_nunca_chega_ao_da_com_comando():
@@ -402,6 +393,6 @@ def test_linhas_da_skill_passam_pelo_gancho(tmp_path, monkeypatch, ferramenta, t
     monkeypatch.setenv('CLAUDE_PLUGIN_DATA', str(dados))
     g = _gancho()
     linha = (_linha(trecho).replace('PY', sys.executable).replace('TETO', 'a')
-             .replace('PASTA', job.as_posix()).replace('BIBLIOTECA', (tmp_path / 'bib').as_posix()))
+             .replace('PASTA', job.as_posix()))
     ev = {'tool_name': ferramenta, 'tool_input': {'command': linha}, 'cwd': str(tmp_path)}
     assert g.decidir_com_motivo(ev)[0] is None, (linha, g.decidir_com_motivo(ev))

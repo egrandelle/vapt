@@ -6,9 +6,9 @@ disable-model-invocation: true
 
 # Continuar um job do Vapt
 
-Esta skill retoma um job que já existe. Você lê o estado do job pelo envelope do motor e decide entre duas coisas: rodar a próxima fase, quando ela é do motor, ou reabrir a tela, quando o que falta é um clique do DA. Todas as escolhas da peça continuam do DA, com cliques na tela: o modo de dados, a marca, as funções das camadas, as famílias, o design system, a confirmação das specs, o render e a aprovação.
+Esta skill retoma um job que já existe. Você lê o estado do job pelo envelope do motor e decide entre duas coisas: rodar a próxima fase, quando ela é do motor, ou reabrir a tela, quando o que falta é um clique do DA. Todas as escolhas da peça continuam do DA, com cliques na tela: o modo de dados, as funções das camadas, as famílias, o design system, a confirmação das specs, o render e a aprovação.
 
-Antes de começar, leia com a ferramenta Read as três referências do novo job, que valem igual nesta skill (os passos 2, 6, 7 e 8 citados nelas são os passos de mesmo número desta skill):
+Antes de começar, leia com a ferramenta Read as três referências do novo job, que valem igual nesta skill (os passos 7 e 8 citados nelas são os passos de mesmo número desta skill):
 - `${CLAUDE_PLUGIN_ROOT}/skills/novo-job/references/regras-do-modelo.md`: o que você nunca lê, nunca faz e nunca pergunta;
 - `${CLAUDE_PLUGIN_ROOT}/skills/novo-job/references/fluxo.md`: como explicar cada fase pelo envelope do motor;
 - `${CLAUDE_PLUGIN_ROOT}/skills/novo-job/references/glossario.md`: as palavras que o DA vê na tela e o que cada uma quer dizer.
@@ -16,7 +16,7 @@ Antes de começar, leia com a ferramenta Read as três referências do novo job,
 ## Regras desta skill
 
 - O DA nunca roda comando no terminal. Você roda os comandos do motor, e o que é do DA acontece com um clique dele na tela.
-- O estado do job chega a você só pelo envelope que o motor imprime. Nunca leia nenhum arquivo da pasta do job, nem o estado, nem o laudo, nem o briefing, nem os renders. Nunca leia, abra, copie nem mostre o PSD, o PSB, arquivo de fonte ou imagem do job. Nunca leia nem liste a biblioteca da agência. O gancho do plugin nega essas leituras; não procure outro caminho para chegar a elas.
+- O estado do job chega a você só pelo envelope que o motor imprime. Nunca leia nenhum arquivo da pasta do job, nem o estado, nem o laudo, nem o briefing, nem os renders. Nunca leia, abra, copie nem mostre o PSD, o PSB, arquivo de fonte ou imagem do job. O gancho do plugin nega essas leituras; não procure outro caminho para chegar a elas.
 - Nunca dispare render, confirmação, aprovação nem entrega, e não procure outro caminho para o mesmo efeito. São atos do DA, na tela, e o gancho do plugin nega esses comandos ao Claude.
 - Nunca pergunte nem escolha pelo DA o modo de dados, o teto, um valor de spec, um limite ou uma regra. O DA escolhe o modo no passo 1 da tela; até lá, o job fica no modo c, e você vê só contagens.
 - O `o_que_fazer` do envelope fala com você, que roda o motor, e às vezes cita uma skill do Vapt (por exemplo `/vapt:continuar` ou `/vapt:doctor`). Você nunca passa ao DA um comando nem um texto do motor que fale em terminal: o comando que é seu, você roda por esta skill; o que é ato do DA, você diz que é um clique dele na tela.
@@ -29,7 +29,7 @@ Antes de começar, leia com a ferramenta Read as três referências do novo job,
 
 1. **Ambiente.** Leia `${CLAUDE_PLUGIN_DATA}/interpretador.json` com a ferramenta Read. Se ele não existir, rode a skill `/vapt:doctor` e pare. Guarde o campo `python`, chamado de PY abaixo. Compare o campo `plugin_root` com `${CLAUDE_PLUGIN_ROOT}`, sem diferenciar maiúsculas de minúsculas nem barra normal de barra invertida; se forem diferentes, peça ao DA para abrir uma sessão nova e pare.
 
-2. **Teto e biblioteca.** O teto do modo de dados é `${user_config.teto_modo_dados}`, chamado de TETO. Se ele não for exatamente `a`, `b` ou `c`, peça ao DA para configurar o plugin em `/plugin`, aba Installed, plugin vapt, opção Configure, e pare. A pasta da biblioteca da agência é `${user_config.biblioteca_agencia}`, chamada de BIBLIOTECA. Passe sempre `--biblioteca "BIBLIOTECA"` no comando que abre a tela (passo 8), mesmo com ela vazia: o motor trata a pasta vazia ou não configurada como biblioteca ausente, o job roda normal, sem marca, e a tela diz ao DA onde configurar a biblioteca. Você nunca lê nem lista essa pasta.
+2. **Teto.** O teto do modo de dados é `${user_config.teto_modo_dados}`, chamado de TETO. Se ele não for exatamente `a`, `b` ou `c`, peça ao DA para configurar o plugin em `/plugin`, aba Installed, plugin vapt, opção Configure, e pare.
 
 3. **Pasta do job.** A pasta pode vir como argumento: $0. Se não veio nem apareceu antes nesta conversa, não pergunte: use a subpasta `output-vapt` da pasta de trabalho desta sessão (o diretório de trabalho que você tem no ambiente), pelo caminho absoluto, que é onde o `/vapt:novo-job` cria o job. Não liste nem leia essa pasta. Só se o motor disser, no passo 4, que ela não é um job do Vapt, peça ao DA o caminho absoluto da pasta do job, completo, desde o disco, com a dica de copiar o caminho:
    - no Windows, no Explorador de Arquivos, clique com o botão direito na pasta do job e escolha "Copiar como caminho" (em versões antigas, segure Shift antes do clique); depois cole aqui no chat;
@@ -74,7 +74,7 @@ Antes de começar, leia com a ferramenta Read as três referências do novo job,
 8. **Abrir a tela.** Se você já abriu a tela nesta conversa e o DA não disse que fechou a janela, pergunte se ela ainda está aberta; se estiver, peça a ele para voltar a ela e não abra outra. Senão, abra a tela com timeout de 600000 ms:
 
    ```
-   "PY" -I -B -m vapt --envelope --teto-modo-dados TETO --biblioteca "BIBLIOTECA" tela abrir --job "PASTA"
+   "PY" -I -B -m vapt --envelope --teto-modo-dados TETO tela abrir --job "PASTA"
    ```
 
    Se o `codigo` não for `0`, explique ao DA o `o_que_fazer`, sem passar comando a ele (veja `regras-do-modelo.md`, "O `o_que_fazer` do motor"). Quando a recusa diz que uma fase está desatualizada, volte ao passo 6; quando pede o doctor, rode a skill `/vapt:doctor`; nos outros casos, pare. Se a tela abriu, diga ao DA que o job abriu no passo em que ele parou, que o que ele já escolheu continua salvo no rascunho do job e que o que falta é um clique dele na tela. Lembre a ordem dos passos da tela pelo `glossario.md`, "A tela, passo a passo", sem repetir o que ele já conhece. Diga também que "Salvar e seguir" passa ao próximo passo e que ele fecha a janela quando terminar.

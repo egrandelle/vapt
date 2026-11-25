@@ -16,7 +16,7 @@ Antes de começar, leia as três referências desta skill com a ferramenta Read:
 ## Regras desta skill
 
 - O DA nunca roda comando no terminal. Você roda os comandos do motor, e o que é do DA acontece com um clique dele na tela.
-- Nunca leia, abra, copie nem mostre o PSD, o PSB, arquivo de fonte, imagem do job, o laudo, nem os arquivos da biblioteca da agência. Você só passa os caminhos ao motor. Tudo o que você sabe do job vem do envelope que o motor imprime.
+- Nunca leia, abra, copie nem mostre o PSD, o PSB, arquivo de fonte, imagem do job nem o laudo. Você só passa os caminhos ao motor. Tudo o que você sabe do job vem do envelope que o motor imprime.
 - Nunca dispare render, confirmação, aprovação nem entrega, e não procure outro caminho para o mesmo efeito. São atos do DA, na tela, e o gancho do plugin nega esses comandos ao Claude.
 - Nunca pergunte nem escolha pelo DA o modo de dados, o teto, um valor de spec, um limite ou uma regra. O modo de dados é escolhido pelo DA no passo 1 da tela; até lá, o job fica no modo c, e você vê só contagens.
 - O `o_que_fazer` do envelope fala com você, que roda o motor, e às vezes cita uma skill do Vapt (por exemplo `/vapt:continuar` ou `/vapt:doctor`). Você nunca passa ao DA um comando nem um texto do motor que fale em terminal: o comando que é seu, você roda; o que é ato do DA, você diz que é um clique dele na tela.
@@ -28,7 +28,7 @@ Antes de começar, leia as três referências desta skill com a ferramenta Read:
 
 1. **Ambiente.** Leia `${CLAUDE_PLUGIN_DATA}/interpretador.json` com a ferramenta Read. Se ele não existir, rode a skill `/vapt:doctor` e pare. Guarde o campo `python`, chamado de PY abaixo. Compare o campo `plugin_root` com `${CLAUDE_PLUGIN_ROOT}`, sem diferenciar maiúsculas de minúsculas nem barra normal de barra invertida; se forem diferentes, peça ao DA para abrir uma sessão nova e pare.
 
-2. **Teto e biblioteca.** O teto do modo de dados é `${user_config.teto_modo_dados}`, chamado de TETO. Se ele não for exatamente `a`, `b` ou `c`, peça ao DA para configurar o plugin em `/plugin`, aba Installed, plugin vapt, opção Configure, e pare. A pasta da biblioteca da agência é `${user_config.biblioteca_agencia}`, chamada de BIBLIOTECA. Passe sempre `--biblioteca "BIBLIOTECA"` no comando que abre a tela (passo 8), mesmo com ela vazia: o motor trata a pasta vazia ou não configurada como biblioteca ausente, o job roda normal, sem marca, e a tela diz ao DA onde configurar a biblioteca. Você nunca lê nem lista essa pasta.
+2. **Teto.** O teto do modo de dados é `${user_config.teto_modo_dados}`, chamado de TETO. Se ele não for exatamente `a`, `b` ou `c`, peça ao DA para configurar o plugin em `/plugin`, aba Installed, plugin vapt, opção Configure, e pare.
 
 3. **Doctor.** Rode, com timeout de 600000 ms:
 
@@ -81,7 +81,7 @@ Antes de começar, leia as três referências desta skill com a ferramenta Read:
 8. **Abrir a tela.** Com as fases em dia, ou paradas num portão que pede o DA, abra a tela com timeout de 600000 ms:
 
    ```
-   "PY" -I -B -m vapt --envelope --teto-modo-dados TETO --biblioteca "BIBLIOTECA" tela abrir --job "PASTA"
+   "PY" -I -B -m vapt --envelope --teto-modo-dados TETO tela abrir --job "PASTA"
    ```
 
    Se o `codigo` não for `0`, explique ao DA o `o_que_fazer`, sem passar comando a ele (veja `regras-do-modelo.md`, "O `o_que_fazer` do motor"), e pare. Se a tela abriu, explique ao DA, em linguagem de direção de arte, o que ele faz nela (a ordem está em `glossario.md`, "A tela, passo a passo"):

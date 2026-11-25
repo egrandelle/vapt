@@ -2,6 +2,15 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.19.0 (25/11/2026): a biblioteca de marca sai
+
+Segunda leva dos pedidos de 25/11: o Vapt fica mais simples.
+
+- A biblioteca de marca sai do Vapt. Somem a pasta da biblioteca da agência na configuração do plugin, a escolha da marca no passo 1, o "Usar o padrão" no Design system e o botão "Guardar o padrão desta marca" no fim do job. A âncora continua sugerida pelo KV.
+- Job aberto continua de onde parou. O que veio do padrão da marca fica como escolha sua. Um job que usou "Usar o padrão" pode pedir um "Salvar e seguir" a mais; a aprovação não cai.
+- A pasta antiga da biblioteca fica no seu computador, sem uso. O Vapt não a lê nem a apaga; pode apagá-la quando quiser.
+- O doctor deixa de conferir a pasta da biblioteca.
+
 ## 0.18.0 (25/11/2026): o job começa sem parar
 
 Primeira leva dos pedidos de 25/11: menos perguntas no começo do job.

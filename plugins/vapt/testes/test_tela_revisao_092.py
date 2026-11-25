@@ -287,14 +287,12 @@ def test_movimento_reduzido_ainda_marca_onde_chegou(base, pw, tmp_path):
 
 
 def test_alvos_de_clique_com_24px(base, pw, tmp_path):
-    """D11: os resumos de Como configurar e as caixas de marcar do passo 5 tem pelo menos 24 px."""
+    """D11: as caixas de marcar do passo 5 tem pelo menos 24 px. Os resumos de Como configurar sairam com a biblioteca
+    da agencia na 0.19.0 (nº213)."""
     job, _f = _copia(base, 'kva', tmp_path)
     with _Tela(pw, job) as pg:
-        _passo(pg, 'lido')
-        pequenos = pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-marca summary"))
-            .filter(n => n.getClientRects().length && n.getBoundingClientRect().height < 24).length''')
         _passo(pg, 'formatos')
-        pequenos += pg.evaluate('''() => Array.from(document.querySelectorAll("#lista-formatos input.linha-marca"))
+        pequenos = pg.evaluate('''() => Array.from(document.querySelectorAll("#lista-formatos input.linha-marca"))
             .filter(n => n.getBoundingClientRect().height < 24).length''')
     assert pequenos == 0
 

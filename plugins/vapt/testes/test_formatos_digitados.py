@@ -548,9 +548,9 @@ def test_passo_1_no_chromium_colar_confirmar_e_remover(sem_folha):
 
 
 # ------------------------------------------------------------------ revisao do 0.9.2
-def test_revisao_digitado_no_modo_de_teste_barra_entrega_render_e_marca(sem_folha):
-    """D1: o formato digitado no modo de teste (origem fixture_de_teste) nunca chega ao master, a entrega nem ao
-    registro da marca (que usa o mesmo portao da entrega), como a spec e o texto como imagem do modo de teste."""
+def test_revisao_digitado_no_modo_de_teste_barra_entrega_e_render(sem_folha):
+    """D1: o formato digitado no modo de teste (origem fixture_de_teste) nunca chega ao master nem a entrega, como a
+    spec e o texto como imagem do modo de teste."""
     from vapt.entrega import portao
     from vapt.render import contrato as mc
     job, _funcoes = sem_folha

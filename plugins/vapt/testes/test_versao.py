@@ -2,8 +2,8 @@
 """Versao do plugin: uma fonte so (o manifesto), com a entrada do CHANGELOG e as bibliotecas de specs na mesma versao.
 
 A versao vem so de .claude-plugin/plugin.json (vapt.__version__ le de la). O M7c entrega contratos novos
-(pacote-modelo/2, sugestoes/1, perfil-marca/1, marca-job/1, medicoes-sugestao/1), e a versao que os leva e a 0.9.0
-ou uma posterior; o texto como imagem (texto-como-imagem/1) sai na 0.9.1 ou depois. A primeira entrada do CHANGELOG e a da versao do manifesto, e o texto dele segue a regra de
+(pacote-modelo/2, sugestoes/1, medicoes-sugestao/1), e a versao que os leva e a 0.9.0 ou uma posterior; perfil-marca/1
+e marca-job/1 sairam com a biblioteca da agencia na 0.19.0 (nº213); o texto como imagem (texto-como-imagem/1) sai na 0.9.1 ou depois. A primeira entrada do CHANGELOG e a da versao do manifesto, e o texto dele segue a regra de
 escrita do projeto (sem travessao nem meia-risca).
 """
 import json
@@ -16,8 +16,9 @@ import vapt
 MANIFESTO = RAIZ_PLUGIN / '.claude-plugin' / 'plugin.json'
 CHANGELOG = RAIZ_PLUGIN.parent.parent / 'CHANGELOG.md'
 SCHEMAS = RAIZ_PLUGIN / 'motor' / 'schemas'
-CONTRATOS_DO_M7C = ('pacote-modelo-2.json', 'sugestoes-1.json', 'perfil-marca-1.json', 'marca-job-1.json',
-                    'medicoes-sugestao-1.json')
+CONTRATOS_DO_M7C = ('pacote-modelo-2.json', 'sugestoes-1.json', 'medicoes-sugestao-1.json')
+# 0.19.0 (nº213): os contratos da biblioteca da agencia sairam junto com ela
+CONTRATOS_QUE_SAIRAM_NA_0_19_0 = ('perfil-marca-1.json', 'marca-job-1.json')
 
 
 def _versao_do_manifesto():
@@ -37,6 +38,11 @@ def test_contratos_do_m7c_saem_na_0_9_0_ou_depois():
     for nome in CONTRATOS_DO_M7C:
         assert (SCHEMAS / nome).is_file(), nome
     assert _tupla(_versao_do_manifesto()) >= (0, 9, 0)
+
+
+def test_contratos_da_biblioteca_da_agencia_sairam():
+    for nome in CONTRATOS_QUE_SAIRAM_NA_0_19_0:
+        assert not (SCHEMAS / nome).exists(), nome
 
 
 # 0.9.1: o texto como imagem por decisao do DA traz um contrato novo (a declaracao dele na tela)

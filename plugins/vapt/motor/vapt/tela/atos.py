@@ -18,10 +18,6 @@ confere os dados antes do dialogo (validar), monta o texto do dialogo com o que 
     B2);
   - aprovar: a aprovacao dos formatos marcados, com o arquivo final de cada um na janela e o sentido do giro que falta
     gravado pela mesma confirmacao (vapt.tela.ato_aprovar; M7b, B4);
-  - marca: a marca do job, entre as marcas da biblioteca da agencia, a "Marca nova" e "Sem marca", opcional
-    (vapt.marca.job; M7c, M3; decisoes-v1.md, 190, Q5);
-  - marca_registrar: guardar o padrao da marca no perfil da biblioteca da agencia, so com a marca escolhida e todos os
-    formatos aprovados pelo DA (vapt.marca.registrar; M7c, M5; decisoes-v1.md, 190, Q2);
   - texto_como_imagem: o DA nao tem o arquivo de uma fonte do PSD e decide usar o texto das camadas dela como imagem,
     ou desfaz a decisao (vapt.fontes.como_imagem; 0.9.1);
   - formatos_digitados: sem folha de spec, o DA escreve a largura e a altura de cada formato em pixels, ou remove um
@@ -232,8 +228,7 @@ def atos_do_job(pasta, teto=None, conteudo=None):
         acoes = confirmar.escolher_tipos_da_tela(pasta, [a['chave'] for a in alvos], tipos, disparo=disparo)
         return {'spec': acoes is not None, 'tipos': len(acoes or [])}
 
-    atos = {'marca': _ato_da_marca(pasta, conteudo), 'marca_registrar': _ato_de_registrar(pasta, conteudo),
-            'texto_como_imagem': _ato_texto_como_imagem(pasta),
+    atos = {'texto_como_imagem': _ato_texto_como_imagem(pasta),
             'formatos_digitados': _ato_formatos_digitados(pasta)}
     if conteudo is not None:
         # as familias sao lidas do conteudo a cada pedido: no job novo elas nascem depois do passo 2, quando o servidor
@@ -340,73 +335,6 @@ def _ato_formatos_digitados(pasta):
         return {'formatos_digitados': d['acao'], 'n': len(gravado['formatos'])}
     return Ato(comando=digitados.COMANDO, titulo='Formatos digitados', texto=texto, sim=SIM, nao=NAO,
                executar=executar, validar=lambda d: digitados.conferir(pasta, d) is None)
-
-
-MARCA_TROCA = 'Você pode trocar a marca aqui mesmo, depois.'
-
-
-def _ato_da_marca(pasta, conteudo):
-    """O ato "marca" do passo 1 (M7c, M3; decisoes-v1.md, 190, Q5): uma marca da biblioteca da agencia, a "Marca nova"
-    com o nome que o DA digitou ou "Sem marca", com a confirmacao na janela (vapt.marca.job). A pasta da
-    biblioteca e a do conteudo da montagem (pasta_biblioteca, so no processo de fundo), lida a cada pedido; sem ela, so
-    "Sem marca" passa."""
-    from vapt.marca import job as marca_job
-    from vapt.tela.servidor import Ato
-
-    def biblioteca():
-        return (conteudo or {}).get('pasta_biblioteca')
-
-    def texto(d):
-        e = marca_job.conferir(d, biblioteca())
-        if e['escolha'] == 'sem_marca':
-            return 'O job segue sem marca, e nenhum padrão de marca aparece como sugestão. ' + MARCA_TROCA
-        if e['escolha'] == 'nova':
-            return ('A marca "%s" entra na biblioteca da agência, ainda sem padrão guardado, e o job passa a ser '
-                    'dela. %s' % (e['nome'], MARCA_TROCA))
-        return ('O job passa a ser da marca "%s". O padrão que ela tiver aparece como sugestão, e nada muda sem o seu '
-                'clique. %s' % (e['nome'], MARCA_TROCA))
-
-    def executar(disparo, d):
-        reg = marca_job.gravar(pasta, d, disparo=disparo, biblioteca=biblioteca())
-        return {'marca': reg['escolha']}
-    return Ato(comando=marca_job.COMANDO, titulo='Escolher a marca do job', texto=texto, sim=SIM, nao=NAO,
-               executar=executar, validar=lambda d: marca_job.conferir(d, biblioteca()) is not None)
-
-
-REGISTRAR_SIM = 'Guardar o padrão'
-
-
-def _ato_de_registrar(pasta, conteudo):
-    """O ato "marca_registrar" (M7c, M5; decisoes-v1.md, 190, Q1 a Q3): o botao "A campanha foi aprovada: guardar o
-    padrao desta marca", que a pagina mostra so com lido.marca.registro.pode (vapt.marca.registrar.na_tela). Os
-    dados sao {'impressao': <a do registro que a janela mostra>}: o registro que mudou depois que a pagina montou a
-    janela e recusado antes do dialogo, e de novo no Confirmar. A pasta da biblioteca e a do conteudo da montagem,
-    lida a cada pedido, como no ato da marca."""
-    from vapt.marca import registrar
-    from vapt.tela.servidor import Ato
-
-    def biblioteca():
-        return (conteudo or {}).get('pasta_biblioteca')
-
-    def valido(d):
-        if not _chaves(d, 'impressao') or not isinstance(d['impressao'], str):
-            return False
-        v = registrar.na_tela(pasta, biblioteca())
-        return v['pode'] is True and v['impressao'] == d['impressao']
-
-    def texto(_d):
-        v = registrar.na_tela(pasta, biblioteca())
-        anterior = ('' if not v['versao_atual'] else
-                    ' A versão %d continua guardada no histórico da marca.' % v['versao_atual'])
-        return ('A campanha aprovada vira a versão %d do padrão da marca "%s": as regras de escala e as âncoras que '
-                'você confirmou, cada uma com o job de origem, e o nome das faces usadas.%s Nos próximos jobs desta '
-                'marca, o padrão aparece como sugestão, e nada muda sem o seu clique.'
-                % (v['versao_nova'], v['nome'], anterior))
-
-    def executar(disparo, d):
-        return registrar.gravar(pasta, disparo=disparo, biblioteca=biblioteca(), impressao=d['impressao'])
-    return Ato(comando=registrar.COMANDO, titulo='Guardar o padrão desta marca', texto=texto, sim=REGISTRAR_SIM,
-               nao=NAO, executar=executar, validar=valido)
 
 
 def _ato_da_familia(pasta, conteudo):
@@ -638,8 +566,6 @@ MOTIVOS_DO_SALVAR = {
     'sem_formatos': 'O job ainda não tem formato com medida em pixels. Veja Valores de spec, no passo 1.',
     'formato_sem_medida': 'Um formato da folha tem duas medidas e espera a sua escolha em Valores de spec, no passo 1.',
     'rotacao_sem_escolha': 'Escolha o giro de cada formato no passo 1.',
-    'padrao_marca_desatualizado': ('O padrão da marca mudou depois do seu clique. No Design system, use o padrão de '
-                                   'novo ou clique de novo no valor que quer manter.'),
     'formato_com_spec_por_confirmar': ('Um formato de uma família espera a confirmação de um valor de spec. Confirme '
                                        'os valores dele em Valores de spec, no passo 1, e depois confirme a família.'),
     'versao_que_a_familia_nao_tem': ('Uma família foi confirmada numa versão que ela não tem mais. Nas Famílias, '
@@ -658,7 +584,7 @@ MOTIVOS_DO_SALVAR = {
                           'e diga qual foi o seu último clique.'),
 }
 ORDEM_DO_SALVAR = ('rascunho_de_outro_laudo', 'sem_rascunho', 'modo_dados_sem_escolha', 'sem_formatos',
-                   'formato_sem_medida', 'rotacao_sem_escolha', 'briefing_com_problema', 'padrao_marca_desatualizado',
+                   'formato_sem_medida', 'rotacao_sem_escolha', 'briefing_com_problema',
                    'formato_com_spec_por_confirmar', 'familia_sem_confirmacao', 'versao_que_a_familia_nao_tem',
                    'edicao_invalida', 'texto_sem_caractere', 'alinhamento_recusado', 'layout_diferente_do_confirmado',
                    'briefing_invalido')

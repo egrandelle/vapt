@@ -514,7 +514,6 @@
     if (!document.getElementById('passo-pecas').hidden) iniciarPecas(null);
     mostrarAvisos(e);
     atualizarFaltam();
-    // M7c, M4: o padrao da marca citado no Design system segue a marca de agora
     if (!document.getElementById('passo-design').hidden) montarDesign();
     // M7c, S4: o ato (o modo de dados, por exemplo) pode ter mudado o que a tela mostra como sugestao
     if (sug.lida) lerSugestoes();
@@ -730,7 +729,6 @@
       if (!estado.orientacoes.length && !document.getElementById('passo-pecas').hidden) iniciarPecas(null);
       mostrarAvisos(e);
       atualizarFaltam();
-      // M7c, M4: a marca escolhida ou trocada no passo 1 muda o padrao citado no Design system
       if (!document.getElementById('passo-design').hidden) montarDesign();
       // revisao do S4: depois de qualquer ato (o modo de dados, por exemplo), o modo que vale e as sugestoes de novo
       if (sug.lida) lerSugestoes();
@@ -803,15 +801,13 @@
       });
     }).then(function (p) {
       trabalhando(origem, false);
-      // M7c, M5: a janela do registro do padrao da marca mostra o que vai ao perfil
       // 0.9.1: a janela do texto como imagem lista as camadas atingidas
       // decisao 199 (5): o "Confirmar familia" abre "Conferir os N arquivos", com a lista dos arquivos
-      const extra = nome === 'marca_registrar' ? extraDoRegistro() :
-        (nome === 'texto_como_imagem' ? extraDoTextoComoImagem(dados) :
-          (nome === 'spec_valores' ? extraDoLoteDeSpecs(dados) : (nome === 'familia' ? extraDaFamilia() : null)));
+      const extra = nome === 'texto_como_imagem' ? extraDoTextoComoImagem(dados) :
+        (nome === 'spec_valores' ? extraDoLoteDeSpecs(dados) : (nome === 'familia' ? extraDaFamilia() : null));
       const perigo = !!(dados && dados.acao === 'remover');
       return confirmarNaJanela(Object.assign({}, p, extra ? { extra: extra,
-        larga: nome === 'marca_registrar' || nome === 'familia' } : {},
+        larga: nome === 'familia' } : {},
         { perigo: perigo })).then(function (sim) {
         if (!sim) return enviar('/api/ato/cancelar', { pedido: p.pedido }).then(function () { raiz.dataset.estadoAto = 'cancelado'; });
         const chave = JSON.stringify(dados || {});
@@ -2061,171 +2057,6 @@
     }
     if (!escrita) md.appendChild(el('p', SO_PARA_VER, 'nota modo-nota'));
   }
-  /* M7c, M3: a marca do job (decisao 190, Q5, revisada pela 207). Com marcas na biblioteca da agencia, as marcas,
-     "Sem marca" e a "Marca nova", nenhuma marcada ate o clique do DA. Quando "Sem marca" e a unica escolha possivel
-     (biblioteca nao usavel, ou usavel e sem nenhuma marca), ela ja vem marcada, sem gravar nada: a marcacao e so
-     visual, derivada do estado, porque no motor a ausencia de briefing/marca.json e 'sem_marca' sao a mesma coisa. O
-     primeiro clique em qualquer linha grava como sempre, pela janela. Nesse caso a nota de abertura (escolha de que
-     marca e este job) nao entra, so a nota do caso. A escolha e opcional e nunca entra no que falta. Sem biblioteca
-     que sirva, so "Sem marca", com a nota de onde configurar. O nome da marca e dado do DA: so por textContent */
-  let marcaNova = '';
-  let marcaNovaRecusada = null;
-  const MARCA_NOVA_MAX = 120;
-  /* revisao do M3: o nome na forma que o motor grava (NFC, um espaco so entre as palavras) e a chave que diz se duas
-     marcas sao a mesma, perto do casefold do motor (vapt.marca.job.chave). O motor confere de novo no pedido */
-  function formaDaMarca(s) { return String(s).split(/[^\S﻿]+/).filter(Boolean).join(' ').normalize('NFC'); }
-  function chaveDaMarca(s) { return formaDaMarca(s).toUpperCase().toLowerCase().normalize('NFC'); }
-  function extensaoDeFonte(extensoes) {
-    if (!extensoes || !extensoes.length) return null;
-    const partes = extensoes.map(function (x) { return String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
-    return new RegExp('\\.(?:' + partes.join('|') + ')(?![A-Za-z0-9_-])', 'i');
-  }
-  /* decisao 207: a linha marcada por ser a unica escolha diz isso no title e ao leitor de tela. Com a biblioteca
-     usavel e vazia, o campo "Marca nova" fica logo abaixo, entao o texto nao pode dizer que nao ha outra escolha */
-  const MARCA_UNICA = 'Única escolha possível agora. O job segue sem marca.';
-  const MARCA_UNICA_VAZIA = 'Já marcada: a biblioteca ainda não tem marca. Você pode criar uma abaixo.';
-  // unica: o texto do title e do leitor de tela quando a linha vem marcada por ser a unica escolha; null nos demais
-  function linhaMarca(nome, texto, dados, sim, unica) {
-    const b = botaoAto('', 'marca', dados, 'modo marca-linha');
-    b.setAttribute('aria-pressed', sim ? 'true' : 'false');
-    if (unica) {
-      b.title = unica;
-      b.setAttribute('aria-description', unica);
-      b.dataset.unica = '1';
-    }
-    b.appendChild(el('span', null, 'modo-marca'));
-    const corpo = el('span', null, 'modo-corpo');
-    corpo.appendChild(el('span', nome, 'modo-nome'));
-    if (texto) corpo.appendChild(el('span', texto, 'modo-texto'));
-    b.appendChild(corpo);
-    return b;
-  }
-  function montarMarca(m) {
-    const no = document.getElementById('lido-marca');
-    limpar(no);
-    if (!m) return;
-    const e = m.escolhida;
-    const usavel = !!(m.biblioteca && m.biblioteca.usavel);
-    // decisao 207: "Sem marca" e a unica escolha possivel; vem marcada sem gravar
-    const unica = !e && (!usavel || m.marcas.length === 0);
-    // decisao 207: com a linha ja marcada, a nota de abertura ("escolha de que marca e este job") nao entra; fica so a
-    // nota do caso, que diz que a linha ja vem marcada
-    if (!unica) {
-      no.appendChild(el('p', e ? 'A marca vale para o job inteiro. Você pode trocar quando quiser.' :
-        'Escolha de que marca é este job, se quiser. O padrão que a marca tiver aparece como sugestão, e nada muda sem o seu clique.',
-        'nota modo-nota'));
-    }
-    if (e && e.escolha === 'marca' && !e.nome) {
-      no.appendChild(el('p', 'Este job tem uma marca escolhida que não aparece na biblioteca desta janela.', 'nota marca-escolhida-fora'));
-    }
-    if (usavel && m.marcas.length) {
-      const lista = el('div', null, 'modos marcas');
-      lista.setAttribute('role', 'group');
-      lista.setAttribute('aria-label', 'Marcas da agência');
-      m.marcas.forEach(function (x) {
-        lista.appendChild(linhaMarca(x.nome, '', { escolha: 'marca', id: x.id }, !!e && e.escolha === 'marca' && e.id === x.id));
-      });
-      no.appendChild(lista);
-    } else if (usavel) {
-      // decisao 207: a nota diz que a linha "Sem marca" ja vem marcada e que nenhum clique e preciso
-      no.appendChild(el('p', unica ?
-        'A biblioteca da agência ainda não tem marca. A linha Sem marca já vem marcada e não precisa de clique. Se quiser, crie a primeira marca abaixo.' :
-        'A biblioteca da agência ainda não tem marca. Crie a primeira abaixo, ou siga sem marca.', 'vazio-calmo modo-nota'));
-    } else {
-      // 0.9.2 (M7): uma linha a vista; o caminho da configuracao fica dentro de "Como configurar"
-      // decisao 207: a nota diz que a linha "Sem marca" ja vem marcada e que nenhum clique e preciso
-      no.appendChild(el('p', unica ?
-        'A biblioteca de marcas da agência não está pronta para este job. A linha Sem marca já vem marcada e não precisa de clique.' :
-        'A biblioteca de marcas da agência não está pronta para este job. O job segue sem marca.', 'nota modo-nota'));
-      const como = m.biblioteca && m.biblioteca.o_que_fazer;
-      if (como) {
-        const d = el('details', null, 'saiba-mais');
-        d.appendChild(el('summary', 'Como configurar'));
-        d.appendChild(el('p', como, 'nota'));
-        no.appendChild(d);
-      }
-    }
-    const sem = el('div', null, 'modos marca-sem');
-    sem.appendChild(linhaMarca('Sem marca', 'O job segue sem padrão de marca.', { escolha: 'sem_marca' },
-      unica || (!!e && e.escolha === 'sem_marca'), unica ? (usavel ? MARCA_UNICA_VAZIA : MARCA_UNICA) : null));
-    no.appendChild(sem);
-    if (usavel && m.pode_criar) no.appendChild(campoMarcaNova(m.marcas, m.extensoes_fonte));
-    if (!escrita) no.appendChild(el('p', SO_PARA_VER, 'nota modo-nota'));
-  }
-  function campoMarcaNova(marcas, extensoes) {
-    const deFonte = extensaoDeFonte(extensoes);
-    const chaves = marcas.map(function (x) { return chaveDaMarca(x.nome); });
-    const caixa = el('div', null, 'marca-nova');
-    const rotulo = el('label', 'Marca nova');
-    rotulo.htmlFor = 'marca-nova-nome';
-    const linha = el('div', null, 'marca-nova-linha');
-    const campo = el('input');
-    campo.id = 'marca-nova-nome';
-    campo.type = 'text';
-    campo.autocomplete = 'off';
-    campo.spellcheck = false;
-    campo.maxLength = MARCA_NOVA_MAX;
-    campo.value = marcaNova;
-    campo.disabled = !escrita;
-    campo.setAttribute('aria-describedby', 'marca-nova-ajuda');
-    const criar = botao('Criar e usar', 'botao');
-    criar.id = 'marca-nova-criar';
-    const ajuda = el('p', 'Digite o nome como a agência chama a marca. Ela entra na biblioteca, ainda sem padrão guardado.', 'nota ajuda');
-    ajuda.id = 'marca-nova-ajuda';
-    const erro = el('p', '', 'erro-campo');
-    erro.id = 'marca-nova-erro';
-    erro.hidden = true;
-    const conferir = function () {
-      marcaNova = campo.value;
-      const nome = formaDaMarca(campo.value);
-      const chave = chaveDaMarca(nome);
-      const repetida = !!nome && chaves.indexOf(chave) >= 0;
-      const ruim = /[\\/]/.test(nome);
-      const fonte = !!deFonte && deFonte.test(nome);
-      if (marcaNovaRecusada !== null && marcaNovaRecusada !== chave) marcaNovaRecusada = null;
-      const recusada = !!nome && marcaNovaRecusada === chave;
-      const texto = repetida ? 'Essa marca já está na lista acima. Escolha ela lá.' :
-        ruim ? 'O nome da marca não leva barra.' :
-        fonte ? 'O nome da marca não leva extensão de arquivo de fonte, como .otf ou .ttf.' :
-        recusada ? 'O Vapt não aceitou esse nome. Ele pode repetir de outro jeito uma marca da lista acima ou parecer dado de fonte. Mude o nome para criar a marca.' : '';
-      erro.hidden = !texto;
-      erro.textContent = texto;
-      campo.setAttribute('aria-invalid', texto ? 'true' : 'false');
-      criar.disabled = !escrita || !nome || !!texto;
-      return !criar.disabled;
-    };
-    campo.addEventListener('input', conferir);
-    campo.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter' && conferir()) { ev.preventDefault(); criar.click(); }
-    });
-    criar.addEventListener('click', function () {
-      if (!conferir()) return;
-      const nome = formaDaMarca(campo.value);
-      pedirAto('marca', { escolha: 'nova', nome: nome }, function () {
-        // o motor recusou o nome antes da janela: o motivo fica no campo, e o botao desliga ate o DA mudar o nome
-        marcaNovaRecusada = chaveDaMarca(nome);
-        conferir();
-        campo.focus();
-      });
-    });
-    linha.appendChild(campo);
-    linha.appendChild(criar);
-    caixa.appendChild(rotulo);
-    caixa.appendChild(linha);
-    caixa.appendChild(erro);
-    caixa.appendChild(ajuda);
-    conferir();
-    return caixa;
-  }
-  depoisDoAto.marca = function (d) {
-    if (d && d.escolha === 'nova') {
-      marcaNova = '';
-      marcaNovaRecusada = null;
-      const campo = document.getElementById('marca-nova-nome');
-      if (campo) campo.value = '';
-      montarMarca(estado.lido && estado.lido.marca);
-    }
-  };
   function montarLido(l) {
     montarFaixaDoLido(l, montarBloqueios(l));
     montarLinkados(l.linkados);
@@ -2251,7 +2082,6 @@
     montarFormatos(s);
     montarQuadros(l.quadros || []);
     montarModo(l.modo_dados);
-    montarMarca(l.marca);
     const fo = document.getElementById('fontes');
     limpar(fo);
     if (!l.fontes.length) fo.appendChild(el('p', 'O job não tem fonte enviada.', 'vazio-calmo'));
@@ -2456,8 +2286,6 @@
       const nome = nomeDaVista(v);
       if (!d.regra) out.push({ texto: 'Escolha a regra de escala.', detalhe: nome, ir: { passo: 'design', chave: v.chave }, tipo: 'regra' });
       if (!d.x || !d.y) out.push({ texto: 'Escolha a âncora.', detalhe: nome, ir: { passo: 'design', chave: v.chave }, tipo: 'ancora' });
-      // M7c, M4: o valor do padrao da marca de antes da versao nova: o servidor recusa salvar ate o DA decidir
-      if (padraoVencido(v)) out.push({ texto: padraoDe(v) ? 'Use o padrão da marca de novo ou clique de novo no valor que quer manter.' : 'Clique de novo no tamanho e na âncora que quer manter.', detalhe: nome, ir: { passo: 'design', chave: v.chave }, tipo: 'padrao' });
     });
     return out;
   }
@@ -2997,13 +2825,10 @@
     const alvo = v.funcao === 'indeterminado' ? p2.design_camadas : p2.design;
     const k = v.funcao === 'indeterminado' ? String(v.raiz) : v.funcao;
     const d = alvo[k] || { regra: null, x: null, y: null };
-    const mudou = campo === 'ancora' ? (d.x !== valor[0] || d.y !== valor[1]) : d.regra !== valor;
-    // revisao do M4: o clique no mesmo valor com a origem vencida (versao nova que mudou o campo, ou outra marca) e a
-    // escolha do DA: a origem vencida sai, e o aviso some
-    const vencida = !!(d.origem && d.origem[campo]) && v.funcao !== 'indeterminado' && !usaOPadrao(d, padraoDe(v), campo);
     if (campo === 'ancora') { d.x = valor[0]; d.y = valor[1]; } else d.regra = valor;
-    // M7c, M4: o campo que o DA muda deixa de ser o padrao da marca (a origem dele sai; a do outro campo fica)
-    if ((mudou || vencida) && d.origem) { delete d.origem[campo]; if (!Object.keys(d.origem).length) delete d.origem; }
+    // nº213, compat da 0.19.x: o rascunho antigo pode trazer a origem do padrao da marca; qualquer clique do DA a tira,
+    // e o valor fica como escolha dele. Sai na 0.20.0
+    if (d.origem) delete d.origem;
     alvo[k] = d;
     p2idx.design = v.chave;
     mudouDesign();
@@ -3016,126 +2841,12 @@
     });
     if (novo) novo.focus();
   }
-  /* ---------------------------------------------------------------- padrao da marca (M7c, M4; decisoes 162 e 190)
-     a regra e a ancora que o perfil da marca escolhida no passo 1 guarda para a funcao, com a versao e o job de
-     origem. Borda tracejada, como a sugestao do Claude: e sugestao citada, nunca valor. So o clique em "Usar o padrao"
-     poe o valor no rascunho, com a origem padrao_marca e o ref; o DA que muda um campo tira a origem dele */
-  function padraoDaMarca() {
-    return (estado && estado.lido && estado.lido.marca && estado.lido.marca.padrao) || null;
-  }
-  function padraoDe(v) {
-    const p = padraoDaMarca();
-    if (!p || v.funcao === 'indeterminado') return null;
-    return (p.funcoes || {})[v.funcao] || null;
-  }
-  function jobCurto(j) { return String(j || '').slice(0, 8); }
-  /* ajuste nome do M7c (resposta do Duda ao ponto 3): o job de origem pelo nome que o DA deu a pasta do job, gravado
-     no perfil ao lado do id; o perfil de antes do ajuste nao tem o nome, e a tela cai no id curto */
-  function nomeDoJob(i) { return (i && i.job_nome) || jobCurto(i && i.job); }
-  /* revisao do M4: o ref do clique vale com a mesma marca e o mesmo job de origem, numa versao entre a primeira com o
-     valor de hoje (desde) e a atual, como no motor (vapt.tela.funcoes._ref_vale): a versao nova que nao muda a
-     funcao nao derruba o clique de antes */
-  function refVale(ref, i) {
-    const forma = /^marca:([0-9a-f]{32})@v([1-9][0-9]*)#job:([0-9a-f]{8,64})$/;
-    const a = forma.exec(ref || ''), b = forma.exec(i.ref || '');
-    const p = padraoDaMarca();
-    if (!a || !b || !p || a[1] !== b[1] || a[3] !== b[3]) return false;
-    const n = Number(a[2]);
-    return n >= Number(i.desde || p.versao) && n <= Number(p.versao);
-  }
-  function usaOPadrao(d, x, campo) {
-    const o = d && d.origem && d.origem[campo];
-    if (!o || !x || !x[campo] || !refVale(o.ref, x[campo])) return false;
-    return campo === 'regra' ? d.regra === x.regra.valor : d.x === x.ancora.x && d.y === x.ancora.y;
-  }
-  /* as origens do padrao no rascunho que nao batem mais com o perfil (a marca ganhou versao nova ou foi trocada no
-     passo 1): o servidor recusa salvar (padrao_marca_desatualizado), e a tela pede o clique de novo */
-  function padraoVencido(v) {
-    if (v.funcao === 'indeterminado') return false;
-    const d = p2.design[v.funcao];
-    if (!d || !d.origem) return false;
-    const x = padraoDe(v) || {};
-    return ['regra', 'ancora'].some(function (c) { return d.origem[c] && !usaOPadrao(d, x, c); });
-  }
-  /* revisao do M4: o aviso da origem vencida diz o que o DA pode fazer; sem padrao na tela (Sem marca, outra marca
-     sem registro), o aviso nao manda usar um padrao que nao existe */
-  function avisoDoPadrao(v) {
-    if (padraoDe(v)) {
-      return 'O padrão da marca mudou depois do seu clique. Use o padrão de novo, ou clique de novo no tamanho e na ' +
-        'âncora que quer manter.';
-    }
-    return 'A marca do job mudou depois do seu clique em Usar o padrão. Clique de novo no tamanho e na âncora que ' +
-      'quer manter, ou escolha outro valor.';
-  }
-  function usarPadrao(v) {
-    const x = padraoDe(v);
-    if (!x) return;
-    const d = p2.design[v.funcao] || { regra: null, x: null, y: null };
-    const origem = {};
-    if (x.regra) { d.regra = x.regra.valor; origem.regra = { tipo: 'padrao_marca', ref: x.regra.ref }; }
-    if (x.ancora) { d.x = x.ancora.x; d.y = x.ancora.y; origem.ancora = { tipo: 'padrao_marca', ref: x.ancora.ref }; }
-    d.origem = origem;
-    p2.design[v.funcao] = d;
-    p2idx.design = v.chave;
-    mudouDesign();
-    atualizarFaltam();
-    montarDesign();
-    const b = document.querySelector('#resumo-design [data-chave="' + v.chave + '"] .padrao-marca');
-    if (b) b.focus();
-  }
-  function quadroDoPadrao(v, d) {
-    const x = padraoDe(v);
-    if (!x) return null;
-    const p = padraoDaMarca();
-    const itens = [x.regra, x.ancora].filter(Boolean);
-    const jobs = itens.map(function (i) { return i.job; });
-    const umJob = jobs.every(function (j) { return j === jobs[0]; });
-    const box = el('section', null, 'sugestao padrao-marca');
-    box.tabIndex = -1;
-    box.setAttribute('aria-label', 'Padrão da marca');
-    const topo = el('p', null, 'sugestao-fonte');
-    const selo = el('span', 'Padrão da marca, versão ' + p.versao + (umJob ? ', do job ' + nomeDoJob(itens[0]) : ''),
-      'sugestao-selo');
-    if (umJob) selo.title = 'Job de origem ' + jobs[0];
-    topo.appendChild(selo);
-    box.appendChild(topo);
-    const linhas = el('div', null, 'padrao-linhas');
-    [['regra', 'Tamanho'], ['ancora', 'Âncora']].forEach(function (par) {
-      const i = x[par[0]];
-      if (!i) return;
-      const linha = el('div', null, 'padrao-linha' + (usaOPadrao(d, x, par[0]) ? ' em-uso' : ''));
-      linha.appendChild(el('span', par[1] + (umJob ? '' : ', do job ' + nomeDoJob(i)), 'sugestao-rotulo'));
-      linha.appendChild(el('span', par[0] === 'regra' ? maiuscula(nomeRegra(i.valor)) :
-        (ANCORA_Y[i.y] || i.y) + ' ' + (ANCORA_X[i.x] || i.x), 'sugestao-funcao'));
-      linhas.appendChild(linha);
-    });
-    box.appendChild(linhas);
-    const tudo = ['regra', 'ancora'].every(function (c) { return !x[c] || usaOPadrao(d, x, c); });
-    const pe = el('div', null, 'padrao-pe');
-    if (tudo) {
-      pe.appendChild(el('span', 'Em uso', 'sugestao-em-uso'));
-    } else {
-      const b = botao('Usar o padrão', 'botao usar');
-      b.dataset.usarPadrao = v.funcao;
-      b.setAttribute('aria-label', 'Usar o padrão da marca em ' + nomeDaVista(v));
-      if (!escrita) b.disabled = true;
-      b.addEventListener('click', function () { usarPadrao(v); });
-      pe.appendChild(b);
-    }
-    // revisao do M4: com valor ja escolhido, a nota diz o que o clique faz, sem dizer que nada esta gravado
-    const escolhido = !!(d && (d.regra || d.x || d.y));
-    pe.appendChild(el('p', tudo ? 'Você pode trocar qualquer valor abaixo.' : escolhido ?
-      'O valor marcado abaixo fica gravado. Usar o padrão troca pelo valor da marca.' :
-      'Nada fica gravado até você clicar em Usar o padrão ou escolher abaixo.', 'nota sugestao-nota'));
-    box.appendChild(pe);
-    return box;
-  }
   /* 0.15.0 (decisoes-v1.md, 206): a ancora sugerida pelo lugar do elemento no KV. A ancora e o ponto do elemento que
      fica preso quando o formato muda; o lugar dele ja vem do KV. A sugestao segue a regra da familia no motor
      (vapt.derivacao.familia._ancora): em cada eixo, fica presa a borda do elemento mais perto da borda do KV; quando
      as duas margens empatam (ate ancora_empate do lado maior, o limite do motor), o centro. A funcao com varios
      elementos fica com o que vale para a maioria deles e, no empate, com o do maior. E sugestao, tracejada: so o
-     clique do DA em Usar grava, como no padrao da marca, que vem antes dela quando existe */
+     clique do DA em Usar grava */
   function ladoPelaBorda(c0, c1, total, nomes, empate) {
     const antes = c0, depois = total - c1;
     if (Math.abs(antes - depois) <= empate) return nomes[1];
@@ -3188,11 +2899,9 @@
     const x = votoDaMaioria(vx), y = votoDaMaioria(vy);
     return x && y ? { x: x, y: y } : null;
   }
-  /* a sugestao so aparece na funcao sem ancora escolhida e sem ancora no padrao da marca */
+  /* a sugestao so aparece na funcao sem ancora escolhida */
   function ancoraSugerida(v, d) {
     if (d && d.x && d.y) return null;
-    const pm = padraoDe(v);
-    if (pm && pm.ancora) return null;
     return ancoraDoKv(v);
   }
   /* a ancora dita como o ponto que fica preso ("preso pelo alto, à esquerda"), nunca como lugar no quadro */
@@ -3205,7 +2914,8 @@
       const d = alvo[k] || { regra: null, x: null, y: null };
       d.x = a.x;
       d.y = a.y;
-      if (d.origem) { delete d.origem.ancora; if (!Object.keys(d.origem).length) delete d.origem; }
+      // nº213, compat da 0.19.x: a origem antiga do padrao da marca sai com o clique do DA. Sai na 0.20.0
+      if (d.origem) delete d.origem;
       alvo[k] = d;
     });
     mudouDesign();
@@ -3258,8 +2968,7 @@
     }
     vistas.forEach(function (v, i) {
       const d = designDe(v.chave) || {};
-      // revisao do M4: com a origem do padrao vencida, o servidor recusa salvar, entao o card nao se diz pronto
-      const pronta = !!(d.regra && d.x && d.y) && !padraoVencido(v);
+      const pronta = !!(d.regra && d.x && d.y);
       const art = el('article', null, 'funcao-ds' + (v.chave === p2idx.design ? ' atual' : '') + (pronta ? ' feita' : ''));
       art.dataset.chave = v.chave;
       art.style.setProperty('--i', String(i));
@@ -3270,10 +2979,6 @@
       topo.appendChild(el('span', plural(v.camadas.length, 'camada', 'camadas') + (pronta ? ', pronta' : ''), 'decisao-estado'));
       topo.addEventListener('click', function () { p2idx.design = v.chave; montarDesign(); });
       art.appendChild(topo);
-      // M7c, M4: o padrao da marca citado, com a fonte, e o aviso quando o clique de antes nao vale mais
-      if (padraoVencido(v)) art.appendChild(el('p', avisoDoPadrao(v), 'aviso-padrao'));
-      const quadroPadrao = quadroDoPadrao(v, d);
-      if (quadroPadrao) art.appendChild(quadroPadrao);
       const corpo = el('div', null, 'funcao-ds-corpo');
       const blocoRegra = el('div', null, 'bloco-ds');
       blocoRegra.appendChild(el('h3', 'Tamanho', 'subtitulo'));
@@ -3333,7 +3038,7 @@
       s.appendChild(art);
     });
     // 0.9.2 (A2): com tudo escolhido aqui e no passo 2, o proximo passo e o das familias
-    const prontas = vistas.every(function (v) { const d = designDe(v.chave) || {}; return d.regra && d.x && d.y && !padraoVencido(v); });
+    const prontas = vistas.every(function (v) { const d = designDe(v.chave) || {}; return d.regra && d.x && d.y; });
     const semFuncao = pendenciasP2().some(function (x) { return x.tipo === 'funcao' || x.tipo === 'coberta'; });
     if (prontas) {
       const fim = el('div', null, 'design-fim');
@@ -3478,7 +3183,7 @@
     const l = estado.lido || { specs: { formatos: [] }, quadros: [] };
     const pend = p2idx.opcoes ? pendenciasP2() : [];
     const funcoes = pend.filter(function (x) { return x.tipo === 'funcao' || x.tipo === 'coberta'; });
-    const design = pend.filter(function (x) { return x.tipo === 'regra' || x.tipo === 'ancora' || x.tipo === 'padrao'; });
+    const design = pend.filter(function (x) { return x.tipo === 'regra' || x.tipo === 'ancora'; });
     const nFormatos = l.specs.formatos.length;
     const lista = [{ nome: 'Formatos com medida em pixels', feito: nFormatos > 0,
       estado: nFormatos ? plural(nFormatos, 'formato no job', 'formatos no job') :
@@ -6542,7 +6247,6 @@
       lista.appendChild(vazio);
     }
     fs.forEach(function (f, i) { lista.appendChild(linhaDoFormato(f, i)); });
-    montarRegistro();
     montarHistorico((estado.painel && estado.painel.historico) || []);
     if (!pn.escolhido || !formatoDoPainel(pn.escolhido)) {
       // o primeiro que pede atencao do DA; sem nenhum, o primeiro da lista
@@ -6652,98 +6356,12 @@
     a.title = !a.disabled ? '' : (!escrita ? PAINEL_SO_VER : (ocupado ? PAINEL_OCUPADO :
       (algumAprova ? PAINEL_MARQUE : PAINEL_NADA_A_APROVAR)));
     t.title = !t.disabled ? '' : (!escrita ? PAINEL_SO_VER : (ocupado ? PAINEL_OCUPADO : PAINEL_NADA_A_APROVAR));
-    document.getElementById('registro-guardar').disabled = !escrita || ocupado;
     document.querySelectorAll('#lista-formatos .linha-marca').forEach(function (c) {
       const f = formatoDoPainel(c.closest('.linha-formato').dataset.formato);
       c.disabled = !escrita || ocupado || !(f && f.pode_aprovar);
       c.title = !c.disabled ? '' : (!escrita ? PAINEL_SO_VER : (ocupado ? PAINEL_OCUPADO : PAINEL_FORMATO_SEM_APROVAR));
     });
     raiz.dataset.painel = fs.length ? 'pronto' : 'vazio';
-  }
-  /* ---------------------------------------------------------------- o padrao da marca (M7c, M5; decisao 190, Q1 a Q3)
-     O botao "Guardar o padrão desta marca" so aparece quando o motor diz que pode (vapt/marca/registrar.py,
-     na_tela: o job tem marca e todos os formatos estao aprovados pelo DA). Ele e um ato da janela, como os outros: a
-     confirmacao mostra o que vai ao perfil (as regras de escala e as ancoras por funcao com o job de origem, e o nome
-     das faces) e so o Confirmar grava. Depois, a faixa diz em que versao o padrao ficou guardado, sem botao. O nome da
-     marca e o das faces entram so por textContent. */
-  const REGISTRO_SELO = 'Padrão da marca';
-  const REGISTRO_TITULO = 'A campanha foi aprovada';
-  const REGISTRO_GUARDADO = 'Padrão guardado';
-  const REGISTRO_FORA = 'Fica de fora do perfil: as edições de palco, a versão da galeria e os arquivos de fonte. ' +
-    'O perfil guarda só o nome de cada face.';
-  function registroDaMarca() {
-    return (estado && estado.lido && estado.lido.marca && estado.lido.marca.registro) || null;
-  }
-  function montarRegistro() {
-    const r = registroDaMarca();
-    const faixa = document.getElementById('registro-marca');
-    const b = document.getElementById('registro-guardar');
-    const mostra = !!(r && (r.pode || r.guardado));
-    faixa.hidden = !mostra;
-    b.hidden = !(mostra && r.pode);
-    if (!mostra) { delete b.dataset.dados; return; }
-    faixa.dataset.situacao = r.pode ? 'pode' : 'guardado';
-    document.getElementById('registro-selo').textContent = r.nome;
-    faixa.setAttribute('aria-label', REGISTRO_SELO + ' ' + r.nome);
-    document.getElementById('registro-titulo').textContent = r.pode ? REGISTRO_TITULO : REGISTRO_GUARDADO;
-    document.getElementById('registro-nota').textContent = r.pode ?
-      (r.formatos === 1 ? 'O formato do job está aprovado.' : 'Os ' + r.formatos + ' formatos do job estão aprovados.') +
-        ' Guarde as regras de escala e as âncoras deste job para os próximos jobs desta marca.' :
-      'O padrão desta campanha está na versão ' + (r.versao_guardada || r.versao_atual) + ' da marca.' +
-        (r.versao_guardada && r.versao_guardada < r.versao_atual ?
-          ' A versão que vale agora é a ' + r.versao_atual + ', de uma campanha mais nova.' : '') +
-        ' Os próximos jobs dela mostram o padrão como sugestão.';
-    if (r.pode) {
-      b.dataset.dados = JSON.stringify({ impressao: r.impressao });
-      b.disabled = !escrita || pn.ocupado;
-    }
-  }
-  function linhaDoRegistro(lista, nome, valor, i) {
-    const li = el('li', null, 'registro-linha');
-    li.appendChild(el('span', maiuscula(nomeFuncao(i.funcao)), 'registro-funcao'));
-    li.appendChild(el('span', valor, 'registro-valor'));
-    const origem = el('span', i.desta_campanha ? 'deste job' : 'do job ' + nomeDoJob(i) + ', mantida',
-      'registro-origem');
-    if (!i.desta_campanha) origem.title = 'Este job não decidiu esta função. Ela fica como estava no padrão.';
-    li.appendChild(origem);
-    li.setAttribute('aria-label', nome + ' de ' + nomeFuncao(i.funcao) + ': ' + valor + ', ' + origem.textContent);
-    lista.appendChild(li);
-  }
-  /* o que a janela de confirmacao do registro mostra alem do texto do motor */
-  function extraDoRegistro() {
-    const r = registroDaMarca();
-    if (!r || !r.pode) return null;
-    const corpo = el('div', null, 'registro-extra');
-    [['Regras de escala', r.regras, function (i) { return maiuscula(nomeRegra(i.regra)); }],
-      ['Âncoras', r.ancoras, function (i) { return (ANCORA_Y[i.y] || i.y) + ' ' + (ANCORA_X[i.x] || i.x); }]
-    ].forEach(function (g) {
-      const bloco = el('section', null, 'registro-grupo');
-      const topo = el('div', null, 'registro-grupo-topo');
-      topo.appendChild(el('h3', g[0]));
-      topo.appendChild(el('span', String(g[1].length), 'registro-conta'));
-      bloco.appendChild(topo);
-      if (!g[1].length) bloco.appendChild(el('p', 'Nenhuma confirmada neste job.', 'nota'));
-      else {
-        const ul = el('ul', null, 'registro-lista');
-        g[1].forEach(function (i) { linhaDoRegistro(ul, g[0] === 'Âncoras' ? 'Âncora' : 'Regra', g[2](i), i); });
-        bloco.appendChild(ul);
-      }
-      corpo.appendChild(bloco);
-    });
-    const faces = el('section', null, 'registro-grupo');
-    const topo = el('div', null, 'registro-grupo-topo');
-    topo.appendChild(el('h3', 'Faces usadas'));
-    topo.appendChild(el('span', String(r.faces.length), 'registro-conta'));
-    faces.appendChild(topo);
-    if (!r.faces.length) faces.appendChild(el('p', 'Nenhuma face de texto no KV.', 'nota'));
-    else {
-      const ul = el('ul', null, 'formatos-do-ato registro-faces');
-      r.faces.forEach(function (f) { ul.appendChild(el('li', f, 'chip chip-neutro')); });
-      faces.appendChild(ul);
-    }
-    corpo.appendChild(faces);
-    corpo.appendChild(el('p', REGISTRO_FORA, 'nota registro-fora'));
-    return corpo;
   }
   function montarHistorico(h) {
     const ol = document.getElementById('historico-versoes');
