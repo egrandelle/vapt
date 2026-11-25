@@ -336,6 +336,42 @@ def test_job_criar_aceita_os_cinco_formatos_e_congela(tmp_path):
     assert not (tmp_path / 'job' / 'fontes').exists()
 
 
+def _eventos(job):
+    return [json.loads(x) for x in (job / 'log' / 'eventos.jsonl').read_text(encoding='utf-8').splitlines()]
+
+
+def test_pasta_do_google_fonts_usa_as_estaticas_sem_perguntar(tmp_path):
+    """0.18.0 (pedido do Duda): a pasta baixada do Google Fonts traz a licenca, o leia-me, a variable font na raiz e
+    as estaticas em static/. O job entra com as estaticas, sem recusar e sem perguntar."""
+    kv = _kv(tmp_path)
+    pasta = tmp_path / 'origem' / 'Sora'
+    ap.gravar(pasta, 'OFL.txt', b'SIL Open Font License')
+    ap.gravar(pasta, 'README.txt', b'Sora variable font')
+    ap.gravar(pasta, 'Sora-VariableFont_wght.ttf', ap.fonte(ps='Sora-Regular', variavel=True))
+    ap.gravar(pasta / 'static', 'Sora-Regular.ttf', ap.fonte(ps='Sora-Regular'))
+    ap.gravar(pasta / 'static', 'Sora-Bold.ttf', ap.fonte(ps='Sora-Bold'))
+    job = tmp_path / 'job'
+    estado = nucleo.criar(job, kv, 'c', fontes=[pasta])
+    assert sorted(r for r in estado['entradas'] if r.startswith('entrada/fontes/')) == [
+        'entrada/fontes/Sora-Bold.ttf', 'entrada/fontes/Sora-Regular.ttf']
+    eventos = _eventos(job)
+    assert any(e['evento'] == 'fontes_variaveis_ignoradas' and e['n'] == 1 for e in eventos)
+    assert any(e['evento'] == 'arquivos_que_nao_sao_fonte_ignorados' and e['n'] == 2 for e in eventos)
+
+
+def test_variavel_sem_estatica_ao_lado_continua_recusada(tmp_path):
+    """A variavel de uma familia sem estatica na pasta dela recusa o job, mesmo com a estatica de outra familia em
+    outra pasta da mesma origem (decisao 14)."""
+    kv = _kv(tmp_path)
+    pasta = tmp_path / 'origem' / 'fontes'
+    ap.gravar(pasta / 'Sora' / 'static', 'Sora-Bold.ttf', ap.fonte(ps='Sora-Bold'))
+    ap.gravar(pasta / 'Inter', 'Inter-VariableFont.ttf', ap.fonte(ps='Inter-Regular', variavel=True))
+    job = tmp_path / 'job'
+    with pytest.raises(ErroJob, match='Variable font'):
+        nucleo.criar(job, kv, 'c', fontes=[pasta])
+    assert not job.exists()
+
+
 def test_fonte_continua_recusada_em_campanha_e_specs_sem_mandar_instalar(tmp_path):
     kv = _kv(tmp_path)
     for opcao in ('campanha', 'specs'):

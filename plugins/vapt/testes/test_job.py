@@ -95,6 +95,85 @@ def test_criar_recusa_entradas_erradas(tmp_path, kv_psd):
         nucleo.criar(cheia, kv_psd, 'c')
 
 
+def test_criar_aceita_folha_de_spec_solta_e_pasta_sem_veiculador(tmp_path, kv_psd):
+    """0.18.0 (pedido do Duda): a folha chega como der, um PDF ou um CSV solto, ou uma pasta sem subpasta por
+    veiculador; o job entra com tudo em entrada/specs/, sem recusar."""
+    pdf = tmp_path / 'downloads' / 'spec globo.pdf'
+    pdf.parent.mkdir()
+    pdf.write_bytes(b'%PDF-1.4 x')
+    csv = tmp_path / 'mesa' / 'formatos.csv'
+    csv.parent.mkdir()
+    csv.write_bytes(b'Formato\n300x250\n')
+    pasta = tmp_path / 'pasta-solta'
+    pasta.mkdir()
+    (pasta / 'eletromidia.html').write_bytes(b'<html></html>')
+    (pasta / 'Thumbs.db').write_bytes(b'x')
+    estado = nucleo.criar(tmp_path / 'job', kv_psd, 'c', specs=[pdf, csv, pasta])
+    assert sorted(r for r in estado['entradas'] if r.startswith('entrada/specs/')) == [
+        'entrada/specs/eletromidia.html', 'entrada/specs/formatos.csv', 'entrada/specs/spec globo.pdf']
+    # um caminho so, fora de uma lista, vale como antes
+    so = nucleo.criar(tmp_path / 'job-um', kv_psd, 'c', specs=csv)
+    assert 'entrada/specs/formatos.csv' in so['entradas']
+
+
+def test_criar_recusa_spec_que_nao_existe(tmp_path, kv_psd):
+    with pytest.raises(ErroJob, match='não foi encontrado'):
+        nucleo.criar(tmp_path / 'j1', kv_psd, 'c', specs=[tmp_path / 'nao-existe.pdf'])
+    assert not (tmp_path / 'j1').exists()
+
+
+def test_criar_aceita_folhas_de_mesmo_nome_de_pastas_diferentes(tmp_path, kv_psd):
+    """Revisao da 0.18.0: especificacoes.pdf da pasta Globo e da pasta Band nao param o job; a segunda entra com o
+    nome da pasta de onde veio (o veiculador dela), e a terceira repetida ganha um numero."""
+    for pasta in ('Globo', 'Band'):
+        (tmp_path / pasta).mkdir()
+        (tmp_path / pasta / 'especificacoes.pdf').write_bytes(b'%PDF-1.4 ' + pasta.encode())
+    (tmp_path / 'Band' / 'Band').mkdir()
+    (tmp_path / 'Band' / 'Band' / 'Especificacoes.pdf').write_bytes(b'%PDF-1.4 x')
+    estado = nucleo.criar(tmp_path / 'job', kv_psd, 'c',
+                          specs=[tmp_path / 'Globo', tmp_path / 'Band' / 'especificacoes.pdf',
+                                 tmp_path / 'Band' / 'Band' / 'Especificacoes.pdf'])
+    assert sorted(r for r in estado['entradas'] if r.startswith('entrada/specs/')) == [
+        'entrada/specs/Band/especificacoes.pdf', 'entrada/specs/Especificacoes-2.pdf',
+        'entrada/specs/especificacoes.pdf']
+
+
+def test_trocar_folha_de_spec_sem_saber_o_veiculador(tmp_path, kv_psd):
+    """Revisao da 0.18.0: o Claude nao pergunta o veiculador. Acrescentar nunca escreve por cima de outra folha;
+    trocar acha a folha pelo nome do arquivo, em qualquer subpasta, e recusa quando o nome e ambiguo."""
+    origem = tmp_path / 'origem'
+    (origem / 'globo').mkdir(parents=True)
+    (origem / 'globo' / 'pagina2.html').write_bytes(b'<html>velha</html>')
+    (origem / 'especificacoes.pdf').write_bytes(b'%PDF-1.4 globo')
+    job = tmp_path / 'job'
+    nucleo.criar(job, kv_psd, 'c', specs=[origem])
+    nova = tmp_path / 'novas' / 'especificacoes.pdf'
+    nova.parent.mkdir()
+    nova.write_bytes(b'%PDF-1.4 band')
+    estado, _a = nucleo.trocar_entrada(job, 'entrada/specs/especificacoes.pdf', nova, acrescentar=True)
+    assert (job / 'entrada/specs/especificacoes.pdf').read_bytes() == b'%PDF-1.4 globo'
+    assert (job / 'entrada/specs/especificacoes-2.pdf').read_bytes() == b'%PDF-1.4 band'
+    pagina = tmp_path / 'novas' / 'pagina2.html'
+    pagina.write_bytes(b'<html>nova</html>')
+    estado, _a = nucleo.trocar_entrada(job, 'entrada/specs/pagina2.html', pagina)
+    assert (job / 'entrada/specs/globo/pagina2.html').read_bytes() == b'<html>nova</html>'
+    assert 'entrada/specs/pagina2.html' not in estado['entradas']
+    nucleo.trocar_entrada(job, 'entrada/specs/pagina2.html', pagina, acrescentar=True)
+    with pytest.raises(ErroJob, match='mais de uma folha'):
+        nucleo.trocar_entrada(job, 'entrada/specs/PAGINA2.HTML', pagina)
+    with pytest.raises(ErroJob, match='acrescentar'):
+        nucleo.trocar_entrada(job, 'entrada/campanha/x.txt', pagina, acrescentar=True)
+
+
+def test_cli_job_criar_aceita_varias_specs(tmp_path, kv_psd):
+    from vapt.job import registrar
+    import argparse
+    p = argparse.ArgumentParser()
+    registrar(p.add_subparsers(dest='cmd'))
+    a = p.parse_args(['job', 'criar', str(tmp_path / 'job'), '--kv', str(kv_psd), '--specs', 'a.pdf', 'b.csv'])
+    assert a.specs == ['a.pdf', 'b.csv']
+
+
 @pytest.mark.parametrize('nome, conteudo', [('fonte.otf', b'qualquer'), ('sem-extensao', b'OTTO\x00\x00'),
                                             ('outra.bin', b'wOF2abcd')])
 def test_criar_recusa_arquivo_de_fonte(tmp_path, kv_psd, nome, conteudo):

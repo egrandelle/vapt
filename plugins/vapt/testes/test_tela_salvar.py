@@ -732,6 +732,19 @@ def test_situacao_na_tela_diz_salvo_quando_salvar_nao_mudaria_o_briefing(job, mo
     assert bs._decisoes(novo) == bs._decisoes(b)
 
 
+def test_situacao_na_tela_usa_a_mesma_leitura_das_sugestoes_do_salvar(job, modelo):
+    # 0.18.0 (pedido do Duda: o "Salvar e seguir" ligado depois de salvar sem mudar nada): a situacao do briefing le
+    # as sugestoes pela mesma funcao da tela que o salvar usa (o teto desta tela), e nao pelo teto do job
+    conteudo, _e = _salvo_e_corrigido(job, modelo, _passo_2(modelo['funcoes']))
+    lidas = []
+
+    def ler():
+        lidas.append(1)
+        return conteudo['sugestoes']() if callable(conteudo.get('sugestoes')) else {'sha256': None}
+    assert bs.situacao_na_tela(job, _familias(conteudo), None, ler)['salvo'] is True
+    assert lidas
+
+
 def test_situacao_na_tela_conta_a_origem_da_confirmacao_e_nao_a_hora(job, modelo):
     # a hora da confirmacao muda a cada clique e nao e decisao; a origem e o meio sao o que o portao da entrega pede
     _salvo_e_corrigido(job, modelo, _passo_2(modelo['funcoes']))

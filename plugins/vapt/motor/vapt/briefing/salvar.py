@@ -447,14 +447,16 @@ def _decisoes(b):
     return saida
 
 
-def situacao_na_tela(pasta, familias, biblioteca=None):
+def situacao_na_tela(pasta, familias, biblioteca=None, sugestoes=None):
     """{'salvo', 'em'} para a tela: salvo quando "Salvar e seguir" nao mudaria o briefing gravado, que vale para os
     arquivos do job e tem as familias da tela confirmadas. O briefing que o gravador montaria agora sai do mesmo montar
     (o rascunho da tela: passo 1, passo 2 e Design system, familias com versao, edicoes e quebras; o modo de dados; o
     resto do gravado), com a origem do gravado, e e comparado com ele fora do cabecalho e do carimbo das confirmacoes
     (_decisoes): nenhum campo que o gravador escreve fica de fora (correcao do D1 do E1, a funcao trocada no passo 2
     deixava a tela em "Briefing salvo"). familias: {id: [formatos]}. biblioteca: a pasta da biblioteca da
-    agencia que a tela recebeu (M7c, M4: a origem padrao_marca do rascunho so conta com o perfil atual)."""
+    agencia que a tela recebeu (M7c, M4: a origem padrao_marca do rascunho so conta com o perfil atual). sugestoes
+    (0.18.0): a mesma leitura das sugestoes que o salvar da tela usa (conteudo['sugestoes'], com o teto desta tela);
+    sem ela, o teto do job, e a referencia das sugestoes podia diferir da gravada sem mudanca nenhuma do DA."""
     from vapt.briefing import modelo as mb
     nao = {'salvo': False, 'em': None}
     try:
@@ -477,7 +479,8 @@ def situacao_na_tela(pasta, familias, biblioteca=None):
             return nao
     origem = b['cabecalho']['origem']
     try:
-        novo = montar(pasta, {'familias': _com_a_estrutura(b, dados, familias), 'pasta_biblioteca': biblioteca},
+        novo = montar(pasta, {'familias': _com_a_estrutura(b, dados, familias), 'pasta_biblioteca': biblioteca,
+                              'sugestoes': sugestoes},
                       dados,
                       origem=origem, meio=b['cabecalho'].get('meio'), por={}, quando=None, modo=_modo(pasta, origem))
     except (contratos.ErroContrato, KeyError, TypeError, ValueError):

@@ -153,16 +153,27 @@ def _recusar_fontes(arquivos):
             raise ErroJob(MENSAGEM_FONTE_FORA, o_que_fazer=O_QUE_FAZER_FONTE_FORA)
 
 
-def _arquivos_de_fonte_oferecidos(origens, ignorados=None):
-    """Arquivos de --fontes (arquivos soltos ou pastas; no destino ficam lado a lado). Devolve [(nome, caminho)]."""
+def _arquivos_de_fonte_oferecidos(origens, ignorados=None, nao_fonte=None):
+    """Arquivos de --fontes (arquivos soltos ou pastas; no destino ficam lado a lado). Devolve [(nome, caminho,
+    da_pasta)], com da_pasta verdadeiro no arquivo que veio de dentro de uma pasta. 0.18.0 (pedido do Duda): numa
+    pasta, o arquivo que nao e fonte (a licenca OFL.txt e o README.txt da pasta baixada do Google Fonts, uma amostra
+    em PDF) fica de fora sem recusar o job; soma em nao_fonte[0]. O arquivo solto que nao e fonte continua recusado."""
+    from vapt.arquivos import classificar_fonte
     saida, nomes = [], set()
     ignorados = ignorados if ignorados is not None else [0]
+    nao_fonte = nao_fonte if nao_fonte is not None else [0]
     for origem in origens or ():
         origem = Path(origem).resolve()
         if origem.is_dir():
-            lista = _sem_arquivos_do_sistema(_arquivos_de(origem), ignorados)
+            lista = []
+            for p in _sem_arquivos_do_sistema(_arquivos_de(origem), ignorados):
+                if classificar_fonte(p)[1] == 'nao_e_fonte':
+                    nao_fonte[0] += 1
+                else:
+                    lista.append(p)
+            da_pasta = True
         elif origem.is_file():
-            lista = _sem_arquivos_do_sistema([origem], ignorados)
+            lista, da_pasta = _sem_arquivos_do_sistema([origem], ignorados), False
         else:
             raise ErroJob('Um dos caminhos de --fontes não foi encontrado.',
                           o_que_fazer='Confira os caminhos passados em --fontes.')
@@ -171,8 +182,82 @@ def _arquivos_de_fonte_oferecidos(origens, ignorados=None):
                 raise ErroJob('Dois arquivos de fonte têm o mesmo nome.',
                               o_que_fazer='Renomeie um deles: entrada/fontes/ guarda os arquivos lado a lado.')
             nomes.add(p.name.casefold())
-            saida.append((p.name, p))
+            saida.append((p.name, p, da_pasta))
     return saida
+
+
+def _sem_as_variaveis_com_estatica(oferecidas, pasta_trabalho):
+    """0.18.0 (pedido do Duda): confere cada fonte oferecida no filho isolado e devolve (aceitas, n de variaveis
+    deixadas de fora). A variable font que veio de dentro de uma pasta fica de fora, sem perguntar, quando a pasta
+    dela ou uma subpasta (a static/ do Google Fonts) trouxe uma fonte estatica aceita: o job usa as estaticas
+    (decisao 14). A variavel sem estatica ao lado, a passada solta e qualquer outra recusa recusam o job, como antes.
+    Pular a variavel nunca troca a face calada: a conferencia das fontes casa o nome PostScript com as estaticas e
+    acusa a face que faltar."""
+    from vapt import fontes
+    aceitas, variaveis = [], []
+    for i, (nome, arq, da_pasta) in enumerate(oferecidas, 1):
+        _formato, recusa = fontes.validar_arquivo(arq, Path(pasta_trabalho) / str(i))
+        if recusa == 'variavel' and da_pasta:
+            variaveis.append(arq)
+        elif recusa:
+            raise _erro_de_fonte(recusa)
+        else:
+            aceitas.append((nome, arq))
+    for arq in variaveis:
+        if not any(arq.parent in a.parents for _nome, a in aceitas):
+            raise _erro_de_fonte('variavel')
+    return aceitas, len(variaveis)
+
+
+def _erro_de_fonte(recusa):
+    from vapt import fontes
+    return ErroJob('Arquivo de fonte recusado: %s' % fontes.MENSAGENS_RECUSA.get(recusa, recusa),
+                   o_que_fazer=fontes.O_QUE_FAZER_RECUSA)
+
+
+def _folhas_de_spec_oferecidas(origens, ignorados):
+    """Arquivos de --specs (0.18.0, pedido do Duda: a folha chega solta, em PDF ou CSV, ou numa pasta qualquer). Cada
+    origem e um arquivo ou uma pasta; a pasta entra com as subpastas dela (a subpasta por veiculador continua valendo),
+    e o arquivo solto entra direto em entrada/specs/, onde a leitura ja o trata como um veiculador so, com o nome do
+    arquivo (vapt.specs.importar). Um caminho so, fora de uma lista, vale como antes. Duas folhas com o mesmo caminho
+    em entrada/specs/ (especificacoes.pdf da pasta Globo e da pasta Band) nao param o job: a segunda entra numa
+    subpasta com o nome da pasta de onde veio, que vira o veiculador dela, ou, se ainda repetir, com um numero no fim
+    do nome (_nome_livre). Devolve [(rel, caminho)]."""
+    if isinstance(origens, (str, os.PathLike)):
+        origens = [origens]
+    saida, rels = [], set()
+    for origem in origens or ():
+        origem = Path(origem).resolve()
+        if origem.is_dir():
+            lista = [(a.relative_to(origem).as_posix(), a, origem.name)
+                     for a in _sem_arquivos_do_sistema(_arquivos_de(origem), ignorados)]
+        elif origem.is_file():
+            lista = [(origem.name, origem, origem.parent.name)] if _sem_arquivos_do_sistema([origem], ignorados) else []
+        else:
+            raise ErroJob('O arquivo ou a pasta de specs não foi encontrado.',
+                          o_que_fazer='Confira os caminhos passados em --specs.')
+        _recusar_fontes([a for _rel, a, _pasta in lista])
+        for rel, a, nome_da_pasta in lista:
+            rel = _nome_livre(rel, nome_da_pasta, rels)
+            rels.add(rel.casefold())
+            saida.append((rel, a))
+    return saida
+
+
+def _nome_livre(rel, nome_da_pasta, usados):
+    """rel quando ninguem o usa (casefold); senao <pasta de onde veio>/rel; senao rel com -2, -3... antes da
+    extensao. usados: os rels ja tomados, em casefold."""
+    if rel.casefold() not in usados:
+        return rel
+    if nome_da_pasta and ('%s/%s' % (nome_da_pasta, rel)).casefold() not in usados:
+        return '%s/%s' % (nome_da_pasta, rel)
+    base = Path(rel)
+    n = 2
+    while True:
+        novo = base.with_name('%s-%d%s' % (base.stem, n, base.suffix)).as_posix()
+        if novo.casefold() not in usados:
+            return novo
+        n += 1
 
 
 def validar_fonte(caminho, pasta_trabalho):
@@ -180,8 +265,7 @@ def validar_fonte(caminho, pasta_trabalho):
     from vapt import fontes
     _formato, recusa = fontes.validar_arquivo(caminho, pasta_trabalho)
     if recusa:
-        raise ErroJob('Arquivo de fonte recusado: %s' % fontes.MENSAGENS_RECUSA.get(recusa, recusa),
-                      o_que_fazer=fontes.O_QUE_FAZER_RECUSA)
+        raise _erro_de_fonte(recusa)
 
 
 def conferir_entradas(pasta, estado):
@@ -387,26 +471,26 @@ def criar(pasta, psd, modo_dados=None, teto_modo_dados=None, campanha=None, spec
     if extensao not in ('.psd', '.psb') or not tem_assinatura_psd(psd):
         raise ErroJob('O arquivo do KV não é um PSD nem um PSB.',
                       o_que_fazer='Passe em --kv o arquivo .psd ou .psb salvo pelo Photoshop.')
-    pastas_extra = {}
+    extras = []
     ignorados = [0]
-    for nome, origem in (('campanha', campanha), ('specs', specs)):
-        if origem is None:
-            continue
-        origem = Path(origem).resolve()
+    if campanha is not None:
+        origem = Path(campanha).resolve()
         if not origem.is_dir():
-            raise ErroJob('A pasta de %s não foi encontrada.' % nome, o_que_fazer='Confira o caminho passado em --%s.' % nome)
+            raise ErroJob('A pasta de campanha não foi encontrada.', o_que_fazer='Confira o caminho passado em --campanha.')
         arquivos = _sem_arquivos_do_sistema(_arquivos_de(origem), ignorados)
         _recusar_fontes(arquivos)
-        pastas_extra[nome] = (origem, arquivos)
-    oferecidas = _arquivos_de_fonte_oferecidos(fontes, ignorados)
+        extras.extend(('entrada/campanha/%s' % a.relative_to(origem).as_posix(), a) for a in arquivos)
+    extras.extend(('entrada/specs/%s' % rel, a) for rel, a in _folhas_de_spec_oferecidas(specs, ignorados))
+    nao_fonte = [0]
+    oferecidas = _arquivos_de_fonte_oferecidos(fontes, ignorados, nao_fonte)
 
     existia = pasta.exists()
     for sub in PASTAS_DO_JOB:
         (pasta / sub).mkdir(parents=True, exist_ok=True)
     try:
-        # cada fonte e conferida no filho isolado antes de entrar (variable font e arquivo que nao abre ficam fora)
-        for i, (_nome, arq) in enumerate(oferecidas, 1):
-            validar_fonte(arq, pasta / 'fontes' / '.trabalho' / str(i))
+        # cada fonte e conferida no filho isolado antes de entrar (variable font e arquivo que nao abre ficam fora;
+        # 0.18.0: a variavel com a estatica ao lado, na mesma pasta, sai sem recusar)
+        oferecidas, variaveis = _sem_as_variaveis_com_estatica(oferecidas, pasta / 'fontes' / '.trabalho')
     except ErroJob:
         _desfazer_criacao(pasta, existia)
         raise
@@ -414,10 +498,8 @@ def criar(pasta, psd, modo_dados=None, teto_modo_dados=None, campanha=None, spec
     entradas = {}
     rel_kv = 'entrada/kv%s' % extensao
     entradas[rel_kv] = _copiar_congelado(psd, pasta / rel_kv)
-    for nome, (origem, arquivos) in pastas_extra.items():
-        for arq in arquivos:
-            rel = 'entrada/%s/%s' % (nome, arq.relative_to(origem).as_posix())
-            entradas[rel] = _copiar_congelado(arq, pasta / rel)
+    for rel, arq in extras:
+        entradas[rel] = _copiar_congelado(arq, pasta / rel)
     for nome, arq in oferecidas:
         entradas['entrada/fontes/%s' % nome] = _copiar_congelado(arq, pasta / 'entrada' / 'fontes' / nome)
 
@@ -432,6 +514,10 @@ def criar(pasta, psd, modo_dados=None, teto_modo_dados=None, campanha=None, spec
     registrar_evento(pasta, 'job_criado', job_id=estado['job_id'], n_entradas=len(entradas), n_fontes=len(oferecidas))
     if ignorados[0]:
         registrar_evento(pasta, 'arquivos_do_sistema_ignorados', n=ignorados[0])
+    if nao_fonte[0]:
+        registrar_evento(pasta, 'arquivos_que_nao_sao_fonte_ignorados', n=nao_fonte[0])
+    if variaveis:
+        registrar_evento(pasta, 'fontes_variaveis_ignoradas', n=variaveis)
     return estado
 
 
@@ -454,7 +540,11 @@ def _desfazer_criacao(pasta, existia):
 
 
 # ------------------------------------------------------------------ trocar entrada
-def trocar_entrada(pasta, rel, novo, fases=ESTEIRA):
+def trocar_entrada(pasta, rel, novo, fases=ESTEIRA, acrescentar=False):
+    """0.18.0: as skills nao perguntam o veiculador da folha de spec. acrescentar (so em entrada/specs/) poe a folha
+    nova sem nunca escrever por cima de outra: o nome repetido ganha um numero (_nome_livre). Sem acrescentar, a
+    folha entrada/specs/<nome> que nao existe com esse caminho troca a unica folha do job com esse nome de arquivo,
+    em qualquer subpasta; com mais de uma, recusa."""
     pasta, novo = Path(pasta).resolve(), Path(novo).resolve()
     with Trava(pasta):
         estado = ler_estado(pasta)
@@ -462,6 +552,7 @@ def trocar_entrada(pasta, rel, novo, fases=ESTEIRA):
         if not rel.startswith('entrada/') or '..' in Path(rel).parts:
             raise ErroJob('O caminho da entrada tem de começar com entrada/.', codigo=Codigo.USO,
                           o_que_fazer='Use o caminho relativo à pasta do job, por exemplo entrada/kv.psd.')
+        rel = _folha_de_spec_alvo(estado, rel, acrescentar)
         de_fonte = rel.startswith('entrada/fontes/')
         if de_fonte and (len(Path(rel).parts) != 3 or Path(rel).name.startswith(PREFIXO_TEMPORARIO)):  # numero-neutro: entrada/fontes/<arquivo>
             raise ErroJob('A fonte entra direto em entrada/fontes/, sem subpasta.', codigo=Codigo.USO,
@@ -498,6 +589,30 @@ def trocar_entrada(pasta, rel, novo, fases=ESTEIRA):
         registrar_evento(pasta, 'entrada_trocada', invalidadas=sorted(k for k, (v, _m) in avaliacao.items() if not v),
                          masters_invalidados=n_render)
         return estado, avaliacao
+
+
+PREFIXO_SPECS = 'entrada/specs/'
+
+
+def _folha_de_spec_alvo(estado, rel, acrescentar):
+    """O caminho em que trocar_entrada grava (0.18.0). Fora de entrada/specs/, rel como veio (acrescentar recusado)."""
+    if not rel.startswith(PREFIXO_SPECS):
+        if acrescentar:
+            raise ErroJob('Só dá para acrescentar com --acrescentar em entrada/specs/.', codigo=Codigo.USO,
+                          o_que_fazer='Tire --acrescentar ou use entrada/specs/<nome do arquivo>.')
+        return rel
+    specs = [r for r in estado['entradas'] if r.startswith(PREFIXO_SPECS)]
+    if acrescentar:
+        return PREFIXO_SPECS + _nome_livre(rel[len(PREFIXO_SPECS):], None,
+                                           {r[len(PREFIXO_SPECS):].casefold() for r in specs})
+    if rel in estado['entradas'] or len(Path(rel).parts) != 3:  # numero-neutro: entrada/specs/<arquivo>
+        return rel
+    iguais = [r for r in specs if Path(r).name.casefold() == Path(rel).name.casefold()]
+    if len(iguais) > 1:
+        raise ErroJob('Há mais de uma folha de spec com este nome no job.', codigo=Codigo.USO,
+                      o_que_fazer='Pergunte ao DA de qual veiculador é a folha e use '
+                                  'entrada/specs/<veiculador>/<nome do arquivo>.')
+    return iguais[0] if iguais else rel
 
 
 # ------------------------------------------------------------------ remover entrada

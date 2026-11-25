@@ -1,17 +1,15 @@
 {
   "name": "vapt",
-  "description": "Marketplace privado da Trezion com o plugin Vapt",
+  "description": "Marketplace privado com o plugin Vapt",
   "owner": {
-    "name": "Trezion.io",
-    "url": "https://trezion.io"
+    "name": "Eduardo Grandelle"
   },
   "plugins": [
     {
       "name": "vapt",
       "source": "./plugins/vapt",
       "author": {
-        "name": "Trezion.io",
-        "url": "https://trezion.io"
+        "name": "Eduardo Grandelle"
       },
       "description": "Desdobra peças de mídia estática (OOH, DOOH e banner digital) a partir do PSD do KV"
     }

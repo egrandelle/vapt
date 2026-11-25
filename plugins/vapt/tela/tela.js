@@ -417,7 +417,7 @@
         rascunho.falha = null;
         avisarNoRodape('');
       })
-      .then(function () { return refazer ? refazerPasso3().then(function (x) { fim(); return x; }, function (e) { fim(); throw e; }) : null; })
+      .then(function () { return refazer ? refazerPasso3().then(function (x) { fim(); return x; }, function (e) { fim(); throw e; }) : conferirSalvo(); })
       .then(function () { atualizarSalvar(); redesenharEspera(); return true; })
       .catch(function (e) {
         if (!gravou) fim();
@@ -471,6 +471,18 @@
      de novo; enquanto o passo 2 nao fecha, o passo 3 espera e diz o que falta */
   function refazerPasso3() {
     return pedir('/api/estado').then(aplicarEstado);
+  }
+  /* 0.18.0 (pedido do Duda): a mudanca que nao muda o briefing (a escolha desfeita, o mesmo valor de novo) nao deixa
+     o "Salvar e seguir" ligado. Com um briefing ja gravado, depois do rascunho gravado o servidor diz de novo se o
+     salvar mudaria alguma coisa (briefing.salvar.situacao_na_tela); sem briefing gravado, nada a conferir */
+  function conferirSalvo() {
+    if (salvoNaTela || !(estado && estado.briefing && estado.briefing.em)) return null;
+    return pedir('/api/estado').then(function (e) {
+      // outra mudanca chegou enquanto o servidor respondia: a proxima gravacao confere de novo
+      if (rascunho.espera_id !== null) return;
+      estado.briefing = e.briefing;
+      salvoNaTela = !!(e.briefing && e.briefing.salvo);
+    }, function () { /* sem resposta, o botao fica ligado, como antes */ });
   }
   /* o estado novo do servidor inteiro na pagina: o passo 1, a arvore do passo 2 quando a prancheta mudou, o passo 3 e
      os avisos (depois de um ato ou do rascunho gravado com escolha que muda o layout) */

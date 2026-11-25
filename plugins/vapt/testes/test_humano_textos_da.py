@@ -53,6 +53,8 @@ SO_DO_CLAUDE = {
     'trocar_entrada': 'erro de uso do job trocar-entrada (caminho relativo, caixa, arquivo novo)',
     'remover_entrada': 'erro de uso do job remover-entrada (caminho da fonte)',
     '_arquivos_de_fonte_oferecidos': 'erro de uso de --fontes do job criar',
+    '_folhas_de_spec_oferecidas': 'erro de uso de --specs do job criar',
+    '_folha_de_spec_alvo': 'erro de uso de --acrescentar do job trocar-entrada',
     '_recusar_fontes': 'erro de uso do job criar (fonte na pasta de campanha ou de specs)',
 }
 CONSTANTES_SO_DO_CLAUDE = {'O_QUE_FAZER_FONTE_FORA': 'erro de uso do job criar (fonte em --campanha ou --specs)'}
@@ -320,6 +322,11 @@ USO_PELO_NOME_DA_OPCAO = {
     ('job/nucleo.py', 'Confira o nome do arquivo, com a mesma caixa (maiúsculas e minúsculas) do que foi passado em '
                       '--fontes.'): _CRIAR,
     ('job/nucleo.py', 'Confira os caminhos passados em --fontes.'): _CRIAR,
+    # 0.18.0: --specs aceita arquivos e pastas, e --campanha ficou com o texto proprio
+    ('job/nucleo.py', 'Confira os caminhos passados em --specs.'): _CRIAR,
+    ('job/nucleo.py', 'Confira o caminho passado em --campanha.'): _CRIAR,
+    ('job/nucleo.py', 'Tire --acrescentar ou use entrada/specs/<nome do arquivo>.'): 'erro de uso do job trocar-entrada',
+    ('job/nucleo.py', 'Só dá para acrescentar com --acrescentar em entrada/specs/.'): 'erro de uso do job trocar-entrada',
     ('regressao/__init__.py', 'Nenhum PSD ou PSB foi achado no corpus. Confira a pasta passada em --corpus.'):
         _REGRESSAO,
     ('regressao/__init__.py', 'A pasta de saída fica dentro do repositório do plugin, e o relatório da regressão leva '

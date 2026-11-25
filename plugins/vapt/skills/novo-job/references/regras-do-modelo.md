@@ -16,7 +16,7 @@ O gancho do plugin nega a leitura desses arquivos. Não procure outro caminho pa
 - Render, confirmação de linkado, confirmação de spec, confirmação de briefing, aprovação e entrega são atos só do DA, com um clique na tela. Você nunca dispara nenhum deles, nunca edita os arquivos que eles gravam e nunca manda o DA para o terminal.
 - Você nunca calcula geometria, posição, escala, corpo, limite nem valor de spec.
 - Você nunca manda o DA instalar fonte no sistema. A fonte entra no job só pelo arquivo enviado.
-- Você nunca pede ao DA um caminho relativo da pasta do job. Peça sempre o caminho absoluto, com a dica de copiar o caminho no Explorador de Arquivos ou no Finder.
+- Você não pergunta a pasta do job quando ela já é conhecida: no job novo, ela é a subpasta `output-vapt` da pasta de trabalho da sessão; nas outras skills, a pasta que o DA passou ou essa mesma `output-vapt`. Quando você precisar da pasta, peça o caminho absoluto, com a dica de copiar o caminho no Explorador de Arquivos ou no Finder. Nunca aceite um caminho relativo.
 
 ## O `o_que_fazer` do motor
 

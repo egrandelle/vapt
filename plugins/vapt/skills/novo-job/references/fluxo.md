@@ -9,7 +9,7 @@ Enquanto o DA não escolhe o modo de dados no passo 1 da tela, o envelope sai no
 O `job criar` recusa o job inteiro quando um arquivo não serve. Explique ao DA só o motivo que o `o_que_fazer` traz. Quando a recusa é de fonte, o `o_que_fazer` diz quais formatos entram. Use estas frases para explicar, só nesse caso:
 - entram OTF, TTF, TTC (e OTC), WOFF e WOFF2, um arquivo solto por face ou coleção. O Vapt reconhece o formato pela assinatura gravada dentro do arquivo;
 - ficam de fora variable font, fonte Type 1 (PFB, PFA, PFM, AFM, T42), pacote compactado e arquivo que não abre como fonte;
-- fonte entra só pela entrada de fontes. Arquivo de fonte dentro da pasta de specs é recusado;
+- fonte entra só pela entrada de fontes. Arquivo de fonte entre as folhas de spec é recusado;
 - numa pasta, dois arquivos com o mesmo nome dão erro, porque o job guarda as fontes lado a lado. Os arquivos que o sistema grava sozinho (`.DS_Store`, `Thumbs.db`, `desktop.ini` e os `._*` do Mac) ficam de fora sem erro.
 
 Quando a recusa é de folha de spec, explique só o que o `o_que_fazer` traz: em geral, a planilha entra exportada em CSV, a página do veiculador entra salva em HTML e o e-mail entra salvo em texto.

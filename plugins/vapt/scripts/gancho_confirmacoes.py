@@ -87,7 +87,14 @@ Revisao de 23/11/2026 (falsos positivos vistos no uso): a palavra solta de um te
 conta como caminho com barra, unidade, til, curinga ou extensao negada (o valor inteiro de um campo segue contando
 quando existe); a leitura pelo terminal acompanha o cd literal feito antes no mesmo comando (_segmentos_com_pasta); e
 as redirecoes que nao gravam arquivo (2>&1, > $null, > /dev/null, > NUL) nao contam como escrita (_escreve).
+
+Revisao de 25/11/2026 (falsos positivos do codigo que grava arquivo): com CODIGO_QUE_GRAVA no comando, a variavel do
+shell atribuida uma vez so, com valor literal, no comeco do comando (D="/pasta"; ... "$D") e trocada pelo valor e
+conferida como caminho (_variaveis_literais); e o curinga do codigo (sys.argv[1], r'[^"]+', a * b) so conta quando pode
+alcancar um escrito do motor ou quando a pasta e a sugestoes (_curinga_alcanca_o_motor). A variavel que o gancho nao
+resolve continua negada.
 """
+import fnmatch
 import glob
 import json
 import os
@@ -403,6 +410,20 @@ SEPARADOR_DE_COMANDO = re.compile(r'\|\|?|&&|;|\n|(?<![>\d])&(?!\d)')
 # revisao do S3: o nome que o shell monta na hora (variavel, substituicao de comando, curinga); na pasta do cd, chaves
 NOME_MONTADO = re.compile(r'[$%`*?\[]')
 PASTA_MONTADA = re.compile(r'[$%`*?\[{]')
+# revisao de 25/11/2026: no codigo que grava, so a expansao do shell (variavel, substituicao, %VAR% do cmd) deixa o nome
+# incerto em qualquer pasta; o curinga (* ? [) do codigo conta quando pode alcancar um escrito do motor
+NOME_MONTADO_PELO_SHELL = re.compile(r'[$`]|%\w+%')
+CURINGA = re.compile(r'[*?\[]')
+SO_CURINGA = re.compile(r'[*?]+')
+MUDA_DE_PASTA = re.compile(r'chdir|Set-Location|Push-Location|(?<![\w-])(?:cd|pushd|sl)(?![\w-])', re.IGNORECASE)
+# a variavel atribuida no comeco do comando: Bash (NOME=valor, export NOME=valor) e PowerShell ($NOME = "valor"), com
+# valor literal (sem $, crase nem barra invertida), seguida de ;, && ou quebra de linha
+ATRIBUICAO_NO_COMECO = re.compile(
+    r'\s*(?:(?:export|declare|local|readonly)\s+)?(?P<b>[A-Za-z_]\w*)='
+    r'(?P<vb>"[^"$`\\\n]*"|\'[^\'\n]*\'|[^\s;&|$`"\'\\<>()]+)'
+    r'|\s*\$(?P<p>[A-Za-z_]\w*)\s*=\s*(?P<vp>"[^"$`\n]*"|\'[^\'\n]*\')')
+FIM_DA_ATRIBUICAO = re.compile(r'[ \t]*(?:;|&&|\n)')
+USO_DE_VARIAVEL = re.compile(r'\$\{([A-Za-z_]\w*)\}|\$([A-Za-z_]\w*)')
 LIMITE_DAS_CHAVES = 64  # numero-neutro: so limita a expansao de chaves que o gancho confere
 # codigo que grava arquivo (Python, PowerShell, Node): nega com um caminho protegido em qualquer ponto do comando
 CODIGO_QUE_GRAVA = re.compile(r'write_text|write_bytes|WriteAll\w*|AppendAll\w*|'
@@ -518,7 +539,60 @@ def _pasta_e_de_sugestoes(pasta):
     return any(PASTA_DE_SUGESTOES in _partes_do_caminho(p) for p in (pasta, _real(pasta)))
 
 
-def _protegido(caminho, cwd, pelo_nome=False, cita=False):
+def _variaveis_literais(comando):
+    """{nome: valor} das variaveis atribuidas uma vez so, com valor literal, no comeco do comando. A variavel que volta
+    a aparecer no resto do comando sem ser uso ($NOME, ${NOME}), como nova atribuicao, read, for, -v ou Set-Variable,
+    fica de fora (incerta). O nome e conferido sem caixa: o PowerShell nao distingue."""
+    vistas, pos = {}, 0
+    while True:
+        m = ATRIBUICAO_NO_COMECO.match(comando, pos)
+        fim = FIM_DA_ATRIBUICAO.match(comando, m.end()) if m else None
+        if not fim:
+            break
+        nome = (m.group('b') or m.group('p')).lower()
+        valor = m.group('vb') if m.group('b') else m.group('vp')
+        if valor[:1] in ('"', "'"):
+            valor = valor[1:-1]
+        vistas[nome] = None if nome in vistas else valor
+        pos = fim.end()
+    resto = comando[pos:]
+    saida = {}
+    for nome, valor in vistas.items():
+        if valor is None or NOME_MONTADO_PELO_SHELL.search(valor):
+            continue
+        n = re.escape(nome)
+        if re.search(r'(?<![\w$])(?<!\$\{)' + n + r'(?![\w])', resto, re.IGNORECASE):
+            continue
+        if re.search(r'\$\{?' + n + r'\}?\s*(?:[-+*/%]?=(?!=)|\+\+|--)', resto, re.IGNORECASE):
+            continue
+        saida[nome] = valor
+    return saida
+
+
+def _expandir_variaveis(palavra, variaveis):
+    """A palavra com as variaveis resolvidas trocadas pelo valor; as outras ficam como estao (e seguem incertas)."""
+    if not variaveis or '$' not in palavra:
+        return palavra
+    return USO_DE_VARIAVEL.sub(
+        lambda m: variaveis.get((m.group(1) or m.group(2)).lower(), m.group(0)), palavra)
+
+
+def _curinga_alcanca_o_motor(caminho, muda_de_pasta):
+    """True se algum segmento com curinga pode casar com um escrito do motor (pacote-m*.json, miniatura?). O segmento
+    so de curinga (*, ?) conta quando o comando muda de pasta; sem isso, ele cai no cwd e a conferencia do curinga em
+    _protegido ja o expande."""
+    alvos = NOMES_DO_MOTOR_EM_SUGESTOES + (PASTA_DE_MINIATURAS,)
+    for parte in _partes_do_caminho(caminho):
+        if not CURINGA.search(parte):
+            continue
+        if SO_CURINGA.fullmatch(parte) and not muda_de_pasta:
+            continue
+        if any(fnmatch.fnmatchcase(a, parte) for a in alvos):
+            return True
+    return False
+
+
+def _protegido(caminho, cwd, pelo_nome=False, cita=False, codigo=False, muda_de_pasta=False):
     """True se a palavra do shell, como destino de escrita, cai num escrito do motor em sugestoes/: pelo nome pedido,
     pelo alvo real (ligacao simbolica de nome inocente) e pelo curinga que se expande para ele.
 
@@ -526,7 +600,11 @@ def _protegido(caminho, cwd, pelo_nome=False, cita=False):
     escape da Bash (\\) e tirado numa segunda leitura. O nome montado na hora (variavel, substituicao de comando,
     curinga) conta quando a parte fixa dele cai numa pasta sugestoes, quando o comando cita um dos arquivos do motor
     (cita) ou quando a pasta e incerta (pelo_nome). pelo_nome: o nome sozinho de um dos arquivos do motor conta em
-    qualquer pasta (cd que o gancho nao acompanha, codigo que muda de pasta)."""
+    qualquer pasta (cd que o gancho nao acompanha, codigo que muda de pasta).
+
+    Revisao de 25/11/2026: codigo=True (palavra do comando com codigo que grava): o nome com curinga e sem expansao do
+    shell conta so quando o curinga pode alcancar um escrito do motor, quando o comando cita um deles ou quando a pasta
+    e a sugestoes; o nome com variavel, substituicao ou %VAR% segue contando em qualquer pasta."""
     bruto = caminho.strip()
     if not bruto:
         return False
@@ -535,6 +613,7 @@ def _protegido(caminho, cwd, pelo_nome=False, cita=False):
         if not limpo or limpo.startswith('-') or re.match(r'^/[A-Za-z?]{1,2}(?::.*)?$', limpo):
             continue
         montado = bool(NOME_MONTADO.search(expandido))
+        so_do_codigo = codigo and montado and not NOME_MONTADO_PELO_SHELL.search(expandido)
         for c in {limpo, limpo.replace('\\', '')} if '\\' in limpo else {limpo}:
             if pelo_nome:
                 partes = _partes_do_caminho(c)
@@ -553,7 +632,10 @@ def _protegido(caminho, cwd, pelo_nome=False, cita=False):
                     pasta = _absoluto(fixo[:corte + 1] if corte >= 0 else '.', cwd)
                 except (OSError, ValueError):
                     return True
-                if cita or pelo_nome or _pasta_e_de_sugestoes(pasta):
+                if so_do_codigo:
+                    if cita or _curinga_alcanca_o_motor(c, muda_de_pasta) or _pasta_e_de_sugestoes(pasta):
+                        return True
+                elif cita or pelo_nome or _pasta_e_de_sugestoes(pasta):
                     return True
             if _sem_curinga(alvo) != alvo:
                 vistos = 0
@@ -641,8 +723,12 @@ def decidir_escrito_do_motor_por_comando(comando, cwd, _profundidade=0, _incerta
         if _codigo_do_motor_que_grava(comando):
             return 'deny'
         if CODIGO_QUE_GRAVA.search(comando):
+            variaveis = _variaveis_literais(comando)
+            muda = bool(MUDA_DE_PASTA.search(comando))
+            cita_motor = _cita_escrito_do_motor(comando)
             for c in candidatos(comando)[:LIMITE_DE_CANDIDATOS]:
-                if _protegido(c, cwd, pelo_nome=True):
+                if _protegido(_expandir_variaveis(c, variaveis), cwd, pelo_nome=True, cita=cita_motor, codigo=True,
+                              muda_de_pasta=muda):
                     return 'deny'
     cita = _cita_escrito_do_motor(comando) if _cita is None else _cita
     incerta = (not cwd) if _incerta is None else _incerta
@@ -1229,8 +1315,9 @@ def decidir_com_motivo(evento):
 # cwd do evento ou por um caminho que termina nelas, sem a barra do fim (cd <job>/briefing && echo > x.json, cp x.json
 # <job>/briefing, Copy-Item -Destination <job>\briefing). O codigo-fonte do pacote (vapt/<pasta>) e as skills ficam
 # de fora, como em ARQUIVOS_DO_DA
-PASTA_INTEIRA_DO_DA = re.compile(r'(?:^|/)(?<!vapt/)(?<!skills/)(?:briefing|derivacao|entrega)[.\s]*(?:/|$)',
-                                 re.IGNORECASE)
+# 0.18.0: vapt e skills so como pasta inteira; a pasta do job padrao, output-vapt, termina em "vapt" e continua negada
+PASTA_INTEIRA_DO_DA = re.compile(r'(?:^|/)(?<!/vapt/)(?<!^vapt/)(?<!/skills/)(?<!^skills/)'
+                                 r'(?:briefing|derivacao|entrega)[.\s]*(?:/|$)', re.IGNORECASE)
 MUDA_DE_PASTA = re.compile(r'(?<![\w-])(?:cd|chdir|pushd|sl|Set-Location|Push-Location)(?![\w-])', re.IGNORECASE)
 
 

@@ -2715,7 +2715,13 @@ def montar(pasta, teto=None, biblioteca=None):
     # decisao 199: o arquivo de edicao de cada familia como a tela mostra (o gravado ou a regra)
     arquivos = {gid: g['arquivo_de_edicao'] for gid, g in grupos_da_tela.items()}
     from vapt.briefing import salvar
-    estado['briefing'] = dict(salvar.situacao_na_tela(pasta, familias, pasta_da_biblioteca), avisos=_avisos_do_job(pasta))
+
+    # M7c, S4: a leitura das sugestoes do modo de agora, com o teto desta tela (a rota /api/sugestoes e o salvar); a
+    # situacao do briefing usa a mesma (0.18.0)
+    def ler_sugestoes():
+        return funcoes_da_tela.sugestoes_na_tela(pasta, teto)
+    estado['briefing'] = dict(salvar.situacao_na_tela(pasta, familias, pasta_da_biblioteca, ler_sugestoes),
+                              avisos=_avisos_do_job(pasta))
     # a aprovacao de cada formato do briefing (M7b, B4): aprovado, caiu (com o campo e o motivo para o DA) ou sem
     # aprovacao, e o painel de situacao por formato (M7b, B5), medidos a cada montagem e depois de cada ato
     # (recarregar)
@@ -2786,7 +2792,8 @@ def montar(pasta, teto=None, biblioteca=None):
                     faltam=faltam(novo_lido, r['formatos'], n_variantes, familias,
                                   familias_confirmadas(pasta, familias, por_confirmar(r['formatos']), pecas, sem_edicao),
                                   arquivos),
-                    briefing=dict(salvar.situacao_na_tela(pasta, familias, pasta_da_biblioteca), avisos=_avisos_do_job(pasta)),
+                    briefing=dict(salvar.situacao_na_tela(pasta, familias, pasta_da_biblioteca, ler_sugestoes),
+                                  avisos=_avisos_do_job(pasta)),
                     aprovacoes=aprovacoes, painel=painel)
 
     conteudo = {'estado': estado, 'previas': previas, 'assets': assets, 'fontes': fontes, 'recarregar': recarregar,
@@ -2810,7 +2817,7 @@ def montar(pasta, teto=None, biblioteca=None):
                 'pasta_biblioteca': conferencia.pasta if conferencia.usavel else None,
                 # M7c, S4: a rota leve /api/sugestoes le de novo, a cada pedido, o arquivo validado do modo de agora
                 # (com o teto desta tela), sem gravar nada (vapt.tela.funcoes.sugestoes_na_tela)
-                'sugestoes': lambda: funcoes_da_tela.sugestoes_na_tela(pasta, teto)}
+                'sugestoes': ler_sugestoes}
 
     def atualizador(feita, atual):
         def atualizar():

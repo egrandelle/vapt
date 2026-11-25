@@ -23,7 +23,9 @@ def registrar(subparsers):
     c.add_argument('--teto-modo-dados', choices=MODOS_DADOS, default=argparse.SUPPRESS,
                    help='Teto autorizado pela agência (vem da configuração do plugin)')
     c.add_argument('--campanha', default=None, help='Pasta com os outros arquivos da campanha')
-    c.add_argument('--specs', default=None, help='Pasta com as folhas de spec')
+    c.add_argument('--specs', nargs='+', action='extend', default=None,
+                   help='Folhas de spec (PDF, HTML salvo, CSV, .txt ou .eml) ou pastas com elas; entram em '
+                        'entrada/specs/')
     c.add_argument('--fontes', nargs='+', action='extend', default=None,
                    help='Arquivos de fonte (OTF, TTF, TTC, WOFF, WOFF2) ou pastas com eles; entram em entrada/fontes/')
     c.set_defaults(executar=_criar, nome_comando='job criar')
@@ -46,6 +48,9 @@ def registrar(subparsers):
     t.add_argument('pasta', help='Pasta do job')
     t.add_argument('entrada', help='Caminho dentro do job, por exemplo entrada/kv.psd')
     t.add_argument('arquivo', help='Arquivo novo')
+    t.add_argument('--acrescentar', action='store_true',
+                   help='Só para entrada/specs/: acrescenta a folha sem nunca escrever por cima de outra (nome repetido '
+                        'ganha um número)')
     t.set_defaults(executar=_trocar, nome_comando='job trocar-entrada')
 
     r = sub.add_parser('remover-entrada', help='Tira um arquivo de fonte de entrada/fontes/ e invalida só as fases que '
@@ -68,7 +73,8 @@ def _erro(comando, e, pasta=None):
 def _criar(args):
     try:
         estado = nucleo.criar(_abs(args.pasta), _abs(args.psd), args.modo_dados,
-                              getattr(args, 'teto_modo_dados', None), _abs(args.campanha), _abs(args.specs),
+                              getattr(args, 'teto_modo_dados', None), _abs(args.campanha),
+                              [_abs(s) for s in args.specs or ()],
                               fontes=[_abs(f) for f in args.fontes or ()])
     except ErroJob as e:
         return _erro('job criar', e)
@@ -129,7 +135,7 @@ def _estado(args):
 def _trocar(args):
     args.pasta = _abs(args.pasta)
     try:
-        estado, avaliacao = nucleo.trocar_entrada(args.pasta, args.entrada, args.arquivo)
+        estado, avaliacao = nucleo.trocar_entrada(args.pasta, args.entrada, args.arquivo, acrescentar=args.acrescentar)
     except ErroJob as e:
         return _erro('job trocar-entrada', e, args.pasta)
     invalidas = sorted(k for k, (v, _m) in avaliacao.items() if not v)

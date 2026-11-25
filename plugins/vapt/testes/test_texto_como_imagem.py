@@ -631,6 +631,10 @@ def test_face_nao_declarada_na_camada_declarada_continua_faltando(job_base):
     ('PowerShell', None, 'Copy-Item C:\\tmp\\texto-como-imagem.json -Destination C:\\jobs\\kv-x\\briefing'),
     ('PowerShell', None, 'Copy-Item C:\\tmp\\x.json -Destination C:\\jobs\\kv-x\\derivacao'),
     ('Bash', 'C:\\jobs\\kv-x', 'cp /c/tmp/x.json briefing'),
+    # 0.18.0: a pasta do job padrao, output-vapt, termina em "vapt" e continua protegida
+    ('Bash', 'C:\\trabalho\\output-vapt\\briefing', "echo '{}' > novo.json"),
+    ('Bash', None, 'cp /c/tmp/x.json /c/trabalho/output-vapt/entrega'),
+    ('PowerShell', None, 'Copy-Item C:\\tmp\\x.json -Destination C:\\trabalho\\output-vapt\\derivacao'),
 ])
 def test_gancho_nega_a_declaracao_pelo_cwd_e_pela_pasta_sem_barra(ferramenta, cwd, comando):
     """Seguranca D1: o gancho olha o cwd do evento e a pasta do DA sem a barra do fim."""

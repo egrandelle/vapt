@@ -1,6 +1,6 @@
 ---
 description: Cria um job do Vapt a partir do PSD ou PSB do KV, das fontes da peça e das folhas de spec do veiculador, roda a leitura, a conferência das fontes, o design system e o rascunho das specs, e abre a tela de briefing, onde o DA faz todas as escolhas da peça com cliques. Use quando o DA quiser começar um desdobramento novo de OOH, DOOH ou banner estático.
-argument-hint: "[caminho do PSD ou PSB] [pasta nova do job]"
+argument-hint: "[caminho do PSD ou PSB] [pasta do job, opcional]"
 disable-model-invocation: true
 ---
 
@@ -44,16 +44,16 @@ Antes de começar, leia as três referências desta skill com a ferramenta Read:
 
    O que pedir:
    - o PSD ou PSB do KV (pode vir como primeiro argumento: $0);
-   - a pasta nova do job, vazia ou ainda inexistente (pode vir como segundo argumento: $1). Peça o caminho absoluto da pasta nova; nunca peça nem aceite um caminho relativo da pasta do job. Se o DA mandar um caminho que não começa no disco, peça de novo com a dica acima;
+   - a pasta do job não se pergunta. Se veio como segundo argumento ($1), use essa. Se não veio, a PASTA é a subpasta `output-vapt` da pasta de trabalho desta sessão (o diretório de trabalho que você tem no ambiente), pelo caminho absoluto (o caminho da pasta de trabalho, mais `\output-vapt` no Windows ou `/output-vapt` no Mac). Não liste nem leia a pasta de trabalho: o motor cria a `output-vapt` e confere se ela está vazia. Só se o motor recusar a pasta ("A pasta do job já existe e não está vazia"), peça ao DA o caminho absoluto de uma pasta nova, com a dica acima; nunca aceite um caminho relativo;
    - as fontes usadas no PSD, chamadas de FONTES: um ou mais arquivos, ou pastas com os arquivos. Sem fontes agora, o job pode ser criado mesmo assim, e as camadas de texto ficam marcadas como fonte faltando até o DA mandar os arquivos. Se a agência não tem o arquivo de uma fonte, o DA pode decidir na tela, no passo 1, usar o texto dessa fonte como imagem;
-   - as folhas de spec do veiculador, chamadas de SPECS: uma pasta com uma subpasta por veiculador. Sem folhas agora, o job pode ser criado mesmo assim, mas fica sem nenhum formato até o DA escrever os formatos na tela, no passo 1, em Valores de spec (a largura e a altura de cada um, em pixels). Sem formato, as famílias do passo 4 não aparecem. Diga isso ao DA quando ele não tiver folha.
+   - as folhas de spec do veiculador, chamadas de SPECS: aceite o que o DA mandar, sem pedir para organizar. Pode ser um ou mais arquivos soltos (PDF, CSV, HTML salvo, texto ou e-mail salvo) ou uma pasta, com ou sem subpasta por veiculador. Não pergunte o nome do veiculador: a folha solta vira um veiculador com o nome do arquivo. Sem folhas agora, o job pode ser criado mesmo assim, mas fica sem nenhum formato até o DA escrever os formatos na tela, no passo 1, em Valores de spec (a largura e a altura de cada um, em pixels). Sem formato, as famílias do passo 4 não aparecem. Diga isso ao DA quando ele não tiver folha.
 
    Não explique formato de fonte de antemão. Só se o motor recusar um arquivo, explique o motivo a partir do `o_que_fazer` do envelope (veja `fluxo.md`, "Recusa na criação"). O Vapt trata toda fonte enviada como fonte com direito de uso, e a responsabilidade pela licença é da agência ou do usuário: não pergunte nada sobre licença.
 
-5. **Criar o job.** Rode numa linha só, pela ferramenta Bash (na ferramenta PowerShell, ponha `& ` antes do caminho entre aspas), com timeout de 600000 ms, porque cada fonte é conferida num processo isolado antes de entrar. Ponha cada caminho de FONTES entre aspas, um depois do outro, logo após `--fontes`. Sem fontes, tire `--fontes`; sem folhas, tire `--specs`:
+5. **Criar o job.** Rode numa linha só, pela ferramenta Bash (na ferramenta PowerShell, ponha `& ` antes do caminho entre aspas), com timeout de 600000 ms, porque cada fonte é conferida num processo isolado antes de entrar. Ponha cada caminho de FONTES entre aspas, um depois do outro, logo após `--fontes`, e cada caminho de SPECS do mesmo jeito, logo após `--specs`. Sem fontes, tire `--fontes`; sem folhas, tire `--specs`:
 
    ```
-   "PY" -I -B -m vapt --envelope --teto-modo-dados TETO job criar "PASTA" --kv "PSD" --fontes "FONTE1" "FONTE2" --specs "SPECS"
+   "PY" -I -B -m vapt --envelope --teto-modo-dados TETO job criar "PASTA" --kv "PSD" --fontes "FONTE1" "FONTE2" --specs "SPECS1" "SPECS2"
    ```
 
    O job nasce sem modo de dados: quem escolhe o modo é o DA, no passo 1 da tela. Se o `codigo` do envelope não for `0`, explique ao DA o `o_que_fazer`, sem passar comando a ele (veja `regras-do-modelo.md`, "O `o_que_fazer` do motor"), e pare.
@@ -73,7 +73,8 @@ Antes de começar, leia as três referências desta skill com a ferramenta Read:
 7. **Trocar uma fonte ou uma folha.** Quando o DA quiser resolver um bloqueio de fonte, peça a ele o caminho absoluto do arquivo novo, com a dica do passo 4, e rode com timeout de 600000 ms:
    - para acrescentar ou trocar uma fonte: `"PY" -I -B -m vapt --envelope --teto-modo-dados TETO job trocar-entrada "PASTA" "entrada/fontes/NOME" "ARQUIVO"`, em que NOME é o nome do arquivo de fonte (para trocar, o mesmo nome do arquivo que já está no job, com as mesmas maiúsculas e minúsculas);
    - para tirar uma fonte do job (por exemplo, quando dois arquivos têm o mesmo nome PostScript e o DA escolhe qual vale): `"PY" -I -B -m vapt --envelope --teto-modo-dados TETO job remover-entrada "PASTA" "entrada/fontes/NOME"`. Quem escolhe o arquivo é o DA;
-   - para acrescentar ou trocar uma folha de spec: o mesmo `job trocar-entrada`, com `entrada/specs/VEICULADOR/NOME`.
+   - para acrescentar uma folha de spec: `"PY" -I -B -m vapt --envelope --teto-modo-dados TETO job trocar-entrada "PASTA" "entrada/specs/NOME" "ARQUIVO" --acrescentar`, em que NOME é o nome do arquivo da folha. Com `--acrescentar`, o motor nunca escreve por cima de outra folha: o nome repetido ganha um número;
+   - para trocar uma folha de spec que já está no job: o mesmo comando, sem `--acrescentar`, com o nome do arquivo da folha velha em NOME. O motor acha a folha pelo nome. Não pergunte o nome do veiculador; só se o motor disser que há mais de uma folha com esse nome, pergunte ao DA de qual veiculador ela é e siga o `o_que_fazer`.
 
    Os caminhos `entrada/...` desses comandos são o endereço do arquivo dentro do job, que o motor entende; o arquivo novo vem sempre pelo caminho absoluto que o DA te deu. Se o `codigo` não for `0`, explique ao DA o `o_que_fazer`, sem passar comando a ele (veja `regras-do-modelo.md`, "O `o_que_fazer` do motor"). Senão, volte ao passo 6: a troca refaz só as fases que dependem do arquivo trocado.
 

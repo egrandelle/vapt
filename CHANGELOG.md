@@ -2,6 +2,17 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.18.0 (25/11/2026): o job começa sem parar
+
+Primeira leva dos pedidos de 25/11: menos perguntas no começo do job.
+
+- As folhas de spec entram como vierem: um ou mais PDF, CSV, HTML salvo, texto ou e-mail soltos, ou pastas, com ou sem subpasta por veiculador. A folha solta vira um veiculador com o nome do arquivo. Duas folhas com o mesmo nome não param o job: a segunda entra com o nome da pasta de onde veio. O Claude não pergunta mais o nome do veiculador, e acrescentar uma folha depois nunca apaga outra.
+- Sem caminho dado, o job nasce na pasta `output-vapt`, dentro da pasta de trabalho da sessão, sem pergunta. Continuar, ler a spec e sugerir funções usam a mesma pasta.
+- Numa pasta de fontes como a baixada do Google Fonts, o Vapt usa as estáticas e deixa de fora a variable font, a licença e o leia-me, sem perguntar. A variable font sem estática ao lado continua recusada.
+- Depois de salvar o briefing, o "Salvar e seguir" fica apagado até você mudar alguma coisa. Antes, qualquer gravação do rascunho, mesmo sem mudança, religava o botão.
+- O desenvolvedor do plugin passa a ser Eduardo Grandelle.
+- O gancho do plugin deixa de negar alguns comandos que só gravam fora do job (variável do shell com valor fixo e curinga que não alcança arquivo do Vapt).
+
 ## 0.17.3 (24/11/2026): marcar todos no tipo e na aprovação
 
 - Em O que eu li, a barra de lote dos Formatos do job ganha três botões com o nome inteiro: "Todos em JPEG", "Todos em PNG" e "Todos em JPEG e PNG". Um clique abre uma janela só para todos os formatos, em vez de um por um. O lote também troca o tipo dos formatos que já tinham um: a janela diz o tipo de antes de cada um e avisa que o formato já renderizado ou aprovado pede render e aprovação de novo. Só vão os formatos que mudam; o botão do tipo que todos já têm fica apagado.

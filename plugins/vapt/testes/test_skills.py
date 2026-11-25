@@ -50,8 +50,8 @@ LIMITE_DE_LINHAS = 500  # numero-neutro: limite do plano do M7c, K6 ("abaixo de 
 # marca (M7c, M5), que so existe como botao
 ATOS_DO_DA = tuple(dict.fromkeys(humano.COMANDOS + humano.ATOS_DA_TELA + ('marca registrar', 'confirmar')))
 # os nomes que as linhas do motor usam no lugar dos valores (o Claude troca pelo que leu ou recebeu)
-MARCADORES_DAS_LINHAS = ('PY', 'TETO', 'PASTA', 'PSD', 'FONTE1', 'FONTE2', 'SPECS', 'NOME', 'ARQUIVO', 'VEICULADOR',
-                         'BIBLIOTECA')
+MARCADORES_DAS_LINHAS = ('PY', 'TETO', 'PASTA', 'PSD', 'FONTE1', 'FONTE2', 'SPECS', 'SPECS1', 'SPECS2', 'NOME',
+                         'ARQUIVO', 'VEICULADOR', 'BIBLIOTECA')
 
 
 # ------------------------------------------------------------------ leitura das skills
@@ -758,6 +758,8 @@ def _valores(tmp_path, biblioteca_valor):
     return {'PY': sys.executable, 'TETO': 'a', 'PASTA': job.as_posix(), 'PSD': (origem / 'kv-sintetico.psd').as_posix(),
             'FONTE1': (origem / 'face-sintetica-1.otf').as_posix(),
             'FONTE2': (origem / 'face-sintetica-2.ttf').as_posix(), 'SPECS': (origem / 'specs').as_posix(),
+            # 0.18.0: --specs leva arquivos soltos e pastas
+            'SPECS1': (origem / 'folha-sintetica.pdf').as_posix(), 'SPECS2': (origem / 'specs').as_posix(),
             'NOME': 'arquivo-sintetico.otf', 'ARQUIVO': (origem / 'novo-sintetico.otf').as_posix(),
             'VEICULADOR': 'veiculador-sintetico', 'BIBLIOTECA': biblioteca_valor}
 
