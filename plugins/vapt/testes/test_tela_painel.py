@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """M7b, B5: o painel de situacao por formato da tela (vapt.tela.estado.painel_dos_formatos), com a lista "o que
-mudou" da fase A, o historico de versoes so para leitura e os botoes "Renderizar os afetados" e "Aprovar" ligados aos
+mudou" da fase A, o historico de versoes so para leitura e os botoes "Renderizar todos"
+(antes "Renderizar os afetados") e "Aprovar" ligados aos
 atos do B2 e do B4 (decisoes do Duda Q2, Q3, Q4, Q11, Q12, Q13 e Q14).
 
 Criterio de pronto do plano: o DA ve, sem abrir arquivo, quais formatos cairam, por que e o que mudou em cada um.
@@ -325,7 +326,24 @@ def test_painel_no_chromium_a_1280_renderiza_e_aprova_pela_tela(job):
                                    '.map(c => [c.checked, c.disabled])') == [[False, True], [False, False],
                                                                              [False, False]]
                 assert pg.evaluate('() => document.getElementById("aprovar-marcados").disabled') is True
-                # Renderizar os afetados: uma confirmacao para todos os que pedem render
+                # 0.17.3: "Marcar todos" marca so os que podem ser aprovados, vira "Desmarcar todos" e volta; marcar
+                # nao grava nada (o Aprovar continua pela janela)
+                todos = '() => { const b = document.getElementById("aprovar-todos"); return [b.textContent, b.disabled]; }'
+                marcas = '() => Array.from(document.querySelectorAll(".linha-marca")).map(c => c.checked)'
+                assert pg.evaluate(todos) == ['Marcar todos', False]
+                pg.evaluate('() => document.getElementById("aprovar-todos").click()')
+                assert pg.evaluate(marcas) == [False, True, True]
+                assert pg.evaluate(todos) == ['Desmarcar todos', False]
+                assert pg.evaluate('() => document.getElementById("aprovar-marcados").getAttribute("aria-label")') == \
+                    'Aprovar, 2 formatos marcados'
+                pg.evaluate('() => document.getElementById("aprovar-todos").click()')
+                assert pg.evaluate(marcas) == [False, False, False]
+                assert pg.evaluate(todos) == ['Marcar todos', False]
+                assert pg.evaluate('() => document.getElementById("aprovar-marcados").disabled') is True
+                assert s.contagem['ato_confirmar'] == 0
+                # Renderizar todos (antes "Renderizar os afetados"): uma confirmacao para todos os que pedem render
+                assert pg.evaluate('() => document.getElementById("renderizar-afetados").firstChild.textContent') == \
+                    'Renderizar todos'
                 pg.evaluate('() => document.getElementById("renderizar-afetados").click()')
                 tp._esperar(pg, '() => document.getElementById("confirmacao").open ? "1" : ""')
                 assert '400x240' in pg.evaluate('() => document.getElementById("confirmacao-texto").textContent')

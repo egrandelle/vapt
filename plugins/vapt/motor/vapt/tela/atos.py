@@ -126,7 +126,12 @@ def _tipos_pedidos(pasta, dados):
     alvos = [por_chave.get(f) for f in fs]
     if any(a is None for a in alvos):
         return None
-    return alvos, [t for t in estado.TIPOS_NA_TELA if t in ts]
+    tipos = [t for t in estado.TIPOS_NA_TELA if t in ts]
+    # revisao da 0.17.3: o formato que ja esta nesses tipos fica fora do pedido. Gravar a mesma escolha de novo troca a
+    # hora da confirmacao, que entra na impressao do formato, e derrubaria o render e a aprovacao dele sem nada mudar
+    if any(a['tipos'] == tipos for a in alvos):
+        return None
+    return alvos, tipos
 
 
 def _lista_de_nomes(nomes):
@@ -212,6 +217,14 @@ def atos_do_job(pasta, teto=None, conteudo=None):
             # vapt.entrega.codificar: o PNG sem perda vale enquanto cabe no peso maximo; acima dele, o JPEG
             partes.append('O Vapt entrega PNG e passa a JPEG só quando o PNG fica acima do peso máximo.')
         partes.append('A folha de spec não diz o tipo de arquivo %s, e vale a sua escolha.' % ('dele' if um else 'deles'))
+        # 0.17.3: o lote vale tambem para os formatos que ja tinham outra escolha; a janela diz quais trocam, de que
+        # tipo, e que a troca muda a impressao do formato (vapt.derivacao.impressao): o render e a aprovacao caem
+        trocam = ['%s (era %s)' % (a['nome'], ' e '.join(estado.TIPOS_NA_TELA[t] for t in a['tipos']))
+                  for a in alvos if a['tipos']]
+        if trocam:
+            partes.append(('Muda o tipo de %s.' % _lista_de_nomes(trocam)) +
+                          (' Se ele já foi renderizado ou aprovado, pede render e aprovação de novo.' if len(trocam) == 1
+                           else ' Os que já foram renderizados ou aprovados pedem render e aprovação de novo.'))
         return ' '.join(partes)
 
     def tipos_executar(disparo, d):

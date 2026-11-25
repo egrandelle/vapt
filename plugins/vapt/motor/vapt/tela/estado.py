@@ -2555,7 +2555,8 @@ def painel_dos_formatos(pasta):
     mais nova do historico que mexeu no formato, com as caixas de antes e de depois; None quando o formato foi aprovado
     depois dela). A situacao sai dos hashes de agora, sem refazer contrato nem arquivo final: o portao confere tudo de
     novo quando o DA aprova. historico: as versoes do briefing, so para leitura (Q12). afetados: os formatos que pedem
-    render (o botao "Renderizar os afetados"; o render nunca parte sozinho, Q3). Sem briefing confirmado, tudo vazio."""
+    render (o botao "Renderizar todos", antes "Renderizar os afetados"; o render nunca parte sozinho, Q3). Sem
+    briefing confirmado, tudo vazio."""
     return _painel_e_aprovacoes(pasta)[0]
 
 

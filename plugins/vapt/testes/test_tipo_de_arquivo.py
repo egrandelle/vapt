@@ -94,8 +94,15 @@ def test_escolha_seguinte_troca_a_anterior(job_so_medida):
         c1, c2, p = tl._ato(s, 'spec_tipos', {'formatos': [um], 'tipos': ['png', 'jpg']})
         assert (c1, c2) == (200, 200)
         assert 'pode sair em JPEG e PNG' in p['texto'] and 'passa a JPEG' in p['texto'], p
+        # 0.17.3: a janela diz o tipo de antes e que o render e a aprovacao caem
+        assert '(era JPEG)' in p['texto'] and 'pede render e aprovação de novo' in p['texto'], p
+        # revisao da 0.17.3: a mesma escolha de novo e recusada, sem gravar (trocaria a hora da confirmacao e a
+        # impressao do formato sem nada mudar)
+        assert tl._ato(s, 'spec_tipos', {'formatos': [um], 'tipos': ['jpg', 'png']})[0] == 403
     finally:
         s.parar()
+    from vapt.specs import importar
+    assert len([a for a in importar.ler_confirmacoes(job_so_medida)['acoes'] if a['acao'] == 'escolher_tipos']) == 2
     x = next(x for x in te.formatos_sem_tipo(job_so_medida) if x['chave'] == um)
     assert x['tipos'] == ['jpg', 'png'] and x['texto'] == 'JPEG e PNG'
 

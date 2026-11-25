@@ -213,7 +213,7 @@ def test_janela_de_confirmacao_destaca_a_acao_e_o_remover(base, pw, tmp_path):
 
 
 def test_botoes_desligados_do_passo_5_dizem_por_que(base, pw, tmp_path):
-    """D6: Renderizar os afetados, Aprovar e as caixas de marcar desligados levam o motivo."""
+    """D6: Renderizar todos (antes "Renderizar os afetados"), Aprovar e as caixas de marcar desligados levam o motivo."""
     job, _f = _copia(base, 'kva', tmp_path)
     with _Tela(pw, job) as pg:
         _passo(pg, 'formatos')

@@ -2292,7 +2292,11 @@ button.membro:active { transform: scale(0.98); }
 .painel-cabeca { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
 .painel-titulo { min-width: 0; }
 .painel-titulo h1 { font-size: var(--t-34); font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; margin-bottom: 8px; }
-.painel-acoes { display: flex; gap: 8px; flex: none; }
+/* 0.17.3: com o "Marcar todos", tres botoes. Eles quebram a linha quando a coluna aperta (a 1024 px), em vez de
+   espremer o titulo; o "Marcar todos" tem a largura do "Desmarcar todos", para os vizinhos nao andarem no clique */
+.painel-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; flex: 0 1 auto; min-width: 0; }
+.painel-titulo { flex: 1 0 240px; }
+#aprovar-todos { min-width: 8.6em; justify-content: center; }
 .contagem-botao {
   display: inline-grid;
   place-items: center;

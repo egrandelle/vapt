@@ -311,20 +311,36 @@ def test_tabela_a_1280_cabe_e_o_fluxo_comum_deixa_tudo_pronto(job_csv):
             tp._esperar(pg, '() => document.getElementById("spec-lote") ? "" : "1"')
             tp._esperar(pg, '() => document.getElementById("tipo-lote") ? "1" : ""')
             assert all(e == 'Falta: tipo, giro' for e in pg.evaluate(JS_ESTADOS)), pg.evaluate(JS_ESTADOS)
-            # 2. todos em JPEG, pela janela. Os botoes do lote sao acoes, nao escolhas: sem aria-pressed
+            # 2. todos em JPEG, pela janela. Os botoes do lote sao acoes, nao escolhas: sem aria-pressed, com o nome
+            # inteiro (0.17.3)
             assert pg.evaluate('() => document.querySelectorAll("#tipo-lote button[aria-pressed]").length') == 0
             assert pg.evaluate('() => document.querySelectorAll("#tipo-lote button[data-ato=spec_tipos]").length') == 3
-            pg.evaluate('() => document.querySelector("#tipo-lote button[data-ato=spec_tipos]").click()')
+            assert pg.evaluate('() => Array.from(document.querySelectorAll("#tipo-lote button")).map(b => b.textContent)') == \
+                ['Todos em JPEG', 'Todos em PNG', 'Todos em JPEG e PNG']
+            pg.evaluate('() => document.querySelector("#tipo-lote button[data-tipos=jpg]").click()')
             _confirmar_janela(pg)
-            tp._esperar(pg, '() => document.getElementById("tipo-lote") ? "" : "1"')
+            # 0.17.3: o lote fica, para trocar todos de uma vez; o do tipo que todos ja tem fica desligado e diz por que
+            tp._esperar(pg, '() => document.querySelector("#tipo-lote button[data-tipos=jpg]").disabled ? "1" : ""')
+            assert pg.evaluate('() => document.querySelector("#tipo-lote button[data-tipos=jpg]").title') == \
+                'Todos os formatos já estão em JPEG.'
+            assert pg.evaluate('() => document.querySelectorAll("#tipo-lote button[data-ato=spec_tipos]").length') == 2
             assert pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-formatos tr[data-formato] .cel-tipo button[aria-pressed=true]"))
                 .map(b => b.textContent)''') == ['JPEG'] * n_formatos
+            # trocar todos para PNG: a janela diz quais tinham outro tipo
+            pg.evaluate('() => document.querySelector("#tipo-lote button[data-tipos=png]").click()')
+            tp._esperar(pg, '() => document.getElementById("confirmacao").open ? "1" : ""')
+            janela = pg.evaluate('() => document.getElementById("confirmacao").innerText')
+            assert 'Muda o tipo de' in janela and '(era JPEG)' in janela and 'pedem render e aprovação de novo' in janela, janela
+            _confirmar_janela(pg)
+            tp._esperar(pg, '() => document.querySelector("#tipo-lote button[data-tipos=png]").disabled ? "1" : ""')
+            assert pg.evaluate('''() => Array.from(document.querySelectorAll("#lido-formatos tr[data-formato] .cel-tipo button[aria-pressed=true]"))
+                .map(b => b.textContent)''') == ['PNG'] * n_formatos
             # o tipo ja escolhido e so o indicador: sem ato, o clique nele nao abre a janela nem grava de novo
             assert pg.evaluate('() => document.querySelectorAll("#lido-formatos .cel-tipo button[aria-pressed=true][data-ato]").length') == 0
             assert pg.evaluate('() => document.querySelectorAll("#lido-formatos .cel-tipo button[aria-pressed=false][data-ato=spec_tipos]").length') == 2 * n_formatos
             pg.evaluate('() => document.querySelector("#lido-formatos .cel-tipo button[aria-pressed=true]").click()')
             assert pg.evaluate('() => document.getElementById("confirmacao").open') is False
-            assert srv.contagem['ato_confirmar'] == 2
+            assert srv.contagem['ato_confirmar'] == 3
             assert all(e == 'Falta: giro' for e in pg.evaluate(JS_ESTADOS)), pg.evaluate(JS_ESTADOS)
             # 3. sem giro nos que faltam: grava no rascunho, sem janela
             pg.evaluate('() => document.getElementById("giro-lote").click()')
@@ -339,5 +355,5 @@ def test_tabela_a_1280_cabe_e_o_fluxo_comum_deixa_tudo_pronto(job_csv):
             assert larguras[0] <= larguras[1] and larguras[2] <= larguras[3] and larguras[4] <= larguras[5], larguras
         finally:
             nav.close()
-        assert srv.contagem['ato_confirmar'] == 2 and srv.contagem['csrf_recusado'] == 0
-    assert all(x['tipos'] == ['jpg'] for x in te.formatos_sem_tipo(job_csv))
+        assert srv.contagem['ato_confirmar'] == 3 and srv.contagem['csrf_recusado'] == 0
+    assert all(x['tipos'] == ['png'] for x in te.formatos_sem_tipo(job_csv))

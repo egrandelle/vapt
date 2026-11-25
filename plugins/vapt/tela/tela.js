@@ -1526,12 +1526,15 @@
     return c;
   }
   /* a barra de lote no cabecalho da tabela: os marcados da spec (#spec-lote, so enquanto ha valor em lote), o tipo
-     de arquivo de todos os formatos que faltam (decisao 205) e o giro dos que faltam (decisao 198) */
+     de arquivo de todos os formatos que recebem a escolha (decisao 205; 0.17.3, tambem os ja escolhidos) e o giro dos
+     que faltam (decisao 198) */
   function montarBarraDeLote(no, s) {
     const lote = valoresDoLote(s.lista || []);
-    const semTipo = (s.sem_tipo || []).filter(function (x) { return !x.tipos.length; });
+    // 0.17.3: o tipo em lote vale para todos os formatos que recebem a escolha (a folha nao diz o tipo), com ou sem
+    // escolha antes, para o DA trocar todos de uma vez tambem
+    const escolhem = s.sem_tipo || [];
     const faltamGiro = s.formatos.filter(function (f) { return !giroCompleto(giroDe(f)); });
-    if (!lote.length && semTipo.length < 2 && !faltamGiro.length) return;
+    if (!lote.length && escolhem.length < 2 && !faltamGiro.length) return;
     const barra = el('div', null, 'lote-barra');
     barra.setAttribute('role', 'group');
     barra.setAttribute('aria-label', 'Para todos os formatos');
@@ -1553,19 +1556,35 @@
       g.appendChild(conf);
       barra.appendChild(g);
     }
-    if (semTipo.length > 1) {
+    if (escolhem.length > 1) {
+      // 0.17.3: tres botoes de lote com o nome inteiro ("Todos em JPEG"), para nao parecer a escolha de uma linha. A
+      // acao em lote nao e escolha: sem aria-pressed, que so a linha de cada formato reflete. Com todos ja no mesmo
+      // tipo, o botao dele fica desligado e diz por que. So vao no pedido os formatos que mudam: o que ja esta no
+      // tipo nao grava a mesma escolha de novo, que trocaria a hora da confirmacao, a impressao do formato e
+      // derrubaria o render e a aprovacao dele sem nada mudar (revisao da 0.17.3)
       const g = el('div', null, 'lote-grupo');
       g.id = 'tipo-lote';
-      g.appendChild(el('span', 'Todos em', 'lote-rotulo'));
-      const seg = segmentado('Tipo de arquivo de todos os formatos que faltam');
-      const chaves = semTipo.map(function (x) { return x.chave; });
+      g.setAttribute('role', 'group');
+      g.setAttribute('aria-label', 'Tipo de arquivo de todos os formatos');
+      g.appendChild(el('span', 'Tipo', 'lote-rotulo'));
       TIPOS_DE_ARQUIVO.forEach(function (ts) {
-        // acao em lote, nao escolha: sem aria-pressed, que so a linha de cada formato reflete
-        const b = botaoAto(nomeDosTipos(ts), 'spec_tipos', { formatos: chaves, tipos: ts }, 'botao-vista');
-        b.setAttribute('aria-label', 'Todos os formatos que faltam em ' + nomeDosTipos(ts));
-        seg.appendChild(b);
+        const nome = 'Todos em ' + nomeDosTipos(ts);
+        const mudam = escolhem.filter(function (x) { return !mesmosTipos(x.tipos || [], ts); });
+        const chaves = mudam.map(function (x) { return x.chave; });
+        const b = !mudam.length ? botao(nome, 'botao') :
+          botaoAto(nome, 'spec_tipos', { formatos: chaves, tipos: ts }, 'botao');
+        b.dataset.tipos = ts.join(' ');
+        // o nome falado comeca pelo texto visivel (o comando de voz acha o botao pelo que o DA le)
+        b.setAttribute('aria-label', nome + ', ' + plural(mudam.length || escolhem.length, 'formato', 'formatos'));
+        if (!mudam.length) {
+          b.disabled = true;
+          b.title = 'Todos os formatos já estão em ' + nomeDosTipos(ts) + '.';
+        } else if (mudam.length < escolhem.length) {
+          b.title = 'Muda ' + (mudam.length === 1 ? 'o formato que não está' : 'os ' + mudam.length + ' formatos que não estão') +
+            ' em ' + nomeDosTipos(ts) + '. Os outros já estão.';
+        }
+        g.appendChild(b);
       });
-      g.appendChild(seg);
       barra.appendChild(g);
     }
     if (faltamGiro.length) montarGiroEmLote(barra, s, faltamGiro);
@@ -6424,8 +6443,9 @@
      Uma linha por formato com a situacao que o motor mede (vapt/tela/estado.py, painel_dos_formatos), o motivo
      numa frase e a marca de quem pede render. O formato escolhido mostra a imagem (o master em dia pela rota /render,
      ou a previa do layout) com a caixa de antes tracejada e a de depois cheia, e a lista "o que mudou" da ultima versao
-     do briefing que mexeu nele. "Renderizar os afetados" pede o render de todos os que pedem render, com uma
-     confirmacao so (Q3 e Q4); "Aprovar" pede a aprovacao dos formatos marcados, com o arquivo final de cada um na
+     do briefing que mexeu nele. "Renderizar todos" pede o render de todos os que pedem render, com uma
+     confirmacao so (Q3 e Q4); "Marcar todos" marca os que podem ser aprovados (0.17.3, um clique do DA, nada vem
+     marcado); "Aprovar" pede a aprovacao dos formatos marcados, com o arquivo final de cada um na
      janela (Q11), e pergunta antes o lado do giro do formato que vai girado sem lado gravado (Q13). Os dois atos rodam
      como tarefa no servidor: a pagina acompanha a etapa e o formato por /api/tarefa, e Cancelar corta o formato em
      andamento (Q14). Nada vem marcado, e o render nunca parte sozinho. O historico de versoes e so para leitura (Q12).
@@ -6594,15 +6614,32 @@
       if (n) b.appendChild(el('span', n, 'contagem-botao'));
       b.setAttribute('aria-label', n ? texto + ', ' + plural(n, um, varios) : texto);
     }
-    rotular(r, 'Renderizar os afetados', afetados.length, 'formato', 'formatos');
+    // 0.17.3: "Renderizar todos" (antes "Renderizar os afetados"): todos os que pedem render. O renderizado e o
+    // aprovado ficam de fora, como antes, porque o render de novo derrubaria a aprovacao (Q3 e Q4)
+    rotular(r, 'Renderizar todos', afetados.length, 'formato', 'formatos');
+    if (afetados.length) r.setAttribute('aria-label', 'Renderizar todos, ' + plural(afetados.length, 'formato', 'formatos') + ' que pedem render');
     rotular(a, 'Aprovar', pn.marcados.size, 'formato marcado', 'formatos marcados');
     r.disabled = !escrita || ocupado || !afetados.length;
     a.disabled = !escrita || ocupado || !pn.marcados.size;
+    // 0.17.3: "Marcar todos" marca de uma vez os formatos que podem ser aprovados (so marca: o Aprovar continua
+    // abrindo a janela com o arquivo final de cada um, Q11); com todos marcados, vira "Desmarcar todos"
+    const t = document.getElementById('aprovar-todos');
+    const podem = fs.filter(function (f) { return f.pode_aprovar; });
+    const tudo = podem.length > 0 && podem.every(function (f) { return pn.marcados.has(f.id); });
+    t.textContent = tudo ? 'Desmarcar todos' : 'Marcar todos';
+    // o nome falado comeca pelo texto visivel (o comando de voz acha o botao pelo que o DA le)
+    t.setAttribute('aria-label', t.textContent + (podem.length ? ', ' + plural(podem.length, 'formato', 'formatos') +
+      (podem.length === 1 ? ' que pode ser aprovado' : ' que podem ser aprovados') : ''));
+    t.disabled = !escrita || ocupado || !podem.length;
     // revisao do 0.9.2: o botao desligado diz por que, no title (o mesmo texto vale para o leitor de tela)
-    const algumAprova = fs.some(function (f) { return f.pode_aprovar; });
-    r.title = !r.disabled ? '' : (!escrita ? PAINEL_SO_VER : (ocupado ? PAINEL_OCUPADO : PAINEL_SEM_AFETADOS));
+    const algumAprova = podem.length > 0;
+    // ligado, o title diz o que "todos" quer dizer: os que pedem render; o renderizado e o aprovado ficam como estao
+    r.title = !r.disabled ? 'Renderiza ' + (afetados.length === 1 ? 'o formato que pede' : 'os ' + afetados.length +
+      ' formatos que pedem') + ' render. Os já renderizados e os aprovados ficam como estão.' :
+      (!escrita ? PAINEL_SO_VER : (ocupado ? PAINEL_OCUPADO : PAINEL_SEM_AFETADOS));
     a.title = !a.disabled ? '' : (!escrita ? PAINEL_SO_VER : (ocupado ? PAINEL_OCUPADO :
       (algumAprova ? PAINEL_MARQUE : PAINEL_NADA_A_APROVAR)));
+    t.title = !t.disabled ? '' : (!escrita ? PAINEL_SO_VER : (ocupado ? PAINEL_OCUPADO : PAINEL_NADA_A_APROVAR));
     document.getElementById('registro-guardar').disabled = !escrita || ocupado;
     document.querySelectorAll('#lista-formatos .linha-marca').forEach(function (c) {
       const f = formatoDoPainel(c.closest('.linha-formato').dataset.formato);
@@ -7050,6 +7087,15 @@
     document.getElementById('renderizar-afetados').addEventListener('click', function () {
       const afetados = (estado && estado.painel && estado.painel.afetados) || [];
       if (afetados.length) pedirAtoLongo('render', { formatos: afetados.slice() });
+    });
+    document.getElementById('aprovar-todos').addEventListener('click', function () {
+      const podem = formatosDoPainel().filter(function (f) { return f.pode_aprovar; });
+      const tudo = podem.length > 0 && podem.every(function (f) { return pn.marcados.has(f.id); });
+      podem.forEach(function (f) { if (tudo) pn.marcados.delete(f.id); else pn.marcados.add(f.id); });
+      document.querySelectorAll('#lista-formatos .linha-marca').forEach(function (c) {
+        c.checked = pn.marcados.has(c.closest('.linha-formato').dataset.formato);
+      });
+      atualizarBotoesDoPainel();
     });
     document.getElementById('aprovar-marcados').addEventListener('click', function () {
       const ids = formatosDoPainel().map(function (f) { return f.id; }).filter(function (fid) { return pn.marcados.has(fid); });

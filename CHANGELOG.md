@@ -2,6 +2,12 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.17.3 (24/11/2026): marcar todos no tipo e na aprovação
+
+- Em O que eu li, a barra de lote dos Formatos do job ganha três botões com o nome inteiro: "Todos em JPEG", "Todos em PNG" e "Todos em JPEG e PNG". Um clique abre uma janela só para todos os formatos, em vez de um por um. O lote também troca o tipo dos formatos que já tinham um: a janela diz o tipo de antes de cada um e avisa que o formato já renderizado ou aprovado pede render e aprovação de novo. Só vão os formatos que mudam; o botão do tipo que todos já têm fica apagado.
+- Em Render e aprovação, "Marcar todos" marca de uma vez os formatos que podem ser aprovados e vira "Desmarcar todos". Ele só marca: o Aprovar continua abrindo a janela com o arquivo final de cada formato.
+- "Renderizar os afetados" passa a se chamar "Renderizar todos". O botão continua renderizando só os formatos que pedem render; os já renderizados e os aprovados ficam como estão, e o texto do botão diz isso.
+
 ## 0.17.2 (24/11/2026): o cartão do Design system respira
 
 - No Design system, cada função mostra Tamanho no alto, numa grade de duas colunas com as regras em pares (largura e altura, lado menor e maior, área e fixo, cabe e cobre), e Âncora embaixo, com a grade de pontos à esquerda e o texto e o Usar à direita. Antes o texto da Âncora espremia os botões de Tamanho e o nome deles quebrava por cima um do outro. Nada muda no que cada clique grava.
