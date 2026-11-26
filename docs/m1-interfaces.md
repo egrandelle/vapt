@@ -2316,3 +2316,15 @@ Caso: o pedido do Duda em 26/11, levar o layout acertado num arquivo para outra 
 - Testes: `test_copia_entre_familias.py`, `test_copia_entre_familias_editor.py`, `test_copia_entre_familias_tela.py` e `test_copia_entre_familias_pagina.py`.
 
 Limites conhecidos: o destino na galeria sem versão escolhida dá `ERRO_NA_COPIA`; a corrida antiga de uma gravação do temporizador em voo quando um ato é clicado continua; Ctrl+Z funciona com uma janela aberta.
+
+## 0.19.3, o ato espera a gravação do rascunho em curso
+
+Caso: até a 0.19.2, `pedirAto` (tela.js) só gravava o rascunho que esperava na fila (`rascunho.espera_id`) ou que tinha falhado (`dataset.rascunho === 'erro'`). Com o POST `/api/rascunho` já em voo, o pedido do ato podia chegar ao servidor antes da última escolha do DA. `pedirAtoLongo` (render e aprovação) tinha o mesmo buraco e ainda seguia quando a gravação falhava.
+
+- `rascunho.gravando`: a promessa da gravação em voo, guardada por `gravarRascunho()` e limpa no fim (só se ainda for a mesma). O valor devolvido não muda: `true` quando grava, `false` quando falha (`copiaMudou()` também devolve `false`).
+- `rascunho.recusada`: `true` quando a última gravação que falhou trouxe `motivo` do servidor (a recusa da nº215, `MSG_COPIA_MUDOU`, inclusive); volta a `false` quando uma gravação dá certo.
+- `gravarAntesDoAto()`: com gravação em voo, para o relógio da mudança feita durante o voo (o `espera_id` continua marcado, e assim a gravação em voo não marca "Salvo" sem ela nem `conferirSalvo` lê o estado) e espera a gravação. Se ela gravou, confere de novo. Se falhou sem motivo, segue pelo caminho sem voo: grava uma vez e só devolve `false` se essa também falhar. Se foi recusada, devolve `false` e a mudança marcada volta a esperar `rascunho.espera`. Sem voo, grava o que espera na fila ou o que falhou e confere de novo. Sem nada por gravar, devolve `true`.
+- `pedirAto` e `pedirAtoLongo` usam `gravarAntesDoAto()`. Em `false`, `pedirAto` mostra no selo a frase de clique não registrado (como antes), e `pedirAtoLongo` para e mostra `PAINEL_SEM_GRAVAR`. A trava M5 (`abrirAtoDaEstrutura`) e a vista do ato continuam montadas depois da espera.
+- Fora do conserto: `POST /api/ato/confirmar` sai depois da janela modal; `/api/familia/previa` já segue a sequência do Desfazer da cópia; `gravarAoFechar` não passa por `gravarRascunho`.
+- Testes: `test_tela_ato_espera_o_rascunho.py` (página, Chromium sem janela): segura o POST do rascunho e responde ao pedido do ato com uma recusa, sem rodar nada no servidor. Cobre o ato com a gravação em voo, a mudança feita durante o voo, a gravação em voo recusada, a falha sem motivo com a nova tentativa que grava e a que falha, e o ato longo em voo e com a gravação que falha (em voo e na fila). Os testes falham no tela.js da 0.19.2.
+- Limite conhecido, como antes: se o DA mexe de novo enquanto o ato espera, ou se o relógio comum do rascunho dispara com uma gravação ainda em voo, duas gravações podem sair juntas. O ato espera as duas, mas a ordem delas no servidor não fica garantida; as gravações comuns não entraram em fila.

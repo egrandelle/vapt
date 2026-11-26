@@ -143,7 +143,7 @@
   const metaCsrf = document.querySelector('meta[name="dsd-csrf"]');
   const csrf = metaCsrf ? metaCsrf.content : '';
   const escrita = csrf !== '';
-  const rascunho = { job: null, laudo: null, espera: null, espera_id: null, familias: {}, tentativas: 0 };
+  const rascunho = { job: null, laudo: null, espera: null, espera_id: null, gravando: null, recusada: false, familias: {}, tentativas: 0 };
   /* revisao 1 da fase D: as esperas antes de cada nova tentativa do rascunho que nao gravou */
   const REPETIR_RASCUNHO_MS = [1000, 2000, 4000, 8000, 8000];
   /* as escolhas do passo 2 e do Design system, na forma do rascunho (vapt/tela/funcoes.py) */
@@ -437,10 +437,12 @@
       const f = rascunho.familias[g];
       if (f && f.copia_desfeita) desfeitas[g] = f.copia_desfeita;
     });
-    return enviar('/api/rascunho', corpoDoRascunho())
+    // a gravacao em voo fica em rascunho.gravando ate o fim: o ato espera por ela (gravarAntesDoAto)
+    const emVoo = enviar('/api/rascunho', corpoDoRascunho())
       .then(function () {
         gravou = true;
         rascunho.tentativas = 0;
+        rascunho.recusada = false;
         if (rascunho.espera_id === null) marcarRascunho('salvo');
         // a escolha nova gravou: o aviso do rodape (da gravacao que falhou ou da recusa de um ato) ficou velho
         rascunho.avisoNoRodape = false;
@@ -466,6 +468,9 @@
           return true;
         }
         if (refazer) p2Mudou = true;
+        // a recusa com motivo do servidor (a copia que mudou inclusive) nao passa gravando de novo; a falha sem motivo
+        // (rede, erro do servidor) pode passar: o ato que esperava esta gravacao tenta mais uma vez (gravarAntesDoAto)
+        rascunho.recusada = !!(e && e.motivo);
         // decisao 215 (M5): a copia do layout mudou no servidor (o ato da janela gravou outra): a pagina le o rascunho
         // gravado de novo, e o que ela tinha antes da copia sai
         if (e && e.motivo === MSG_COPIA_MUDOU) return copiaMudou();
@@ -478,7 +483,40 @@
         atualizarSalvar();
         redesenharEspera();
         return false;
+      })
+      .then(function (ok) {
+        if (rascunho.gravando === emVoo) rascunho.gravando = null;
+        return ok;
+      }, function (e) {
+        if (rascunho.gravando === emVoo) rascunho.gravando = null;
+        throw e;
       });
+    rascunho.gravando = emVoo;
+    return emVoo;
+  }
+  /* o ato confirma o que esta gravado: antes dele, a gravacao que ja saiu (rascunho.gravando) volta, e depois vai a
+     que espera na fila ou a que nao gravou, ate nada ficar por gravar. Assim o pedido do ato nunca chega ao servidor
+     antes da ultima escolha do DA. Devolve false quando uma delas nao gravou: o ato nao vai */
+  function gravarAntesDoAto() {
+    if (rascunho.gravando) {
+      // a mudanca feita com a gravacao em voo continua marcada (espera_id), mas o relogio dela para: ela vai logo
+      // depois da gravacao em voo, nunca junto com ela, e a gravacao em voo nao diz "Salvo" sem ela
+      clearTimeout(rascunho.espera_id);
+      return rascunho.gravando.then(function (ok) {
+        // a gravacao em voo falhou sem motivo (rede, erro do servidor): o ato tenta gravar mais uma vez, como no
+        // clique feito com a pagina ja em erro, e so nao vai se essa tambem falhar
+        if (ok !== false || !rascunho.recusada) return gravarAntesDoAto();
+        // a gravacao em voo foi recusada: o ato nao vai, e a mudanca marcada volta a esperar, como antes do clique
+        if (rascunho.espera_id !== null) {
+          clearTimeout(rascunho.espera_id);
+          rascunho.espera_id = setTimeout(gravarRascunho, rascunho.espera);
+        }
+        return false;
+      });
+    }
+    if (rascunho.espera_id === null && raiz.dataset.rascunho !== 'erro') return Promise.resolve(true);
+    clearTimeout(rascunho.espera_id);
+    return gravarRascunho().then(function (ok) { return ok === false ? false : gravarAntesDoAto(); });
   }
   /* decisao 215 (M5): o servidor recusou a gravacao porque a copia do layout desta familia mudou la (a pagina mandou
      a familia de antes da copia). A pagina le o rascunho gravado e o passo 3 de novo, volta a familia e diz o que
@@ -894,13 +932,8 @@
     if (!rascunho.avisoNoRodape) avisarNoRodape('');
     trabalhando(origem, true);
     // o rascunho que espera, ou que nao gravou, vai antes: o ato confirma o que esta gravado. Sem gravar, o ato nao
-    // vai (revisao 1 da fase D)
-    let antes = Promise.resolve(true);
-    if (rascunho.espera_id !== null || raiz.dataset.rascunho === 'erro') {
-      clearTimeout(rascunho.espera_id);
-      antes = gravarRascunho();
-    }
-    return antes.then(function (gravou) {
+    // vai (revisao 1 da fase D). A gravacao que ja saiu tambem volta antes do pedido (gravarAntesDoAto)
+    return gravarAntesDoAto().then(function (gravou) {
       if (gravou === false) throw new Error('rascunho');
       // decisao 215 (M5, revisao): a trava do ato da estrutura vale desde o pedido. O servidor confere a vista contra o
       // rascunho gravado, e a mudanca feita enquanto ele confere so vai ao rascunho se a janela fechar sem o ato
@@ -6512,6 +6545,8 @@
   const SEM_VERSOES = 'Nenhuma versão salva ainda.';
   const ERRO_PEDIDO = 'A tela não conseguiu pedir o trabalho. Tente de novo.';
   const ERRO_TAREFA = 'A tela perdeu o andamento do trabalho. Confira os formatos de novo.';
+  // o rascunho que nao gravou antes do render ou da aprovacao: o pedido nao sai, e o rodape diz o motivo
+  const PAINEL_SEM_GRAVAR = 'O trabalho não foi pedido porque a sua última escolha não foi salva.';
   const TEXTO_SENTIDO_UM = 'Este formato vai girado para o veículo. Escolha para que lado ele gira. O lado fica gravado junto com a aprovação.';
   const TEXTO_SENTIDO_VARIOS = 'Estes formatos vão girados para o veículo. Escolha para que lado cada um gira. O lado fica gravado junto com a aprovação.';
   const TOPO_DA_PECA = 'A barra mostra onde fica o topo da peça.';
@@ -6985,11 +7020,12 @@
     atualizarBotoesDoPainel();
     mensagemDoPainel('');
     raiz.dataset.estadoAto = '';
-    let antes = Promise.resolve();
-    if (rascunho.espera_id !== null) { clearTimeout(rascunho.espera_id); antes = gravarRascunho(); }
     let seguir = null;
     let emTarefa = false;
-    return antes.then(function () {
+    let semGravar = false;
+    // como no pedirAto: o rascunho em voo, o da fila e o que nao gravou vao antes, e sem gravar o ato longo nao vai
+    return gravarAntesDoAto().then(function (gravou) {
+      if (gravou === false) { semGravar = true; throw new Error('rascunho'); }
       return enviar('/api/ato/pedir', { ato: nome, dados: dados });
     }).then(function (r) {
       emTarefa = true;
@@ -7028,7 +7064,7 @@
     }).catch(function () {
       esconderTarefa();
       raiz.dataset.estadoAto = 'erro';
-      mensagemDoPainel(emTarefa ? ERRO_TAREFA : ERRO_PEDIDO, 'parou');
+      mensagemDoPainel(semGravar ? PAINEL_SEM_GRAVAR : (emTarefa ? ERRO_TAREFA : ERRO_PEDIDO), 'parou');
       pn.acompanhando = null;
     }).then(function () {
       pn.ocupado = false;

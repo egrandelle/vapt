@@ -2,6 +2,14 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.19.3 (26/11/2026): o clique espera a sua última escolha ser salva
+
+Conserto combinado com o Duda depois da 0.19.2: um clique feito enquanto o Vapt salvava sozinho podia chegar antes da escolha que estava sendo salva.
+
+- Os botões da tela (modo de dados, Confirmar família, copiar layout, trocar arquivo, separar e juntar família e os outros) e os do painel (render e aprovação) agora esperam a gravação que já saiu. O pedido só vai depois dela, e depois da mudança que você fez enquanto ela estava a caminho.
+- Se a gravação não deu certo por falha passageira (rede, erro do servidor), o clique tenta salvar mais uma vez antes de seguir. Se de novo não salvar, ou se o Vapt recusou a escolha com um motivo, o clique não vai. Na janela, o selo diz "O clique não foi registrado porque a sua última escolha não foi salva.". No painel, a frase é "O trabalho não foi pedido porque a sua última escolha não foi salva.".
+- O render e a aprovação também passam a salvar de novo a escolha que tinha falhado antes de pedir o trabalho. Antes eles seguiam sem ela.
+
 ## 0.19.2 (26/11/2026): copiar o layout de outra família
 
 Pedido do Duda em 26/11, antes do item 11: acertar o layout num arquivo e levar para outra família da mesma orientação, sem refazer à mão.
