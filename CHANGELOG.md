@@ -2,6 +2,18 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.19.2 (26/11/2026): copiar o layout de outra família
+
+Pedido do Duda em 26/11, antes do item 11: acertar o layout num arquivo e levar para outra família da mesma orientação, sem refazer à mão.
+
+- No cabeçalho da família, ao lado de "Trocar arquivo de edição", entra "Copiar layout de outra família", com um botão por família de onde dá para copiar ("Copiar do 1080x1920"). A janela diz, antes do clique, o que vem junto, quanto o conteúdo muda de tamanho, o que o Vapt ajustou para caber e o que pede ajuste seu. Cancelar não grava nada.
+- Vem junto o layout que o arquivo de edição da outra família tem agora: posição e tamanho de cada elemento, os apagados, o texto editado, as quebras de linha e o alinhamento das linhas. Tudo vira edição da família que recebe, e você ajusta no palco como qualquer edição. As edições que ela tinha antes saem, e a família pede a confirmação de novo.
+- O conteúdo nunca cresce. Do arquivo maior para o menor, ele diminui o quanto precisa para caber. Do menor para o maior, ele fica do tamanho que tinha, e a cópia sai sempre como "Pede ajuste": a janela sugere aumentar no palco ou fazer o layout no arquivo maior e copiar dele.
+- A cópia é uma foto: mexer depois na família de onde veio não muda nada. O cabeçalho, o selo do palco e o resumo embaixo dele dizem de onde veio o layout. Enquanto a cópia vale, a galeria de versões fica travada nessa família.
+- Um Desfazer tira a cópia inteira e devolve a família como estava antes, com a versão, as edições, as quebras e os avisos. Se você mexeu depois da cópia, o Desfazer tira primeiro o que você fez, um clique por edição.
+- O arquivo de edição com mestre própria (o artboard que você desenhou) fica de fora da cópia, como origem e como destino.
+- Na família que o Vapt separa pelo tamanho, o "Briefing salvo" volta a aparecer depois do Salvar e seguir.
+
 ## 0.19.1 (25/11/2026): o texto editado guarda as cores do KV
 
 Terceira leva dos pedidos de 25/11.

@@ -198,6 +198,10 @@ class Recusa:
 # o rascunho de uma pagina aberta antes de o PSD ser lido de novo: gravar outra vez nao resolve (revisao 0.9.3)
 MOTIVO_PSD_RELIDO = ('O PSD foi lido de novo com esta janela aberta, e ela ainda mostra a leitura antiga. Feche esta '
                      'janela e peça ao Claude para abrir a tela de novo.')
+# decisao 215: o rascunho da pagina com a familia de antes da copia do layout de outra familia, ou com as caixas
+# copiadas mudadas (vapt.tela.rascunho._com_a_copia)
+MOTIVO_COPIA_MUDOU = ('O layout copiado desta família mudou no Vapt enquanto você editava. A tela mostra agora o que '
+                      'está gravado.')
 # o ato pedido enquanto outra tarefa da tela roda (o render, a aprovacao): clicar de novo depois resolve
 MOTIVO_TAREFA_EM_ANDAMENTO = ('O Vapt está terminando outra tarefa, como um render. Espere ela acabar, no passo 5, '
                               'e clique de novo.')
@@ -835,8 +839,14 @@ class ServidorTela:
                                       origem=self.origem_rascunho, familias_da_tela=self.familias_da_tela,
                                       arquivos_da_tela=self.arquivos_da_tela,
                                       elementos_da_tela=self.elementos_da_tela)
-        except rascunho.ErroRascunho:
-            return None
+        except rascunho.ErroRascunho as e:
+            # decisao 215: a pagina que mandou a familia de antes da copia (ou mexeu nas caixas copiadas) le o rascunho
+            # de novo; gravar de novo sozinho nao resolve
+            return Recusa(MOTIVO_COPIA_MUDOU) if e.motivo == 'copia' else None
+        # revisao 2 da 215: o Desfazer da copia devolve o aviso de arquivo trocado de antes dela, e o estado so monta
+        # essa frase no recarregar: o proximo pedido do estado recarrega, como depois de um ato (a pagina o pede)
+        if any(isinstance(f, dict) and f.get('copia_desfeita') for f in (dados.get('familias') or {}).values()):
+            self._recarregar_depois = True
         return 200, {'atualizado_em': gravado['atualizado_em']}  # numero-neutro: codigo HTTP
 
     def _pedido_vivo(self, recebido):

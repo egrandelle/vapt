@@ -383,19 +383,38 @@ def _ato_da_familia(pasta, conteudo):
                 return v.get('ordem')
         return None
 
+    def copiado_do(d):
+        # decisao 215: o nome do arquivo de onde veio o layout copiado que vale na familia (as caixas gravadas, e a
+        # previa sem copia_sem_efeito), ou None
+        from vapt.tela import edicao
+        dados, _de_outro = rascunho.ler(pasta, rascunho.laudo_sha256(pasta))
+        f = ((dados or {}).get('familias') or {}).get(d['familia']) or {}
+        if not f.get('copiado_de') or not edicao.caixas_de(f.get('edicoes')) or not callable(conteudo.get('editar')):
+            return None
+        r = edicao.previa_gravada(conteudo['editar'], d['familia'], f)
+        if r is None or r.get('copia_sem_efeito'):
+            return None
+        arq = f['copiado_de']['arquivo']
+        return _nomes(conteudo).get(arq, arq)
+
     def texto(d):
         fam = conteudo['familias'][d['familia']]
         n = len(fam['formatos'])
         ordem = ordem_da_versao(d) if d['versao'] is not None else None
         na = ' na versão %s' % ordem if ordem is not None else ''
+        copiado = copiado_do(d)
+        if copiado is not None:
+            # decisao 215: o layout copiado nao e uma versao do Vapt (a versao gravada so e a partida da copia)
+            na = ' com o layout copiado do %s' % copiado
         if n == 1:
-            return ('O arquivo desta família fica confirmado%s, como a tela mostra agora, com as suas edições. Se você '
-                    'mexer de novo nesta família, ela volta a pedir a sua confirmação.' % na)
+            return ('O arquivo desta família fica confirmado%s, como a tela mostra agora%s. Se você mexer de novo '
+                    'nesta família, ela volta a pedir a sua confirmação.'
+                    % (na, '' if copiado is not None else ', com as suas edições'))
         # decisao 199 (5): a janela "Conferir os N arquivos" lista os arquivos, os que pedem ajuste primeiro. O
         # arquivo vai pelo nome para o DA, a medida e o giro (revisao da 0.10.0)
         ref = fam.get('arquivo_de_edicao')
         ref = _nomes(conteudo).get(ref, ref)
-        com = ' com as suas edições' if d['edicoes'] or d.get('quebras') else ''
+        com = ' com as suas edições' if (d['edicoes'] or d.get('quebras')) and copiado is None else ''
         return ('Os %d arquivos desta família ficam confirmados%s: o %s%s e os outros seguindo o layout dele, como a '
                 'lista mostra. Se você mexer de novo nesta família, ela volta a pedir a sua confirmação.'
                 % (n, na, ref, com))
@@ -441,12 +460,22 @@ def quanto_do_tamanho(motivo):
     return 'entre %d%% e %d%% do tamanho' % (menor, maior)
 
 
+# decisao 215: a mensagem depois da copia do layout de outra familia, e quantos pontos que pedem ajuste a janela cita
+MENSAGEM_COPIADA = 'O layout do %s foi copiado para o %s. Ajuste no palco o que precisar e confirme a família.'
+FALHAS_NA_JANELA = 3  # numero-neutro: os pontos que pedem ajuste citados na janela da copia; o resto vira "E mais N."
+
+
 def _atos_da_estrutura(pasta, conteudo):
     """Os atos da janela que mudam a estrutura da familia (decisao 199; 0.10.0), cada um com a confirmacao do DA:
       - familia_arquivo: "Trocar arquivo de edicao", so na familia sem edicao nem quebra de linha gravada;
       - familia_separar: "Separar em familia propria", um arquivo que nao e o de edicao, na familia de dois ou mais;
       - familia_juntar: "Juntar de volta", a familia de um arquivo separado volta para a de onde saiu; desde a
-        decisao 208, tambem a familia que a regra do tamanho separou (separado_por_tamanho), com todos os arquivos.
+        decisao 208, tambem a familia que a regra do tamanho separou (separado_por_tamanho), com todos os arquivos;
+      - familia_copiar: "Copiar o layout de outra familia" (decisao 215), de uma das familias da mesma orientacao que
+        a tela oferece (copiar_de). Dados: {'familia', 'de', 'vista': {'de': {versao, edicoes, quebras}, 'para':
+        {...}}}, a vista das duas familias como a pagina as mostra, que tem de ser a do rascunho gravado. A copia que
+        nao se faz e recusada antes da janela, com a frase do motivo (Recusa). O executar so grava
+        (vapt.tela.rascunho.copiar_layout).
     As familias sao as do conteudo da tela agora; depois do ato, a tela monta as familias de novo
     (vapt.tela.estado.montar, estrutura)."""
     from vapt.tela import rascunho
@@ -544,6 +573,120 @@ def _atos_da_estrutura(pasta, conteudo):
             return {'familia': fam['separado_de'], 'juntados': list(fam['formatos'])}
         rascunho.juntar(pasta, fam['separado_de'], fam['formatos'][0], **comum(disparo))
         return {'familia': fam['separado_de'], 'juntado': fam['formatos'][0]}
+
+    # decisao 215: copiar o layout de outra familia da mesma orientacao. A conta e a conferencia sao do Editor da tela
+    # (conteudo['copiar'], guardadas nele: a tela montada de novo traz Editor novo e nada velho); o ato so confere o
+    # pedido, monta a janela e grava
+    def gravada(gid):
+        dados, _de_outro = rascunho.ler(pasta, rascunho.laudo_sha256(pasta))
+        return ((dados or {}).get('familias') or {}).get(gid) or {}
+
+    def vista_gravada(gid, v):
+        # a familia que a janela mostra e a do rascunho gravado (a pagina manda {versao, edicoes, quebras} das duas)
+        f = gravada(gid)
+        return _chaves(v, 'versao', 'edicoes', 'quebras') and \
+            (v['versao'], v['edicoes'], v['quebras']) == (f.get('versao'), f.get('edicoes') or [], f.get('quebras') or [])
+
+    def nomes_da_copia(d):
+        nomes, fams = _nomes(conteudo), conteudo['familias']
+        dest, orig = fams[d['familia']].get('arquivo_de_edicao'), fams[d['de']].get('arquivo_de_edicao')
+        return nomes.get(dest, dest), nomes.get(orig, orig)
+
+    def copiar_valido(d):
+        from vapt.tela.servidor import Recusa
+        familias = conteudo.get('familias') or {}
+        if not _chaves(d, 'familia', 'de', 'vista') or not isinstance(d['familia'], str) or \
+                not isinstance(d['de'], str) or d['familia'] not in familias or d['de'] not in familias or \
+                d['de'] == d['familia']:
+            return False
+        # so as origens que a tela oferece (Editor.origens_da_copia: a mesma orientacao, a escala que passa, sem a
+        # mestre propria nem spec a confirmar, como origem e como destino)
+        if d['de'] not in [o['familia'] for o in familias[d['familia']].get('copiar_de') or []] or \
+                not callable(conteudo.get('copiar')):
+            return False
+        v = d['vista']
+        if not _chaves(v, 'de', 'para') or not vista_gravada(d['de'], v['de']) or \
+                not vista_gravada(d['familia'], v['para']):
+            return False
+        r = conteudo['copiar'](d['familia'], d['de'])
+        return Recusa(recusa_da_copia(d, r)) if 'motivo' in r else True
+
+    def recusa_da_copia(d, r):
+        dest, orig = nomes_da_copia(d)
+        if r['motivo'] == 'SEM_LAYOUT':
+            return ('O arquivo de edição da família do %s está sem layout agora, e a tela mostra o motivo nele. '
+                    'Resolva lá ou copie de outra família.' % orig)
+        if r['motivo'] == 'ESCALA_PEQUENA':
+            return ('No %s, o conteúdo do %s ficaria com %d%% do tamanho, pequeno demais. Escolha outra família.'
+                    % (dest, orig, int(round(float(r['s']) * 100))))
+        if r['motivo'] == 'FONTE':
+            return 'No %s, %s: %s Nada foi gravado.' % (dest, r.get('nome') or 'um texto copiado', r['texto'])
+        return 'O Vapt não conseguiu montar a cópia no %s. Nada foi gravado. Fale com a Trezion.' % dest
+
+    def copiar_texto(d):
+        from vapt.tela import edicao
+        dest, orig = nomes_da_copia(d)
+        r = conteudo['copiar'](d['familia'], d['de'])
+        f = gravada(d['familia'])
+        partes = ['O %s passa a partir do layout que o %s tem agora: a posição e o tamanho de cada elemento, os '
+                  'elementos apagados, o texto editado, as quebras de linha e o alinhamento das linhas.' % (dest, orig)]
+        if f.get('edicoes') or f.get('quebras'):
+            # resposta 2 do Duda (26/11): o Desfazer tira a copia inteira e devolve a familia como estava
+            # o Desfazer nao devolve a confirmacao da familia (revisao da 215)
+            partes.append('As edições e as quebras de linha que você fez nesta família saem. Se mudar de ideia, '
+                          'Desfazer tira a cópia inteira de uma vez e devolve as suas edições e quebras de linha%s'
+                          % (', mas não devolve a confirmação.' if f.get('confirmada') else '.'))
+        s = float(r['s'])
+        if s < edicao.S_IGUAL:
+            partes.append('Para caber, o conteúdo fica com %d%% do tamanho que tem no %s.' % (int(round(s * 100)), orig))
+        elif r.get('origem_menor'):
+            # resposta 1 do Duda (26/11): do arquivo menor para o maior, copia e avisa
+            partes.append('O %s é menor que o %s, e o Vapt não aumenta o conteúdo: ele fica do tamanho que tem no %s. '
+                          'Aumente no palco o que precisar. Se der, faça o layout no arquivo maior e copie dele para '
+                          'o menor.' % (orig, dest, orig))
+        else:
+            partes.append('O conteúdo fica do mesmo tamanho que tem no %s. O Vapt não aumenta o conteúdo: o espaço '
+                          'que sobra fica entre os blocos.' % orig)
+        # resposta 6 do Duda (26/11): as frases da escada ficam na janela e no resumo, nao no palco. Os ajustes para
+        # caber ficam separados dos avisos do encaixe neste arquivo (o corte na borda, por exemplo)
+        if r['ajustes']:
+            partes.append('Para caber, o Vapt fez estes ajustes: %s' % ' '.join(r['ajustes']))
+        if r['avisos']:
+            partes.append('Neste arquivo: %s' % ' '.join(r['avisos']))
+        if r['n_piso'] == 1:
+            partes.append('No %s, um elemento fica abaixo do tamanho mínimo deste arquivo. Aumente no palco se '
+                          'precisar.' % dest)
+        elif r['n_piso']:
+            partes.append('No %s, %d elementos ficam abaixo do tamanho mínimo deste arquivo. Aumente no palco os que '
+                          'precisar.' % (dest, r['n_piso']))
+        if r['falhas_d']:
+            mais = len(r['falhas_d']) - FALHAS_NA_JANELA
+            partes.append('Estes pontos pedem ajuste seu no %s: %s%s' % (
+                dest, ' '.join(r['falhas_d'][:FALHAS_NA_JANELA]),
+                (' E mais %d.' % mais) if mais > 0 else ''))
+        if not r['frases'] and not r['n_piso'] and not r['falhas_d'] and s >= edicao.S_IGUAL and \
+                not r.get('origem_menor'):
+            partes.append('Tudo ficou como no %s.' % orig)
+        if len(conteudo['familias'][d['familia']]['formatos']) > 1:
+            partes.append('Os outros arquivos desta família seguem o layout novo do %s.' % dest)
+        partes.append('É uma cópia: se você mexer depois na família do %s, este arquivo não muda.' % orig)
+        partes.append('Esta família pede a sua confirmação de novo.' if f.get('confirmada') else
+                      'Confira e confirme a família depois.')
+        return ' '.join(partes)
+
+    def copiar_executar(disparo, d):
+        from vapt.briefing import modelo
+        fam = conteudo['familias'][d['familia']]
+        r = conteudo['copiar'](d['familia'], d['de'])
+        p = d['vista']['para']
+        # a copia guardada no Editor leva a hora em que foi feita; a gravada leva a do clique (o Desfazer a cita)
+        rascunho.copiar_layout(pasta, d['familia'], formatos=fam['formatos'], versao=r['versao'],
+                               edicoes=r['edicoes'], quebras=r['quebras'],
+                               copiado_de=dict(r['copiado_de'], em=modelo.agora()),
+                               antes=(p['versao'], p['edicoes'], p['quebras']), **comum(disparo))
+        dest, orig = nomes_da_copia(d)
+        return {'familia': d['familia'], 'de': d['de'], 'situacao': r['situacao'],
+                'mensagem': MENSAGEM_COPIADA % (orig, dest)}
     return {
         'familia_arquivo': Ato(comando=rascunho.COMANDO_TROCAR_ARQUIVO, titulo='Trocar o arquivo de edição',
                                texto=trocar_texto, sim='Trocar', nao=NAO, executar=trocar_executar,
@@ -553,6 +696,9 @@ def _atos_da_estrutura(pasta, conteudo):
                                validar=separar_valido),
         'familia_juntar': Ato(comando=rascunho.COMANDO_JUNTAR, titulo='Juntar de volta', texto=juntar_texto,
                               sim='Juntar', nao=NAO, executar=juntar_executar, validar=juntar_valido),
+        'familia_copiar': Ato(comando=rascunho.COMANDO_COPIAR, titulo='Copiar o layout de outra família',
+                              texto=copiar_texto, sim='Copiar', nao=NAO, executar=copiar_executar,
+                              validar=copiar_valido),
     }
 
 

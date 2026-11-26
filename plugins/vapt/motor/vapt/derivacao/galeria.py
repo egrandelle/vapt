@@ -2255,11 +2255,18 @@ def figura_de_fundo(cf, p):
     fx = cf.get('_figura')
     if fx is None or p['fig'] is not None:
         return None
+    return fx['id'] if fundo_elegivel(cf) else None
+
+
+def fundo_elegivel(cf):
+    """True quando a figura pode ficar de fundo neste formato (n 202): o KV deitado e o formato em pe ou quadrado. A
+    copia do layout de outra familia (decisao 215) usa a mesma regra para levar a figura de fundo copiada aos outros
+    arquivos da familia."""
     if '_fundo_elegivel' not in cf:
         # guardado no contexto do formato: a nota e a distancia das candidatas perguntam muitas vezes
         cf['_fundo_elegivel'] = mod_escala.orientacao(*cf['bm']) == 'horizontal' and \
             mod_escala.orientacao(cf['W'], cf['H']) in ('vertical', 'quadrado')
-    return fx['id'] if cf['_fundo_elegivel'] else None
+    return cf['_fundo_elegivel']
 
 
 def fundo_da_versao(cf, vid):

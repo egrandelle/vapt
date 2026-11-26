@@ -2298,3 +2298,21 @@ O que acontece com o job antigo:
 - O briefing confirmado com a origem `padrao_marca` continua válido pelo enum e passa em `conferir_para_entrega`. Na tela, o job que usou "Usar o padrão" aparece "não salvo" uma vez, porque o briefing montado agora leva a origem `da`; um "Salvar e seguir" a mais resolve, sem aviso na tela. A origem não entra na impressão do formato, então esse salvar não refaz o layout e a aprovação fica.
 - O rascunho com a origem antiga é lido sem perda, e o valor vai ao briefing como escolha do DA.
 - A pasta antiga da biblioteca no disco do DA (`<biblioteca>/marcas/` e os `.perfil-marca.trava`) fica como está. Só o CHANGELOG fala dela: o doctor e a tela não falam, e nenhum código a apaga.
+
+## 0.19.2, copiar o layout de outra família
+
+Caso: o pedido do Duda em 26/11, levar o layout acertado num arquivo para outra família da mesma orientação. A decisão é a nº215 (decisoes-v1.md), que revisa a nº171 só neste caminho.
+
+- Ato da tela `familia copiar layout` (em `humano.ATOS_DA_TELA`). O texto da janela sai de `atos.copiar_texto`, com a conta da cópia já feita, e só o clique do DA grava (`rascunho.copiar_layout`). Cancelar não grava nada.
+- Conta: `familia.escala_unica`, tirada de `transferir`, é a mesma da nº199. `proposta.escala_da_copia` e `proposta.copia_entre_familias` dão a escala `s` (nunca acima de 1) e as caixas; `edicoes_da_copia` e `quebras_da_copia` montam o que vira edição do destino. Do menor para o maior (`origem_menor`: `s >= S_IGUAL` e a escala inversa abaixo de `S_IGUAL`), a situação é sempre `pede_ajuste`. O piso do destino só fica como decisão do DA quando já era decisão dele de piso na origem (`piso_do_da`).
+- Edição nova `caixa` no `rascunho-tela/1` e no `briefing/1`: `{elemento, acao: "caixa", arquivo, medida, caixa (fração do lado, 10 casas), doc (4 casas), sangra, sangria_do_da?, do_da?, fundo?, piso_do_da?}`. Junto vêm as edições `texto`, `alinhar_texto` e `apagar` e as quebras da família de origem. As edições que o destino tinha saem.
+- `copiado_de` na família (rascunho e briefing): `{familia?, arquivo, para, s, situacao, em, frases, antes}`. `antes` guarda `{versao, edicoes, quebras, copiado_de?, arquivo_trocado?, layout_mudou?}` para o Desfazer. `em` ganha o sufixo "#n" quando repete o `em` da cópia anterior.
+- Conferência antes de gravar (`edicao.Editor.conferir_copia`, tolerância `TOL_COPIA` de 1e-3 px): a caixa gravada tem de dar no palco o que a conta deu. Se não bate, o Editor devolve `ERRO_NA_COPIA`, nada é gravado e o rodapé manda falar com a Trezion.
+- Desfazer da cópia: a página manda `copia_desfeita` igual a `copiado_de.em`; `rascunho._com_a_copia` devolve `antes` inteiro e tira `copiado_de`, e o próximo pedido do estado recarrega o rascunho (`_recarregar_depois`), para a frase do arquivo trocado voltar. A página recusa um segundo Desfazer da cópia enquanto o primeiro não foi gravado (`MSG_DESFAZER_NAO_SALVO`) e, sem gravação em curso, grava o primeiro na hora.
+- `Editor` ganhou um `RLock` e `__deepcopy__`, para a conta da janela não correr junto com a gravação.
+- Galeria travada na família com `copiado_de`. Arquivo de edição com mestre própria fica fora, como origem e como destino.
+- Derivação: registros novos `layout_de_outra_familia` e `layout_de_outra_familia_sem_efeito` no `derivacao/1`.
+- Conserto junto: `salvar.situacao_na_tela` e `_com_a_estrutura` levam `separado_de`, e o "Briefing salvo" volta a aparecer na família separada pelo tamanho (nº208).
+- Testes: `test_copia_entre_familias.py`, `test_copia_entre_familias_editor.py`, `test_copia_entre_familias_tela.py` e `test_copia_entre_familias_pagina.py`.
+
+Limites conhecidos: o destino na galeria sem versão escolhida dá `ERRO_NA_COPIA`; a corrida antiga de uma gravação do temporizador em voo quando um ato é clicado continua; Ctrl+Z funciona com uma janela aberta.

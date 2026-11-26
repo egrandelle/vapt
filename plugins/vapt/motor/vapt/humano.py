@@ -64,7 +64,9 @@ ATOS_DA_TELA = ('modo dados escolher', 'familia confirmar', 'fonte como imagem',
                 'formatos digitados',
                 # decisao 199 (0.10.0): trocar o arquivo de edicao, separar um arquivo em familia propria e junta-lo
                 # de volta (vapt.tela.rascunho)
-                'familia trocar arquivo', 'familia separar', 'familia juntar')
+                'familia trocar arquivo', 'familia separar', 'familia juntar',
+                # decisao 215: copiar o layout de outra familia da mesma orientacao (vapt.tela.rascunho)
+                'familia copiar layout')
 # marcas do painel de terminal do app do Claude (decisoes-v1.md, 160), medidas no shell do painel em 04/11: o painel
 # nao poe as VARIAVEIS_DO_CLAUDE, mas poe TERM_PROGRAM=claude-desktop e CLAUDE_AGENT_SDK_VERSION, e o shell dele e
 # filho de claude.exe (powershell.exe -> claude.exe -> claude.exe -> sihost.exe). Cada marca recusa sozinha

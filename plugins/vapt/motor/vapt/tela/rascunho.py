@@ -33,9 +33,13 @@ fica salvo sozinho, a cada mudanca, neste arquivo. Regras:
     novo). A confirmacao guarda o arquivo de edicao e o hash do layout de cada arquivo
     (decisao 199, 5); a confirmacao de antes da 0.10.0, sem eles, cai uma vez (confirmada_para), e a tela diz por que
     (vapt.tela.estado.RECONFIRMAR_0100);
+  - a copia do layout de outra familia (decisao 215) so nasce do ato "Copiar o layout de outra familia" da janela
+    (copiar_layout): as edicoes 'caixa' e o copiado_de sao do servidor, e a pagina so tira a copia inteira pelo
+    Desfazer, com copia_desfeita igual ao copiado_de.em gravado (_com_a_copia);
   - gravacao atomica, com o esquema rascunho-tela/1 conferido antes. A origem e 'rascunho', ou 'fixture_de_teste' no
     modo de teste da tela (proposta do M7, 159c).
 """
+import copy
 from pathlib import Path
 
 from vapt import arquivos, contratos
@@ -59,10 +63,13 @@ COMANDO_FAMILIA = 'familia confirmar'
 COMANDO_TROCAR_ARQUIVO = 'familia trocar arquivo'
 COMANDO_SEPARAR = 'familia separar'
 COMANDO_JUNTAR = 'familia juntar'
+# decisao 215: o ato da janela que copia o layout de outra familia da mesma orientacao (copiar_layout). So ele grava
+# as edicoes 'caixa' e o copiado_de (_com_a_copia)
+COMANDO_COPIAR = 'familia copiar layout'
 # decisao 208: os arquivos que o DA juntou de volta depois que a regra do tamanho os separou (juntar_por_tamanho); a
 # tela nao os separa de novo (vapt.tela.estado.abas)
 CAMPOS_DO_SERVIDOR = ('confirmacao', 'formatos', 'cedidos', 'arquivo_de_edicao', 'separados', 'juntados',
-                      'layout_mudou', 'arquivo_trocado')
+                      'layout_mudou', 'arquivo_trocado', 'copiado_de')
 
 
 class ErroRascunho(Exception):
@@ -148,6 +155,7 @@ def gravar(pasta, recebido, *, job_id, laudo_atual, origem, familias_da_tela=Non
     familias = _com_os_formatos(familias, (anterior or {}).get('familias') or {}, familias_da_tela or {})
     familias = _com_a_estrutura(familias, (anterior or {}).get('familias') or {}, familias_da_tela or {},
                                 arquivos_da_tela or {})
+    familias = _com_a_copia(familias, (anterior or {}).get('familias') or {})
     if any((recebido.get(k) or {}) != ((anterior or {}).get(k) or {}) for k in CAMPOS_DAS_ESCOLHAS):
         # a prancheta, o giro, o passo 2 e o Design system mudam o layout de todas as familias: nenhuma confirmacao
         # fica (revisao do M7a)
@@ -323,6 +331,59 @@ def _com_a_estrutura(familias, gravadas, tela, arquivos):
     return saida
 
 
+def _com_a_copia(familias, gravadas):
+    """As familias da pagina com a copia do layout de outra familia (decisao 215), que so o ato da janela grava
+    (copiar_layout): as edicoes 'caixa' e o copiado_de. A pagina nunca cria nem muda uma caixa, e o copiado_de que ela
+    manda ja saiu em _familias_com_a_confirmacao. Vale para cada familia da pagina e do rascunho gravado (a familia
+    que some da pagina leva as caixas junto):
+      - as caixas da pagina iguais as gravadas: a familia guarda o copiado_de gravado;
+      - o Desfazer da copia (resposta 2 do Duda em 26/11): a pagina manda copia_desfeita igual ao copiado_de.em
+        gravado e a familia como estava antes da copia (copiado_de.antes: a versao, as edicoes e as quebras). As caixas
+        da pagina tem de ser as de antes, e a familia volta ao copiado_de de antes, quando havia, e aos avisos de
+        arquivo trocado e de layout mudado de antes (arquivo_trocado e layout_mudou; a confirmacao nao volta). O campo
+        copia_desfeita nunca e gravado; o que nao e igual ao gravado conta como nao mandado (a gravacao repetida da
+        pagina depois do Desfazer passa);
+      - o resto (caixa nova, mudada ou tirada sem o Desfazer, e o POST atrasado da pagina com a familia de antes da
+        copia): ErroRascunho('copia'), e nada e gravado."""
+    def caixas(eds):
+        # o esquema ainda nao foi conferido: a lista torta e recusada aqui
+        if not isinstance(eds, list):
+            raise ErroRascunho('esquema')
+        return [e for e in eds if isinstance(e, dict) and e.get('acao') == 'caixa']
+    saida = {}
+    for gid in list(familias) + [g for g in gravadas if g not in familias]:
+        g = gravadas.get(gid) or {}
+        f = familias.get(gid)
+        if f is not None:
+            f = dict(f)
+            pede = f.pop('copia_desfeita', None)
+        else:
+            pede = None
+        c = g.get('copiado_de')
+        base = g.get('edicoes') or []
+        volta = {}
+        if c and pede is not None and pede == c.get('em'):
+            # o Desfazer da copia: a base passa a ser a familia de antes dela, com os avisos de arquivo trocado e de
+            # layout mudado que a copia tirou
+            antes = c.get('antes') or {}
+            base = antes.get('edicoes') or []
+            volta = {k: copy.deepcopy(antes[k]) for k in ('arquivo_trocado', 'layout_mudou') if antes.get(k)}
+            c = antes.get('copiado_de')
+        velhas = caixas(base)
+        if f is None:
+            if velhas:
+                raise ErroRascunho('copia')
+            continue
+        if caixas(f.get('edicoes') or []) != velhas:
+            raise ErroRascunho('copia')
+        f.pop('copiado_de', None)
+        if velhas and c:
+            f['copiado_de'] = c
+        f.update(volta)
+        saida[gid] = f
+    return saida
+
+
 def _familia_gravada(pasta, familia, laudo_atual, job_id):
     """(dados do rascunho, familia) gravados agora para os atos da estrutura (trocar_arquivo, separar e juntar)."""
     if laudo_atual is None or laudo_sha256(pasta) != laudo_atual:
@@ -425,6 +486,62 @@ def juntar_por_tamanho(pasta, familia, arquivos, *, disparo, job_id, laudo_atual
         f['separados'] = sorted(set(f.get('separados') or ()) | set(g.pop('separados')))
         mudadas[filha] = g
     return _gravar_estrutura(pasta, dados, mudadas, disparo)['familias'][familia]
+
+
+def copiar_layout(pasta, familia, *, disparo, job_id, laudo_atual, formatos, versao, edicoes, quebras, copiado_de,
+                  antes):
+    """O ato "Copiar o layout de outra familia" da janela (decisao 215): a familia passa a partir do layout de agora
+    do arquivo de edicao de outra familia da mesma orientacao. A copia ja vem feita e conferida pelo Editor da tela
+    (vapt.tela.edicao.Editor.copia_entre_familias): a versao de partida, as edicoes (o texto, o alinhamento das
+    linhas, os apagados e as caixas) e as quebras de linha substituem as da familia, e o copiado_de diz de onde veio
+    e guarda a familia de antes (o Desfazer de um clique, _com_a_copia). antes: (versao, edicoes, quebras) da familia
+    como a janela mostrou; diferentes das gravadas, ErroRascunho('mudou') e nada e gravado. formatos: os da familia na
+    tela agora; as outras familias que ainda os tem guardam que esta os levou (cedidos). A confirmacao cai, e o aviso
+    de layout mudado e de arquivo trocado sai (o DA acabou de trocar o layout inteiro; o Desfazer o devolve). O
+    arquivo de edicao gravado passa a ser o da copia (copiado_de['para']). O Disparo vale um ato so."""
+    from vapt import humano
+    humano.conferir(disparo, COMANDO_COPIAR, consumir=True)
+    dados, f = _familia_gravada(pasta, familia, laudo_atual, job_id)
+    versao_a, edicoes_a, quebras_a = antes
+    if _escolhas_da_familia(f) != (versao_a, list(edicoes_a or []), list(quebras_a or [])):
+        raise ErroRascunho('mudou')
+    if quebras:
+        laudo = _laudo(pasta)
+        if laudo is None:
+            raise ErroRascunho('laudo')
+        _conferir_quebras({familia: dict(f, edicoes=edicoes, quebras=quebras)}, laudo)
+    # o copiado_de.em e o nome da copia no Desfazer (_com_a_copia): nunca igual ao da copia de antes (duas copias no
+    # mesmo segundo), para a gravacao repetida de um Desfazer nunca desfazer tambem a copia de antes
+    anteriores = {(((copiado_de.get('antes') or {}).get('copiado_de')) or {}).get('em'),
+                  (f.get('copiado_de') or {}).get('em')}
+    em, n = copiado_de.get('em'), 1
+    while em in anteriores:
+        n += 1
+        em = '%s#%d' % (copiado_de['em'], n)
+    copiado_de = dict(copiado_de, em=em)
+    # o aviso de arquivo trocado que so existia calculado (vapt.tela.estado.arquivo_trocado: o gravado saiu da familia,
+    # e a familia tem edicoes): o arquivo de edicao passa a ser o 'para' logo abaixo, e sem isto o Desfazer da copia
+    # devolveria as edicoes sem o aviso
+    velho = f.get('arquivo_de_edicao')
+    if (velho and velho != copiado_de['para'] and velho not in formatos and (f.get('edicoes') or f.get('quebras'))
+            and not f.get('arquivo_trocado')):
+        copiado_de['antes'] = dict(copiado_de.get('antes') or {},
+                                   arquivo_trocado={'de': velho, 'para': copiado_de['para']})
+    f.update(versao=versao, edicoes=list(edicoes), quebras=list(quebras or []), copiado_de=copiado_de,
+             formatos=list(formatos))
+    if not f['quebras']:
+        f.pop('quebras')
+    for k in ('cedidos', 'arquivo_trocado', 'layout_mudou'):
+        f.pop(k, None)
+    # a copia foi feita para o arquivo 'para' (o de edicao da familia agora): o gravado que ja saiu da familia fica
+    # para tras, senao a tela diria que o arquivo foi trocado e que a copia deixou de valer
+    f['arquivo_de_edicao'] = copiado_de['para']
+    # as outras familias que ainda tem estes formatos na lista guardam que esta os levou (como no gravar e no
+    # confirmar_familia): a confirmacao delas deixa de valer para eles (confirmada_para), e o resto fica
+    fams = {g: dict(x) for g, x in dados['familias'].items()}
+    fams[familia] = f
+    _ceder(fams, familia, formatos)
+    return _gravar_estrutura(pasta, dict(dados, familias=fams), {familia: f}, disparo)['familias'][familia]
 
 
 def derrubar_por_layout(pasta, laudo_atual, quedas):

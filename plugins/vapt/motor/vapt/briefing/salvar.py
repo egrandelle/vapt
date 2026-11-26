@@ -139,6 +139,11 @@ def montar(pasta, conteudo, dados, *, origem, meio, por, quando, modo):
             comp['arquivo_de_edicao'] = fam['arquivo_de_edicao']
         if fam.get('separado_de'):
             comp['separado_de'] = fam['separado_de']
+        # decisao 215: de onde veio o layout copiado de outra familia, enquanto as caixas dele estao nas edicoes (a
+        # derivacao grava o registro layout_de_outra_familia)
+        cop = f.get('copiado_de')
+        if cop and any(isinstance(e, dict) and e.get('acao') == 'caixa' for e in f.get('edicoes') or []):
+            comp['copiado_de'] = {k: cop[k] for k in ('familia', 'arquivo', 'para', 's', 'situacao') if k in cop}
         novo['composicoes'].append(comp)
     _quebras_das_familias(novo, conteudo, dados, tipo)
     novo['cabecalho'] = dict(mb.hashes_atuais(pasta), origem=origem, meio=meio, por=dict(por), quando=quando)
@@ -430,14 +435,16 @@ def _decisoes(b):
     return saida
 
 
-def situacao_na_tela(pasta, familias, sugestoes=None):
+def situacao_na_tela(pasta, familias, sugestoes=None, separado_de=None):
     """{'salvo', 'em'} para a tela: salvo quando "Salvar e seguir" nao mudaria o briefing gravado, que vale para os
     arquivos do job e tem as familias da tela confirmadas. O briefing que o gravador montaria agora sai do mesmo montar
     (o rascunho da tela: passo 1, passo 2 e Design system, familias com versao, edicoes e quebras; o modo de dados; o
     resto do gravado), com a origem do gravado, e e comparado com ele fora do cabecalho e do carimbo das confirmacoes
     (_decisoes): nenhum campo que o gravador escreve fica de fora (correcao do D1 do E1, a funcao trocada no passo 2
     deixava a tela em "Briefing salvo"). familias: {id: [formatos]}. sugestoes (0.18.0): a mesma leitura das sugestoes que o salvar da tela usa (conteudo['sugestoes'], com o teto desta tela);
-    sem ela, o teto do job, e a referencia das sugestoes podia diferir da gravada sem mudanca nenhuma do DA."""
+    sem ela, o teto do job, e a referencia das sugestoes podia diferir da gravada sem mudanca nenhuma do DA.
+    separado_de: {id: familia de onde saiu ou None}, como a tela mostra (vapt.tela.estado.abas, com a familia que a
+    regra do tamanho separou, decisao 208); sem ele, so a familia que o DA separou (_com_a_estrutura)."""
     from vapt.briefing import modelo as mb
     nao = {'salvo': False, 'em': None}
     try:
@@ -460,8 +467,8 @@ def situacao_na_tela(pasta, familias, sugestoes=None):
             return nao
     origem = b['cabecalho']['origem']
     try:
-        novo = montar(pasta, {'familias': _com_a_estrutura(b, dados, familias), 'sugestoes': sugestoes},
-                      dados,
+        novo = montar(pasta, {'familias': _com_a_estrutura(b, dados, familias, separado_de),
+                              'sugestoes': sugestoes}, dados,
                       origem=origem, meio=b['cabecalho'].get('meio'), por={}, quando=None, modo=_modo(pasta, origem))
     except (contratos.ErroContrato, KeyError, TypeError, ValueError):
         return nao
@@ -477,10 +484,12 @@ def situacao_na_tela(pasta, familias, sugestoes=None):
     return dict(salvo, sem_layout=sem_layout) if sem_layout else salvo
 
 
-def _com_a_estrutura(b, dados, familias):
+def _com_a_estrutura(b, dados, familias, separado_de=None):
     """{id: {'formatos', 'arquivo_de_edicao', 'separado_de'}} das familias da tela (decisao 199; 0.10.0), pela mesma
     regra da tela (vapt.tela.estado.abas): o arquivo de edicao gravado no rascunho enquanto estiver na familia,
-    senao a regra; a familia de um arquivo so que o DA separou leva a familia de onde ele saiu."""
+    senao a regra; a familia de um arquivo so que o DA separou leva a familia de onde ele saiu. separado_de ({id:
+    familia de onde saiu}, o da tela): vale no lugar da conta, porque a familia que a regra do tamanho separou
+    (decisao 208) so a tela ve; o "Salvar e seguir" grava o separado_de da tela."""
     from vapt.derivacao import proposta
     por_id = {f['id']: f for f in b.get('formatos') or []}
     gravadas = dados.get('familias') or {}
@@ -496,8 +505,11 @@ def _com_a_estrutura(b, dados, familias):
             if fs else None
         if ref:
             fam['arquivo_de_edicao'] = ref
-        mae = next((m for m, f in sorted(gravadas.items()) if len(fids) == 1 and m != gid and
-                    fids[0] in (f.get('separados') or ())), None)
+        if separado_de is not None:
+            mae = separado_de.get(gid)
+        else:
+            mae = next((m for m, f in sorted(gravadas.items()) if len(fids) == 1 and m != gid and
+                        fids[0] in (f.get('separados') or ())), None)
         if mae:
             fam['separado_de'] = mae
         saida[gid] = fam

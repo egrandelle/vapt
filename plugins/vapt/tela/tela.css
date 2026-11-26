@@ -1328,11 +1328,13 @@ main { flex: 1; min-height: 0; display: flex; }
   font-size: var(--t-12);
   white-space: nowrap;
 }
-.trocar-arquivo { position: relative; margin-left: auto; }
-.trocar-arquivo > summary { list-style: none; display: inline-flex; align-items: center; cursor: pointer; }
-.trocar-arquivo > summary::-webkit-details-marker { display: none; }
+/* decisao 215: "Copiar layout de outra familia" no molde do "Trocar arquivo de edicao", logo depois dele */
+.trocar-arquivo, .copiar-layout { position: relative; margin-left: auto; }
+.trocar-arquivo ~ .copiar-layout { margin-left: 0; }
+.trocar-arquivo > summary, .copiar-layout > summary { list-style: none; display: inline-flex; align-items: center; cursor: pointer; }
+.trocar-arquivo > summary::-webkit-details-marker, .copiar-layout > summary::-webkit-details-marker { display: none; }
 .trocar-arquivo > summary[aria-disabled="true"] { color: var(--text2); cursor: default; }
-.trocar-arquivo[open] > summary { background: var(--acao); border-color: var(--acao); color: var(--on-acao); }
+.trocar-arquivo[open] > summary, .copiar-layout[open] > summary { background: var(--acao); border-color: var(--acao); color: var(--on-acao); }
 .trocar-lista {
   position: absolute;
   right: 0;
@@ -1458,6 +1460,10 @@ main { flex: 1; min-height: 0; display: flex; }
 .variante:active { transform: scale(0.99); }
 .variante[aria-selected="true"] { box-shadow: 0 0 0 2px var(--accent); }
 .variante[aria-selected="true"]::after { content: "\2713" / ""; border-color: var(--acao); background: var(--acao); }
+/* decisao 215: a galeria travada enquanto vale o layout copiado de outra familia */
+.variante[aria-disabled="true"] { opacity: 0.55; cursor: default; }
+.variante[aria-disabled="true"]:hover { box-shadow: 0 0 0 1px var(--stroke); }
+.variante[aria-disabled="true"]:active { transform: none; }
 .var-quadro { display: grid; place-items: center; height: 84px; border-radius: 7px; background: var(--stage); overflow: hidden; }
 .var-texto { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding-top: 1px; }
 .var-numero { color: var(--text); font-size: var(--t-13); font-weight: 600; font-variant-numeric: tabular-nums; }

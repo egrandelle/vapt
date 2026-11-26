@@ -256,6 +256,9 @@
             "para": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}
           }
         },
+        "copiado_de": {
+          "$ref": "#/$defs/copiado_de"
+        },
         "layout_mudou": {
           "description": "Os arquivos da familia cujo layout saiu diferente do que o DA confirmou, quando o Salvar e seguir conferiu o hash de cada um (decisao 199, 5; revisao da 0.10.0). A confirmacao cai, a tela diz quais arquivos mudaram e pede a confirmacao de novo. So o servidor grava; o que a pagina manda e jogado fora, e o campo sai quando o DA confirma a familia.",
           "type": "array",
@@ -344,6 +347,114 @@
         }
       }
     },
+    "copiado_de": {
+      "description": "215: o layout desta familia foi copiado de outra familia da mesma orientacao pelo ato Copiar o layout de outra familia. As caixas, o texto, o alinhamento, os apagados e as quebras copiados sao edicoes e quebras desta familia; este campo diz de onde vieram, a escala, a situacao e as frases da hora da copia, e guarda em antes a familia como estava, para o Desfazer da copia a devolver de um clique. So o servidor grava; o que a pagina manda e jogado fora.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arquivo",
+        "para",
+        "s",
+        "situacao",
+        "em"
+      ],
+      "properties": {
+        "familia": {
+          "description": "O id da familia de origem na hora da copia.",
+          "$ref": "#/$defs/id"
+        },
+        "arquivo": {
+          "description": "O arquivo de edicao da familia de origem.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "para": {
+          "description": "O arquivo de edicao desta familia na hora da copia.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "s": {
+          "description": "A escala unica da copia (199, 1): nunca passa de 1.",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "situacao": {
+          "enum": [
+            "igual",
+            "ajustado",
+            "pede_ajuste"
+          ]
+        },
+        "frases": {
+          "description": "As frases da hora da copia: os ajustes da escada e os pontos que pediam ajuste.",
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "em": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+        },
+        "quebras": {
+          "description": "As camadas de texto cujas quebras vieram com a copia.",
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 500,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "antes": {
+          "description": "A familia como estava antes da copia (resposta 2 do Duda em 26/11): a versao, as edicoes, as quebras, a copia de antes e os avisos de arquivo trocado e de layout mudado, quando havia. O Desfazer da copia a devolve inteira, menos a confirmacao.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "versao",
+            "edicoes",
+            "quebras"
+          ],
+          "properties": {
+            "versao": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "edicoes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/edicao"
+              }
+            },
+            "quebras": {
+              "type": "array",
+              "maxItems": 500,
+              "items": {
+                "$ref": "#/$defs/quebra"
+              }
+            },
+            "copiado_de": {
+              "$ref": "#/$defs/copiado_de"
+            },
+            "arquivo_trocado": {
+              "$ref": "#/$defs/familia/properties/arquivo_trocado"
+            },
+            "layout_mudou": {
+              "$ref": "#/$defs/familia/properties/layout_mudou"
+            }
+          }
+        }
+      }
+    },
     "quebra": {
       "description": "A quebra de linha de um texto na familia (M7b, C1). As posicoes contam no texto de agora: o do KV ou o editado pelo DA nesta familia (a ultima edicao de texto do elemento, com CR LF e CR trocados por LF como o render desenha).",
       "type": "object",
@@ -426,7 +537,7 @@
           "$ref": "#/$defs/id"
         },
         "acao": {
-          "description": "0.15.0: devolver traz de volta o grafismo que a versao da galeria tirou (decisoes-v1.md, 204).",
+          "description": "0.15.0: devolver traz de volta o grafismo que a versao da galeria tirou (decisoes-v1.md, 204). 215: caixa e a posicao e o tamanho copiados do layout de outra familia; so o servidor a grava.",
           "enum": [
             "mover",
             "escalar",
@@ -434,8 +545,93 @@
             "apagar",
             "alinhar",
             "alinhar_texto",
-            "devolver"
+            "devolver",
+            "caixa"
           ]
+        },
+        "caixa": {
+          "description": "215: a caixa de geometria do elemento copiada de outra familia, em fracao do arquivo de edicao (x0/W, y0/H, x1/W, y1/H), 10 casas. So em caixa.",
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "number"
+          }
+        },
+        "doc": {
+          "description": "215: a caixa do elemento na mestre de onde a caixa saiu, em px do documento. A caixa vai a mestre de agora pela mesma transformacao. So em caixa.",
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "number"
+          }
+        },
+        "arquivo": {
+          "description": "215: o arquivo de edicao da familia em que a caixa foi copiada. Em outro arquivo a caixa fica sem efeito. So em caixa.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "medida": {
+          "description": "215: a composicao W x H do arquivo de edicao na hora da copia. Com outra medida a caixa fica sem efeito. So em caixa.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "sangra": {
+          "description": "215: os lados em que o elemento copiado sangra. So em caixa.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "esq",
+            "topo",
+            "dir",
+            "base"
+          ],
+          "properties": {
+            "esq": {
+              "type": "boolean"
+            },
+            "topo": {
+              "type": "boolean"
+            },
+            "dir": {
+              "type": "boolean"
+            },
+            "base": {
+              "type": "boolean"
+            }
+          }
+        },
+        "sangria_do_da": {
+          "description": "215: os lados que o DA deixou o elemento passar da borda na familia de origem. So em caixa.",
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 4,
+          "items": {
+            "enum": [
+              "esq",
+              "topo",
+              "dir",
+              "base"
+            ]
+          }
+        },
+        "do_da": {
+          "description": "215: o elemento foi decisao do DA na familia de origem. So em caixa.",
+          "const": true
+        },
+        "piso_do_da": {
+          "description": "215: o piso furado do elemento ja era decisao do DA na familia de origem; so esse piso continua decisao do DA aqui. So em caixa.",
+          "const": true
+        },
+        "fundo": {
+          "description": "215: o elemento e a figura de fundo (n 202) do layout copiado. So em caixa.",
+          "const": true
         },
         "alinhamento": {
           "description": "0.12.0: o alinhamento das linhas do texto escolhido pelo DA (todas as linhas do elemento; a linha mais larga fica no lugar). So em alinhar_texto.",
@@ -458,7 +654,7 @@
         "texto": {
           "type": "string",
           "maxLength": 2000,
-          "description": "O texto novo do elemento (decisoes-v1.md, 169 e 171), valido so na familia onde foi editado; a quebra de linha do DA e \n."
+          "description": "O texto novo do elemento (decisoes-v1.md, 169 e 171), valido na familia onde foi editado; a copia de outra familia (215) o grava como edicao desta; a quebra de linha do DA e \n."
         },
         "fx": {
           "description": "Ponto fixo do escalar, em fracao da largura da caixa (0 e a esquerda); sem ele, o meio.",
@@ -510,7 +706,8 @@
                   "texto",
                   "apagar",
                   "alinhar_texto",
-                  "devolver"
+                  "devolver",
+                  "caixa"
                 ]
               }
             }
@@ -519,6 +716,75 @@
             "not": {
               "required": [
                 "elementos"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "acao": {
+                "const": "caixa"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "caixa",
+              "doc",
+              "arquivo",
+              "medida",
+              "sangra"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "caixa"
+                  ]
+                },
+                {
+                  "required": [
+                    "doc"
+                  ]
+                },
+                {
+                  "required": [
+                    "arquivo"
+                  ]
+                },
+                {
+                  "required": [
+                    "medida"
+                  ]
+                },
+                {
+                  "required": [
+                    "sangra"
+                  ]
+                },
+                {
+                  "required": [
+                    "sangria_do_da"
+                  ]
+                },
+                {
+                  "required": [
+                    "do_da"
+                  ]
+                },
+                {
+                  "required": [
+                    "piso_do_da"
+                  ]
+                },
+                {
+                  "required": [
+                    "fundo"
+                  ]
+                }
               ]
             }
           }

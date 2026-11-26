@@ -169,7 +169,9 @@ def test_ato_de_aprovar_usa_o_comando_aprovar_sem_ato_novo_da_tela(job):
                                    'fonte como imagem',  # 0.9.1: o texto como imagem
                                    'formatos digitados',  # 0.9.2: os formatos digitados
                                    # 0.10.0 (decisao 199): trocar o arquivo de edicao, separar e juntar
-                                   'familia trocar arquivo', 'familia separar', 'familia juntar')
+                                   'familia trocar arquivo', 'familia separar', 'familia juntar',
+                                   # decisao 215: copiar o layout de outra familia
+                                   'familia copiar layout')
     assert 'aprovar' in humano.COMANDOS and 'parametros-entrega' in humano.COMANDOS
 
 

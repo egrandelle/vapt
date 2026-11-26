@@ -58,7 +58,8 @@ As regras abaixo valem nele, e os outros arquivos copiam o layout aprovado nele 
     das fontes; o processo principal nunca abre a fonte); a previa leva o texto novo com a face real, e as linhas
     sao as do DA (Linhas do DA, 0.9.4): nada quebra na largura da caixa, e o texto cresce em volta da ancora com o
     mesmo corpo. A pagina mede a tinta e avisa quando ela passa da borda do formato. O texto vale so na familia
-    editada (171). Cada caractere do texto editado fica com o estilo (face, cor, corpo, tracking) de um trecho do KV,
+    editada (171), menos quando o DA copia o layout de outra familia (215): o texto copiado vira edicao desta
+    familia. Cada caractere do texto editado fica com o estilo (face, cor, corpo, tracking) de um trecho do KV,
     pela regra por palavra (decisao 214; vapt.derivacao.quebras.runs_do_editado), e e conferido na face do trecho
     dele;
   - o elemento apagado sai de todos os membros, fica registrado com a origem do rascunho ('da', ou fixture_de_teste no
@@ -81,13 +82,16 @@ So previa, em memoria: nada aqui grava arquivo. As edicoes ficam no rascunho que
 e "Confirmar familia" e um ato da janela (vapt.tela.atos).
 """
 import math
+import threading
 import time
 
 from vapt import limites
 
 # 0.15.0 (decisoes-v1.md, 204): devolver traz de volta o grafismo que a versao da galeria tirou. Ela so vale no
 # layout da familia (vapt.derivacao.proposta.edicoes_efetivas), que a troca pelos apagar dos tirados que ficam fora
-ACOES = ('mover', 'escalar', 'texto', 'apagar', 'alinhar', 'alinhar_texto', 'devolver')
+# decisao 215: caixa e a posicao e o tamanho copiados do layout de outra familia (caixa_copiada). So o servidor a
+# grava (vapt.derivacao.proposta.edicoes_da_copia)
+ACOES = ('mover', 'escalar', 'texto', 'apagar', 'alinhar', 'alinhar_texto', 'devolver', 'caixa')
 ACOES_DO_GRUPO = ('mover', 'escalar', 'alinhar')  # M7b, D1 e D2: as acoes que levam a lista do grupo
 # M7b, D2: o alinhamento no quadro do membro. alvo: (eixo, linha da caixa que encosta na mesma linha do quadro)
 ALVOS = {'margem_esquerda': ('x', 'esquerda'), 'centro_horizontal': ('x', 'centro'), 'margem_direita': ('x', 'direita'),
@@ -124,6 +128,11 @@ TEXTO_SEM_UM_TEXTO_PARA_ALINHAR = 'Este elemento não tem um texto só para alin
 TEXTO_ALINHAR_SEM_FONTE = 'A fonte deste texto não está no job, e sem ela a tela não mostra o alinhamento novo.'
 TEXTO_QUEBRA_SEM_MEDIDA = ('A quebra de linha desta família ficou sem medida. Sem a medida, o Vapt não monta as '
                            'versões deste arquivo. Tire a quebra ou fale com a Trezion.')
+# decisao 215: a copia do layout de outra familia
+TOL_COPIA = 1e-3  # numero-neutro: px, a conferencia da copia (as 10 casas da fracao, ampliadas pela ida a mestre)
+S_IGUAL = 0.995  # numero-neutro: abaixo disto a escala da copia aparece ao DA (o arredondamento da porcentagem)
+FRASES_MAX = 50  # numero-neutro: as frases guardadas da hora da copia (o tamanho do rascunho)
+FRASE_MAX = 500  # numero-neutro: caracteres de cada frase guardada
 
 
 def tolerancia(W, H):
@@ -179,10 +188,11 @@ def limites_da_escala():
 def escalas(edicoes):
     """O tamanho de cada elemento escalado pelo DA (M7b, D3): {id: produto dos fatores das edicoes de escalar que o
     levam, sozinho ou no grupo}, sobre o tamanho antes das edicoes. O elemento sem escalar fica de fora (1, 100%), e o
-    apagado sai. Vale igual em todo formato (so le as edicoes)."""
+    apagado sai. A caixa copiada de outra familia (215) volta o elemento a 1: o 100% passa a ser o tamanho copiado.
+    Vale igual em todo formato (so le as edicoes)."""
     tamanho = {}
     for ed in edicoes:
-        if ed['acao'] == 'apagar':
+        if ed['acao'] in ('apagar', 'caixa'):
             tamanho.pop(ed['elemento'], None)
         elif ed['acao'] == 'escalar':
             for eid in membros(ed):
@@ -191,10 +201,11 @@ def escalas(edicoes):
 
 
 def _passos(edicoes):
-    """{id: [tamanho depois de cada edicao de escalar que o leva]} (escalas, passo a passo); o apagado recomeca."""
+    """{id: [tamanho depois de cada edicao de escalar que o leva]} (escalas, passo a passo); o apagado e o da caixa
+    copiada (215) recomecam."""
     passos, tamanho = {}, {}
     for ed in edicoes:
-        if ed['acao'] == 'apagar':
+        if ed['acao'] in ('apagar', 'caixa'):
             tamanho.pop(ed['elemento'], None)
         elif ed['acao'] == 'escalar':
             for eid in membros(ed):
@@ -248,7 +259,8 @@ def ids_conferem(edicoes, ids):
 def intencoes(edicoes):
     """Os alinhamentos no quadro que ficam valendo depois das edicoes (M7b, D2), na ordem delas: [{'elementos',
     'eixo', 'alvo', 'referencia'}]. A ultima edicao vence: o elemento movido naquele eixo, escalado ou apagado depois
-    sai da intencao, e o alinhamento novo no mesmo eixo vale sobre o de antes. Vale igual em todo formato (so le as
+    sai da intencao (a caixa copiada de outra familia, 215, tambem), e o alinhamento novo no mesmo eixo vale sobre o
+    de antes. Vale igual em todo formato (so le as
     edicoes); a derivacao a segura contra a intencao de alinhamento (168) e a firma de novo no layout (firmar).
     Revisao 0.9.5 (o que o DA nao mexeu fica parado): quando um membro sai do alinhamento de um grupo, o grupo inteiro
     sai daquele eixo. Senao o firmar recalcularia a linha so com quem sobrou e levaria um elemento que o DA nao tocou."""
@@ -273,7 +285,7 @@ def intencoes(edicoes):
                 for eixo, d in (('x', ed['dx']), ('y', ed['dy'])):
                     if float(d):
                         tirar(eid, eixo)
-        elif acao in ('escalar', 'apagar'):
+        elif acao in ('escalar', 'apagar', 'caixa'):
             for eid in membros(ed):
                 for eixo in ('x', 'y'):
                     tirar(eid, eixo)
@@ -366,7 +378,58 @@ def no_quadro(u, alvo, quadro):
     return eixo, valor - _linha(u, eixo, nome), valor
 
 
-def aplicar(caixas, edicoes, W, H, quadros=None, borda=(), visivel=None, editados=()):
+def caixa_copiada(ed, W, H, mestre_caixa=None):
+    """A caixa de geometria [x0, y0, x1, y1] em px do formato W x H de uma edicao 'caixa' (decisao 215). A edicao
+    guarda a caixa em fracao (caixa) e a caixa do elemento na mestre de onde ela saiu (doc): as duas dao a
+    transformacao do elemento (a escala s pela regra de galeria._escalas e o ponto do documento no canto). Com a
+    mestre de agora (mestre_caixa) diferente da doc (a quebra de linha mudou a caixa do texto), a caixa vai a ela pela
+    mesma transformacao: o mesmo s e o mesmo ponto do documento, entao o texto fica do mesmo corpo e no mesmo lugar, e
+    a caixa cresce ou encolhe com as linhas. Sem mestre_caixa, ou com a mesma, a propria caixa."""
+    W, H = float(W), float(H)
+    f = [float(v) for v in ed['caixa']]
+    c = [f[0] * W, f[1] * H, f[2] * W, f[3] * H]
+    if mestre_caixa is None:
+        return c
+    d, m = [float(v) for v in ed['doc']], [float(v) for v in mestre_caixa]
+    if all(abs(a - b) <= IGUAL for a, b in zip(m, d)):
+        return c
+    if d[2] > d[0]:
+        s = (c[2] - c[0]) / (d[2] - d[0])
+    else:
+        s = (c[3] - c[1]) / (d[3] - d[1]) if d[3] > d[1] else 1.0
+    return [c[0] + s * (m[0] - d[0]), c[1] + s * (m[1] - d[1]), c[0] + s * (m[2] - d[0]), c[1] + s * (m[3] - d[1])]
+
+
+def caixas_de(edicoes):
+    """As edicoes 'caixa' (decisao 215), na ordem."""
+    return [e for e in edicoes or () if e.get('acao') == 'caixa']
+
+
+def copiados(edicoes):
+    """{id: a ultima edicao 'caixa' do elemento} (decisao 215), sem o elemento apagado depois dela."""
+    saida = {}
+    for e in edicoes or ():
+        if e['acao'] == 'caixa':
+            saida[e['elemento']] = e
+        elif e['acao'] == 'apagar':
+            saida.pop(e['elemento'], None)
+    return saida
+
+
+def copiados_do_da(edicoes):
+    """Os ids, em ordem, dos elementos copiados (copiados) que eram decisao do DA na familia de origem (do_da)."""
+    return sorted(k for k, e in copiados(edicoes).items() if e.get('do_da'))
+
+
+def fundo_copiado(edicoes):
+    """A figura de fundo (n 202) do layout copiado de outra familia (decisao 215): None sem edicao 'caixa' (vale a
+    regra da versao); senao a tupla dos ids copiados marcados fundo, que pode ser vazia."""
+    if not caixas_de(edicoes):
+        return None
+    return tuple(sorted(k for k, e in copiados(edicoes).items() if e.get('fundo')))
+
+
+def aplicar(caixas, edicoes, W, H, quadros=None, borda=(), visivel=None, editados=(), mestre_caixas=None):
     """As edicoes do DA no formato W x H. caixas: {id: [x0, y0, x1, y1]}. Mover anda dx x W e dy x H; escalar multiplica
     a caixa pelo fator em volta do ponto fixo (fx, fy, fracoes da caixa; o meio sem eles). No grupo (elementos, M7b,
     D1), todos andam igual, e o ponto fixo e a fracao da caixa que junta o grupo no formato (sem o elemento apagado nem
@@ -376,12 +439,18 @@ def aplicar(caixas, edicoes, W, H, quadros=None, borda=(), visivel=None, editado
     lado fica fora da linha e anda junto (caixa_da_linha; borda: {(id, lado)} do asset cortado na borda do KV, revisao
     1 da fase D). Devolve (caixas, apagados, textos {id: texto}, mexidos na
     ordem, o ultimo por ultimo). visivel, editados (0.9.6): a linha do alinhar e o ponto fixo do escalar saem da caixa
-    que o DA ve (vistas: o texto editado nas linhas dele); o deslocamento e o fator vao a caixa de geometria."""
+    que o DA ve (vistas: o texto editado nas linhas dele); o deslocamento e o fator vao a caixa de geometria.
+    A caixa copiada de outra familia (decisao 215) poe o elemento na caixa dela (caixa_copiada, com a caixa dele na
+    mestre de agora: mestre_caixas {id: caixa}); nao e mexido, entao nada encaixa depois dela."""
     caixas = {k: [float(x) for x in v] for k, v in caixas.items()}
     apagados, textos, mexidos = [], {}, []
     editados = set(editados)
     for ed in edicoes:
         eid, acao = ed['elemento'], ed['acao']
+        if acao == 'caixa':
+            if eid in caixas and eid not in apagados:
+                caixas[eid] = caixa_copiada(ed, W, H, (mestre_caixas or {}).get(eid))
+            continue
         if acao in ('apagar', 'texto', 'alinhar_texto'):
             # 0.12.0: o alinhamento das linhas do texto nao mexe em caixa nenhuma (derivacao.quebras.alinhamento_
             # editado o le das edicoes)
@@ -576,7 +645,7 @@ def normalizar(caixas, mexidos, W, H, kv_caixas=None, kv_tamanho=None, grupos=()
 
 
 def editar(caixas, edicoes, W, H, quadros=None, borda=(), conteudo=None, kv_caixas=None, kv_tamanho=None,
-           visivel=None):
+           visivel=None, mestre_caixas=None):
     """As edicoes do DA no formato W x H, uma a uma, cada uma com a intencao de alinhamento na hora dela (decisao
     185): aplicar a edicao e normalizar so o que ela mexeu (o elemento ou o grupo dele), com os grupos e os
     alinhamentos no quadro que valem ate ela. Cada edicao parte das caixas que a tela mostra depois da edicao de
@@ -590,12 +659,14 @@ def editar(caixas, edicoes, W, H, quadros=None, borda=(), conteudo=None, kv_caix
     apagados, textos {id: texto}, mexidos na ordem, o ultimo por ultimo, alinhados da ultima edicao: vazio quando
     ela nao mexeu em caixa). visivel (0.9.6; decisao 196): visivel(id, caixa) da a caixa das linhas do DA do texto
     editado (vistas). Depois da edicao de texto, o alinhar, o Tamanho e o encaixe medem essa caixa, como a tela, e o
-    deslocamento vai a caixa de geometria; antes dela, vale a caixa do KV."""
+    deslocamento vai a caixa de geometria; antes dela, vale a caixa do KV. mestre_caixas (decisao 215): {id: caixa na
+    mestre de agora}, para a caixa copiada de outra familia (aplicar)."""
     atual = {k: [float(x) for x in v] for k, v in caixas.items()}
     apagados, textos, mexidos, alinhados = [], {}, [], []
     for n, uma in enumerate(edicoes):
         antes = atual
-        atual, ap, tx, mx = aplicar(atual, [uma], W, H, quadros, borda, visivel=visivel, editados=set(textos))
+        atual, ap, tx, mx = aplicar(atual, [uma], W, H, quadros, borda, visivel=visivel, editados=set(textos),
+                                    mestre_caixas=mestre_caixas)
         textos.update(tx)
         for k in ap:
             apagados.append(k)
@@ -864,6 +935,8 @@ class Editor:
     ctx, kv: o contexto e a mestre da derivacao; laudo e base: os do palco (vapt.tela.estado.pecas_base);
     derivados: {id do formato: derivacao/1 em memoria}; brutos: {id do formato: {id da versao: variante do motor}};
     familias: {id da familia: [ids dos formatos membros]}; faces: as faces servidas do job (com o cmap)."""
+    # a trava de quem monta o Editor sem __init__ (os testes); __init__ da a cada Editor a dele (decisao 215)
+    _trava = threading.RLock()
 
     def __init__(self, ctx, kv, laudo, base, derivados, brutos, familias, faces, *, specs, arquivo_specs, params,
                  arquivos=None):
@@ -885,6 +958,20 @@ class Editor:
         # a familia com a quebra de linha do rascunho diferente da do briefing (M7b, C3): {chave: {'chave', 'ctx',
         # 'derivados', 'brutos'}}, a mais nova no fim
         self._vivas = {}
+        # decisao 215: o servidor da tela atende cada pedido num fio (ThreadingHTTPServer), e a previa e a copia
+        # mexem nos guardados (_vivas, _cf): um fio de cada vez. A copia de outra familia guardada pela chave dos
+        # dados dela (copia_entre_familias)
+        self._trava = threading.RLock()
+        self._copias = {}
+
+    def __deepcopy__(self, memo):
+        # a copia do conteudo da tela (os testes copiam o conteudo inteiro) ganha uma trava nova: a trava nao se copia
+        import copy as mod_copy
+        novo = self.__class__.__new__(self.__class__)
+        memo[id(self)] = novo
+        for k, v in self.__dict__.items():
+            setattr(novo, k, threading.RLock() if k == '_trava' else mod_copy.deepcopy(v, memo))
+        return novo
 
     def versoes(self, gid):
         return {vid for fid in self.familias.get(gid, ()) for vid in (self.brutos.get(fid) or {})}
@@ -920,13 +1007,17 @@ class Editor:
         """True quando os dados da pagina seguem o formato da edicao (o mesmo esquema do rascunho), com o tamanho de
         cada elemento entre os limites da escala (escala_fora, M7b, D3; antes: as edicoes gravadas da familia no
         rascunho, revisao 1 da fase D). As quebras de linha, quando vem, seguem as regras do rascunho
-        (vapt.tela.rascunho._conferir_quebras)."""
+        (vapt.tela.rascunho._conferir_quebras). Decisao 215: a caixa copiada de outra familia so o servidor grava; o
+        pedido com caixas diferentes das gravadas (antes) e recusado."""
         from vapt import contratos
         from vapt.tela import rascunho
         if not isinstance(dados, dict) or not set(CAMPOS) <= set(dados) <= set(CAMPOS + CAMPOS_OPCIONAIS):
             return False
         gid, versao, edicoes = dados['familia'], dados['versao'], dados['edicoes']
         if not isinstance(gid, str) or gid not in self.familias:
+            return False
+        if isinstance(edicoes, list) and all(isinstance(e, dict) for e in edicoes) and caixas_de(edicoes) and \
+                caixas_de(edicoes) != caixas_de(antes or []):
             return False
         # decisao 199 (1): so o arquivo de edicao aceita edicao no palco. O pedido que diz outro arquivo e recusado
         if 'arquivo' in dados and dados['arquivo'] != self.arquivo_de_edicao(gid):
@@ -1105,58 +1196,25 @@ class Editor:
         valor no texto ({'codigo', 'texto', 'elementos', 'medidas'}; M7b, D5). antes: as edicoes gravadas da familia
         no rascunho (o servidor as le), para o tamanho que ja estava fora dos limites nunca travar a familia (revisao
         1 da fase D). O membro devolvido sem versao da galeria vem com situacao 'devolvido', o palco do formato
-        devolvido e a falha que diz por que (_devolvido; previa igual ao Salvar, M7b). So previa: nada e gravado."""
-        from vapt.derivacao import proposta
+        devolvido e a falha que diz por que (_devolvido; previa igual ao Salvar, M7b). So previa: nada e gravado.
+        Decisao 215: copia_sem_efeito ({'arquivo', 'medida'} das caixas copiadas de outra familia que deixaram de
+        valer, ou None) e copiados (os elementos com a caixa copiada que vale)."""
+        with self._trava:
+            return self._previa(dados, origem, antes)
+
+    def _previa(self, dados, origem, antes):
         from vapt.tela import estado
-        if not self.conferir(dados, antes):
-            return None
         inicio = time.perf_counter()
+        r = self._layouts(dados, origem, antes)
+        if r is None:
+            return None
         gid, versao = dados['familia'], dados['versao']
-        recusas, aceitas = [], []
-        # decisao 214: a fonte e conferida nas linhas que o palco desenha, com a quebra da familia; as posicoes dela
-        # contam na ultima edicao de texto do elemento
-        ultima = {e['elemento']: n for n, e in enumerate(dados['edicoes']) if e['acao'] == 'texto'}
-        quebra_de = {q['elemento']: q for q in dados.get('quebras') or []}
-        for n, e in enumerate(dados['edicoes']):
-            if e['acao'] == 'texto':
-                item = quebra_de.get(e['elemento']) if ultima.get(e['elemento']) == n else None
-                texto, recusa = self._texto(e['elemento'], e['texto'], item)
-                if recusa is not None:
-                    recusas.append({'elemento': e['elemento'], 'texto': recusa})
-                    continue
-                e = dict(e, texto=texto)
-            elif e['acao'] == 'alinhar_texto':
-                # 0.12.0: a recusa do alinhamento leva a acao (a do texto fica como era, sem ela)
-                recusa = self._alinhamento(e['elemento'])
-                if recusa is not None:
-                    recusas.append({'elemento': e['elemento'], 'acao': 'alinhar_texto', 'texto': recusa})
-                    continue
-            aceitas.append(e)
-        # a quebra de linha do rascunho diferente da do briefing: os membros partem da derivacao com ela (M7b, C3). O
-        # pedido sem o campo e o rascunho sem quebra na familia: a previa nunca volta a quebra do briefing de antes,
-        # que "Salvar e seguir" tira (revisao do C)
-        quebras = dados.get('quebras') or []
-        viva = self._viva(gid, quebras, aceitas, origem)
+        lays, viva, aceitas, recusas, quebras = r['lays'], r['viva'], r['aceitas'], r['recusas'], r['quebras']
+        tintas, ref = r['tintas'], r['ref']
         # o texto editado no palco sai nas linhas da quebra da familia (M7b, C4)
         quebras_por_elemento = {q['elemento']: q for q in quebras}
         membros, apagados_fam, textos_fam, alinhados_fam, no_quadro_fam = [], [], {}, [], []
         alinhamentos_fam = {}
-        # a tinta das linhas do DA do texto editado (0.9.6; decisao 196), a mesma medida do "Salvar e seguir": a
-        # caixa do texto encolhe e cresce com as linhas dele no palco e na conferencia
-        fids = list(self.familias[gid])
-        # decisao 199: o arquivo de edicao parte da galeria ou da proposta com as edicoes do DA, e os outros copiam o
-        # layout aprovado nele, pela mesma conta do "Salvar e seguir" (vapt.derivacao.proposta.layout_da_familia).
-        # A tinta das linhas do DA e medida no arquivo de edicao, com a quebra dele
-        ref = self.arquivo_de_edicao(gid)
-        ctx = viva['ctx'] if viva else self.ctx
-        derivados, brutos = (viva['derivados'], viva['brutos']) if viva else (self.derivados, self.brutos)
-        tintas = proposta.tintas_editadas(ctx, self.kv, aceitas, ref) \
-            if ref and any(e['acao'] == 'texto' for e in aceitas) else {}
-        cache = self._cf.setdefault(('familia', viva['chave'] if viva else None), {})
-        lays = proposta.layout_da_familia(
-            ctx, self.kv, {'familia': gid, 'formatos': fids, 'versao': versao, 'edicoes': aceitas,
-                           'arquivo_de_edicao': ref},
-            derivados=derivados, versoes={ref: brutos.get(ref) or {}}, tintas=tintas, cache=cache, **self.kw)
         sem_arquivo = lays.get(ref) is None
         for fid in self.familias[gid]:
             lay = lays.get(fid)
@@ -1248,7 +1306,240 @@ class Editor:
                                        for k, v in sorted(alinhamentos_fam.items())],
                 'recusas': recusas, 'alinhados': alinhados_fam, 'no_quadro': no_quadro_fam,
                 'textos_da_quebra': self._textos_da_quebra(aceitas),
+                # decisao 215: a caixa copiada de outra familia que deixou de valer, e os elementos copiados
+                'copia_sem_efeito': (lays.get(ref) or {}).get('copia_sem_efeito'),
+                'copiados': list((lays.get(ref) or {}).get('copiados') or []),
                 'tempo_ms': round((time.perf_counter() - inicio) * POR_MS, CASAS_MS)}
+
+    def _layouts(self, dados, origem='da', antes=None):
+        """A conta da previa ate o layout da familia (proposta.layout_da_familia), sem o palco: {'lays', 'ctx',
+        'viva', 'aceitas', 'recusas', 'quebras', 'tintas', 'ref', 'derivados', 'brutos'}, ou None quando os dados nao
+        seguem o formato (conferir). A previa e a copia do layout de outra familia (decisao 215) partem desta."""
+        from vapt.derivacao import proposta
+        with self._trava:
+            if not self.conferir(dados, antes):
+                return None
+            gid, versao = dados['familia'], dados['versao']
+            recusas, aceitas = [], []
+            # decisao 214: a fonte e conferida nas linhas que o palco desenha, com a quebra da familia; as posicoes dela
+            # contam na ultima edicao de texto do elemento
+            ultima = {e['elemento']: n for n, e in enumerate(dados['edicoes']) if e['acao'] == 'texto'}
+            quebra_de = {q['elemento']: q for q in dados.get('quebras') or []}
+            for n, e in enumerate(dados['edicoes']):
+                if e['acao'] == 'texto':
+                    item = quebra_de.get(e['elemento']) if ultima.get(e['elemento']) == n else None
+                    texto, recusa = self._texto(e['elemento'], e['texto'], item)
+                    if recusa is not None:
+                        recusas.append({'elemento': e['elemento'], 'texto': recusa})
+                        continue
+                    e = dict(e, texto=texto)
+                elif e['acao'] == 'alinhar_texto':
+                    # 0.12.0: a recusa do alinhamento leva a acao (a do texto fica como era, sem ela)
+                    recusa = self._alinhamento(e['elemento'])
+                    if recusa is not None:
+                        recusas.append({'elemento': e['elemento'], 'acao': 'alinhar_texto', 'texto': recusa})
+                        continue
+                aceitas.append(e)
+            # a quebra de linha do rascunho diferente da do briefing: os membros partem da derivacao com ela (M7b,
+            # C3). O pedido sem o campo e o rascunho sem quebra na familia: a previa nunca volta a quebra do briefing
+            # de antes, que "Salvar e seguir" tira (revisao do C)
+            quebras = dados.get('quebras') or []
+            viva = self._viva(gid, quebras, aceitas, origem)
+            # a tinta das linhas do DA do texto editado (0.9.6; decisao 196), a mesma medida do "Salvar e seguir": a
+            # caixa do texto encolhe e cresce com as linhas dele no palco e na conferencia
+            fids = list(self.familias[gid])
+            # decisao 199: o arquivo de edicao parte da galeria ou da proposta com as edicoes do DA, e os outros
+            # copiam o layout aprovado nele, pela mesma conta do "Salvar e seguir"
+            # (vapt.derivacao.proposta.layout_da_familia). A tinta das linhas do DA e medida no arquivo de edicao, com
+            # a quebra dele
+            ref = self.arquivo_de_edicao(gid)
+            ctx = viva['ctx'] if viva else self.ctx
+            derivados, brutos = (viva['derivados'], viva['brutos']) if viva else (self.derivados, self.brutos)
+            tintas = proposta.tintas_editadas(ctx, self.kv, aceitas, ref) \
+                if ref and any(e['acao'] == 'texto' for e in aceitas) else {}
+            cache = self._cf.setdefault(('familia', viva['chave'] if viva else None), {})
+            lays = proposta.layout_da_familia(
+                ctx, self.kv, {'familia': gid, 'formatos': fids, 'versao': versao, 'edicoes': aceitas,
+                               'arquivo_de_edicao': ref},
+                derivados=derivados, versoes={ref: brutos.get(ref) or {}}, tintas=tintas, cache=cache, **self.kw)
+            return {'lays': lays, 'ctx': ctx, 'viva': viva, 'aceitas': aceitas, 'recusas': recusas,
+                    'quebras': quebras, 'tintas': tintas, 'ref': ref, 'derivados': derivados, 'brutos': brutos}
+
+    # -------------------------------------------------------------- a copia do layout de outra familia (215)
+    def escala_da_copia(self, origem, destino):
+        """A escala unica s da copia do layout da familia origem para a familia destino (decisao 215), pelos quadros
+        dos dois arquivos de edicao (proposta.escala_da_copia, a conta da 199). So filtra as origens que a tela
+        oferece: o numero da janela vem da copia (copia_entre_familias)."""
+        from vapt.derivacao import proposta
+        with self._trava:
+            ref_o, ref_d = self.arquivo_de_edicao(origem), self.arquivo_de_edicao(destino)
+            return proposta.escala_da_copia(proposta.quadros_do_membro(self._contexto(ref_o)),
+                                            proposta.quadros_do_membro(self._contexto(ref_d)))
+
+    def _fora_da_copia(self, gid):
+        """True quando a familia nao entra na copia de outra familia (decisao 215), nem como origem nem como destino:
+        sem arquivo de edicao; o arquivo de edicao com a mestre propria (o artboard do DA, resposta 4 do Duda) ou
+        devolvido por uma guarda do motor (fora de proposta.usa_galeria); um formato com valor de spec a espera do DA
+        (por_confirmar)."""
+        from vapt.derivacao import nucleo as nd
+        from vapt.derivacao import proposta
+        ref = self.arquivo_de_edicao(gid)
+        d = self.derivados.get(ref) if ref else None
+        if d is None:
+            return True
+        if d.get('situacao') == 'derivado':
+            if (d.get('mestre') or {}).get('tipo', 'kv') != 'kv':
+                return True
+        elif not proposta.usa_galeria(d):
+            return True
+        return any(((self.derivados.get(f) or {}).get('devolucao') or {}).get('motivo') in nd.MOTIVOS_POR_CONFIRMAR
+                   for f in self.familias.get(gid, ()))
+
+    def origens_da_copia(self, gid, irmas):
+        """As familias de onde a familia gid pode copiar o layout (decisao 215): [{'familia', 'arquivo' (o arquivo de
+        edicao dela)}], em ordem pelo arquivo. irmas: os ids das familias da mesma orientacao. Ficam de fora a propria
+        familia, as que nao entram na copia (_fora_da_copia) e as com a escala da copia abaixo de
+        derivacao.grupo_escala_min (a regra do tamanho da 208), e a de outra orientacao (a do arquivo de edicao, em pe
+        como o publico ve). Vazio quando a familia gid nao entra na copia."""
+        from vapt.derivacao import escala as mod_escala
+        from vapt.derivacao import proposta
+        with self._trava:
+            if gid not in self.familias or self._fora_da_copia(gid):
+                return []
+
+            def orientacao(g):
+                m = proposta.membros_na_composicao([self.por_formato[self.arquivo_de_edicao(g)]])[0]
+                return mod_escala.orientacao(m['W'], m['H'])
+            minimo = float(limites.valor('derivacao.grupo_escala_min'))
+            saida = []
+            for o in irmas:
+                if o == gid or o not in self.familias or self._fora_da_copia(o) or orientacao(o) != orientacao(gid):
+                    continue
+                if self.escala_da_copia(o, gid) < minimo:
+                    continue
+                saida.append({'familia': o, 'arquivo': self.arquivo_de_edicao(o)})
+            return sorted(saida, key=lambda x: (x['arquivo'], x['familia']))
+
+    def copia_entre_familias(self, destino, origem, f_o, f_d):
+        """A copia do layout de agora do arquivo de edicao da familia origem para o da familia destino (decisao 215),
+        sem gravar nada. f_o, f_d: as familias no rascunho gravado ({'versao', 'edicoes', 'quebras', ...}). Devolve
+        {'edicoes', 'quebras', 'versao', 'copiado_de', 's', 'situacao', 'frases', 'ajustes', 'avisos', 'n_piso',
+        'falhas_d', 'origem_menor'}: as edicoes e as quebras que o destino grava (substituem as dele), a versao de
+        partida dele, o copiado_de do rascunho (com a familia de antes, para o Desfazer de um clique), a escala, a
+        situacao, as frases da escada (os ajustes para caber e os avisos do encaixe, tambem em separado), quantos
+        elementos ficam abaixo do piso da 133, os textos das outras falhas do destino e se a origem e menor que o
+        destino (resposta 1 do Duda: pede ajuste). Ou {'motivo': codigo, ...}: SEM_LAYOUT
+        (o arquivo de edicao da origem sem layout), ESCALA_PEQUENA (com 's'), FONTE (com 'elemento' e 'texto') e
+        ERRO_NA_COPIA (com 'detalhe'). Antes de devolver, o destino e derivado com as edicoes e as quebras novas e
+        conferido contra a copia (a conferencia M4): o que nao bate e ERRO_NA_COPIA. Guardada pela chave dos dados."""
+        import json
+        with self._trava:
+            chave = json.dumps([destino, origem, f_o, f_d, self.arquivos], sort_keys=True)
+            if chave not in self._copias:
+                self._copias[chave] = self._copiar(destino, origem, f_o or {}, f_d or {})
+            return self._copias[chave]
+
+    def _copiar(self, destino, origem, f_o, f_d):
+        import copy as mod_copy
+
+        from vapt.briefing import modelo as mb
+        from vapt.derivacao import proposta
+        from vapt.derivacao import quebras as mq
+        from vapt.tela import rascunho
+        if destino not in self.familias or origem not in self.familias or destino == origem:
+            return {'motivo': 'ERRO_NA_COPIA', 'detalhe': ['familia']}
+        ref_o, ref_d = self.arquivo_de_edicao(origem), self.arquivo_de_edicao(destino)
+        # i) o layout de agora do arquivo de edicao da origem (L*), pela conta da previa
+        edicoes_o = list(f_o.get('edicoes') or [])
+        r_o = self._layouts({'familia': origem, 'versao': rascunho.versao_de_agora(f_o.get('versao'),
+                                                                                  self.versoes(origem)),
+                             'edicoes': edicoes_o, 'quebras': list(f_o.get('quebras') or [])}, antes=edicoes_o)
+        lay_o = (r_o or {}).get('lays', {}).get(ref_o)
+        if lay_o is None or 'erro' in lay_o:
+            return {'motivo': 'SEM_LAYOUT'}
+        # ii) a copia (a conta da 199, s <= 1)
+        formato_d = self.por_formato[ref_d]
+        try:
+            lay_t = proposta.copia_entre_familias(r_o['ctx'], self.kv, lay_o, formato_d, **self.kw)
+        except Exception as e:  # noqa: BLE001 - a copia que quebra nao grava nada
+            return {'motivo': 'ERRO_NA_COPIA', 'detalhe': ['copia: %s' % type(e).__name__]}
+        s = float(lay_t['transferencia']['s'])
+        if s < float(limites.valor('derivacao.grupo_escala_min')):
+            return {'motivo': 'ESCALA_PEQUENA', 's': s}
+        # iii) e vi) as edicoes: o texto, o alinhamento, os apagados e as caixas
+        eds = proposta.edicoes_da_copia(lay_t, lay_o, self.kv)
+        eds_t = [e for e in eds if e['acao'] != 'caixa']
+        # iv) as quebras da origem (passos 1 e 2) e v) as neutras do destino derivado (passo 3), sobre a derivacao do
+        # destino ja com as quebras copiadas, refeita uma vez quando cresce
+        qs = proposta.quebras_da_copia(r_o['ctx'], self.kv, lay_o, r_o['quebras'], self.por_formato[ref_o],
+                                       r_o['derivados'][ref_o], r_o['aceitas'])
+        viva = None
+        for _vez in range(2):  # numero-neutro: a derivacao do destino e refeita uma vez
+            viva = self._viva(destino, qs, eds_t, 'da')
+            ctx_d = viva['ctx'] if viva else self.ctx
+            derivados_d = viva['derivados'] if viva else self.derivados
+            novas = proposta.quebras_neutras(ctx_d, self.kv, qs, eds_t, formato_d, derivados_d.get(ref_d))
+            if not novas:
+                break
+            qs = qs + novas
+        # vii) a versao de partida do destino: a gravada, quando a galeria a tem; senao a partida efetiva
+        brutos = (viva['brutos'] if viva else self.brutos).get(ref_d) or {}
+        versoes_d = self.versoes(destino)
+        if f_d.get('versao') in versoes_d:
+            versao_d = f_d['versao']
+        else:
+            versao_d = proposta.versao_de_partida(None, brutos, None) if brutos else None
+            versao_d = versao_d if versao_d in versoes_d else None
+        # viii) o destino com as edicoes e as quebras novas, pela conta da previa
+        r_d = self._layouts({'familia': destino, 'versao': versao_d, 'edicoes': eds, 'quebras': qs}, antes=eds)
+        if r_d is None:
+            return {'motivo': 'ERRO_NA_COPIA', 'detalhe': ['conferir']}
+        if r_d['recusas']:
+            # decisao 214: o texto copiado que a face nao cobre nas linhas do destino
+            x = r_d['recusas'][0]
+            return {'motivo': 'FONTE', 'elemento': x['elemento'], 'nome': self._nome(x['elemento']),
+                    'texto': x['texto']}
+        lays = r_d['lays']
+        lay_d = lays.get(ref_d)
+        if lay_d is None or 'erro' in lay_d or any('erro' in (v or {}) for v in lays.values()):
+            return {'motivo': 'ERRO_NA_COPIA', 'detalhe': ['destino sem layout']}
+        # ix) a conferencia M4: o destino derivado e a copia
+        detalhe = conferir_copia(lay_t, lay_d)
+        if detalhe:
+            return {'motivo': 'ERRO_NA_COPIA', 'detalhe': detalhe}
+        # x) a situacao e as frases
+        n_piso = sum(1 for f in lay_d['falhas'] if f['codigo'] == 'abaixo_do_piso_da_regra')
+        falhas_d = [f['texto'] for f in lay_d['falhas'] if f['codigo'] != 'abaixo_do_piso_da_regra']
+        textos_t = {f['texto'] for f in lay_t['falhas']}
+        escada = [f for f in lay_t.get('frases') or [] if f not in textos_t]
+        # os ajustes para caber (transferencia.ajustes) e os avisos do encaixe neste arquivo (as outras frases)
+        ajustes = [a['frase'] for a in (lay_t['transferencia'] or {}).get('ajustes') or [] if a.get('frase')]
+        avisos = [f for f in escada if f not in ajustes]
+        # resposta 1 do Duda (26/11): a origem menor que o destino. A copia nunca aumenta (s = 1), e no sentido
+        # contrario ela encolheria: a copia do menor para o maior pede ajuste, e a janela avisa
+        origem_menor = s >= S_IGUAL and self.escala_da_copia(destino, origem) < S_IGUAL
+        if falhas_d or n_piso or lay_t['situacao'] == 'pede_ajuste' or origem_menor:
+            situacao = 'pede_ajuste'
+        elif lay_t['situacao'] == 'ajustado' or (lay_t['transferencia'] or {}).get('ajustes') or s < S_IGUAL:
+            situacao = 'ajustado'
+        else:
+            situacao = 'igual'
+        # xi) o copiado_de, com a familia de antes (resposta 2 do Duda em 26/11: o Desfazer tira a copia inteira)
+        antes = {'versao': f_d.get('versao'), 'edicoes': mod_copy.deepcopy(list(f_d.get('edicoes') or [])),
+                 'quebras': mod_copy.deepcopy(list(f_d.get('quebras') or []))}
+        if f_d.get('copiado_de'):
+            antes['copiado_de'] = mod_copy.deepcopy(f_d['copiado_de'])
+        # os avisos de arquivo trocado e de layout mudado, que a copia tira: o Desfazer os devolve (nada calado)
+        for k in ('arquivo_trocado', 'layout_mudou'):
+            if f_d.get(k):
+                antes[k] = mod_copy.deepcopy(f_d[k])
+        copiado_de = {'familia': origem, 'arquivo': ref_o, 'para': ref_d, 's': min(s, 1.0), 'situacao': situacao,
+                      'frases': [f[:FRASE_MAX] for f in (escada + falhas_d)[:FRASES_MAX]], 'em': mb.agora(),
+                      'quebras': sorted({q['layer_id'] for q in qs if mq.texto_editado(eds, q['elemento']) is None}),
+                      'antes': antes}
+        return {'edicoes': eds, 'quebras': qs, 'versao': versao_d, 'copiado_de': copiado_de, 's': s,
+                'situacao': situacao, 'frases': escada, 'ajustes': ajustes, 'avisos': avisos, 'n_piso': n_piso,
+                'falhas_d': falhas_d, 'origem_menor': origem_menor}
 
     def _sem_copia(self, fid, viva, sem_arquivo, erro):
         """O membro sem layout da familia, como o "Salvar e seguir" o grava (decisao 199; previa igual ao Salvar): o
@@ -1326,6 +1617,62 @@ def previa_gravada(editar, gid, f):
     dados = {'familia': gid, 'versao': f.get('versao'), 'edicoes': list(f.get('edicoes') or []),
              'quebras': list(f.get('quebras') or [])}
     return editar(dados, antes=list(f.get('edicoes') or []))
+
+
+def _transformacao(cf, caixas, k):
+    """(s, origem no documento, destino) do elemento k no layout (a conta de galeria._elementos, sem arredondar)."""
+    e = next(x for x in cf['kv']['elementos'] if x['id'] == k)
+    c, m = [float(v) for v in caixas[k]], [float(v) for v in e['caixa']]
+    if m[2] > m[0]:
+        s = (c[2] - c[0]) / (m[2] - m[0])
+    else:
+        s = (c[3] - c[1]) / (m[3] - m[1]) if m[3] > m[1] else 1.0
+    s *= float(e.get('escala_na_mestre') or 1.0)
+    return s, [float(v) for v in e['caixa_doc'][:2]], c[:2], [float(v) for v in e['caixa_doc']]
+
+
+def _levar(t, b):
+    s, o, d = t[0], t[1], t[2]
+    return [s * (b[0] - o[0]) + d[0], s * (b[1] - o[1]) + d[1], s * (b[2] - o[0]) + d[0], s * (b[3] - o[1]) + d[1]]
+
+
+def conferir_copia(lay_t, lay_d, tol=TOL_COPIA):
+    """A conferencia final da copia do layout de outra familia (decisao 215, M4): o arquivo de edicao do destino
+    derivado com as edicoes e as quebras da copia (lay_d, de layout_da_familia) contra a copia (lay_t, de
+    proposta.copia_entre_familias). Cada elemento com a mesma transformacao (a mesma escala e o mesmo ponto do
+    documento: as caixas das duas mestres levadas pelas duas transformacoes ficam a menos de tol px), a mesma caixa
+    visivel, os mesmos apagados, a mesma sangra, a mesma figura de fundo, os mesmos textos e alinhamentos, e todas as
+    caixas copiadas valendo. Devolve a lista do que nao bate (vazia quando bate)."""
+    detalhe = []
+    cf_t, cf_d = lay_t['cf'], lay_d['cf']
+    kv_d = {e['id']: e for e in cf_d['kv']['elementos']}
+    if sorted(lay_t['caixas']) != sorted(lay_d['caixas']):
+        detalhe.append('elementos: %s != %s' % (sorted(lay_t['caixas']), sorted(lay_d['caixas'])))
+        return detalhe
+    for k in sorted(lay_t['caixas']):
+        tt, td = _transformacao(cf_t, lay_t['caixas'], k), _transformacao(cf_d, lay_d['caixas'], k)
+        for b in (tt[3], td[3]):
+            a, c = _levar(tt, b), _levar(td, b)
+            if any(abs(x - y) > tol for x, y in zip(a, c)):
+                detalhe.append('transformacao %s: %s != %s' % (k, a, c))
+                break
+        vt, vd = lay_t['caixas_visiveis'].get(k), lay_d['caixas_visiveis'].get(k)
+        if vt is None or vd is None or any(abs(float(x) - float(y)) > tol for x, y in zip(vt, vd)):
+            detalhe.append('caixa visivel %s: %s != %s' % (k, vt, vd))
+        st = dict(lay_t['sangra'].get(k) or {})
+        sd = dict(lay_d['sangra'].get(k) or kv_d[k]['sangra'])
+        if {x: bool(v) for x, v in st.items()} != {x: bool(v) for x, v in sd.items()}:
+            detalhe.append('sangra %s: %s != %s' % (k, st, sd))
+    for campo in ('textos', 'alinhamentos'):
+        if dict(lay_t.get(campo) or {}) != dict(lay_d.get(campo) or {}):
+            detalhe.append('%s: %s != %s' % (campo, lay_t.get(campo), lay_d.get(campo)))
+    if sorted(lay_t['apagados']) != sorted(lay_d['apagados']):
+        detalhe.append('apagados: %s != %s' % (lay_t['apagados'], lay_d['apagados']))
+    if lay_t.get('figura_de_fundo') != lay_d.get('figura_de_fundo'):
+        detalhe.append('figura_de_fundo: %s != %s' % (lay_t.get('figura_de_fundo'), lay_d.get('figura_de_fundo')))
+    if sorted(lay_d.get('copiados') or ()) != sorted(lay_t['caixas']) or lay_d.get('copia_sem_efeito'):
+        detalhe.append('copiados: %s' % (lay_d.get('copiados'),))
+    return detalhe
 
 
 def hash_dos_layouts(previa):

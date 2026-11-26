@@ -29,7 +29,8 @@
    soltar, a edicao vai ao motor (/api/familia/previa), que a leva a cada arquivo da familia e alinha o mexido; o que o
    DA nao mexeu fica parado (0.9.5). O palco e as miniaturas de cada arquivo voltam desenhados. As edicoes e a versao ficam no
    rascunho; "Confirmar familia" e um ato da janela, com a confirmacao nela, e mexer depois volta a pedir a
-   confirmacao. O texto editado vale so na familia (decisao 171) e a recusa do motor aparece no proprio editor.
+   confirmacao. O texto editado vale so na familia (decisao 171), menos quando o DA copia o layout de outra familia
+   (decisao 215: o texto copiado vira edicao desta), e a recusa do motor aparece no proprio editor.
    M7b, D5: o piso de escala ou de distancia que o elemento mexido pelo DA fura vem da previa em decisoes_do_da e sai
    com a marca discreta "Decisão do DA", com o valor no texto; "Pede ajuste" fica para o que o DA nao decidiu.
    Revisao do M7a: o passo 1 tem duas escolhas do DA que vao ao rascunho, sem nada marcado: a prancheta de onde a peca
@@ -169,6 +170,29 @@
     outro_laudo: 'O PSD foi lido de novo, e as escolhas antigas ficaram de fora. Comece pelas versões desta leitura.'
   };
   const NOTA_GALERIA_RASCUNHO = 'Escolha uma versão para começar. A escolha fica salva no rascunho.';
+  /* decisao 215: "Copiar o layout de outra familia". A copia vem do servidor (o ato da janela) e vira edicoes desta
+     familia; as frases da tela que falam dela. O Desfazer tira a copia inteira num clique (resposta 2 do Duda) */
+  const COPIAR_NOTA = 'Escolha o arquivo de onde vem o layout. Ele vira o ponto de partida deste arquivo, e depois ' +
+    'você ajusta aqui.';
+  function notaCopiado(orig) { return 'O layout deste arquivo veio do ' + orig + '.'; }
+  function notaGaleriaCopiada(orig) {
+    return 'Este arquivo segue o layout copiado do ' + orig + '. Para voltar às versões do Vapt, use Desfazer até ' +
+      'a cópia sair: ela sai inteira, num clique só.';
+  }
+  function msgDesfezCopia(orig) {
+    return 'A cópia do layout do ' + orig + ' saiu. A família voltou a ser como era antes dela.';
+  }
+  // revisao 2 da 215: o Desfazer da copia cuja gravacao falhou ainda nao chegou ao servidor
+  const MSG_DESFAZER_NAO_SALVO = 'O Desfazer anterior ainda não foi salvo. Espere o Vapt salvar e desfaça de novo.';
+  function copiaSemEfeito(orig, arquivo) {
+    return 'O layout copiado do ' + orig + ' era do ' + arquivo + ' e deixou de valer aqui, porque o arquivo de ' +
+      'edição ou a medida mudou. Use Desfazer para tirar a cópia, ou copie de novo.';
+  }
+  // a mesma frase de vapt.tela.servidor.MOTIVO_COPIA_MUDOU: a gravacao recusada porque a copia mudou no servidor
+  const MSG_COPIA_MUDOU = 'O layout copiado desta família mudou no Vapt enquanto você editava. A tela mostra agora ' +
+    'o que está gravado.';
+  // os atos que mudam a estrutura da familia: com a janela deles aberta, nada vai ao rascunho sozinho (decisao 215, M5)
+  const ATOS_DA_ESTRUTURA = ['familia_arquivo', 'familia_separar', 'familia_juntar', 'familia_copiar'];
   /* edicao por familia (fatia 4) */
   const ed = { previa: null, pedido: 0, selecionado: null, tecla: 0, arraste: null, esperaQuebra: null,
     /* M7b, D1: os elementos escolhidos juntos (o selecionado e o ultimo deles) e o modo "Escolher vários" */
@@ -407,6 +431,12 @@
     // revisao 0.9.3: do envio ate o estado novo chegar, a pagina sabe que o servidor ainda nao viu estas escolhas
     if (refazer) rascunho.refazendo = (rascunho.refazendo || 0) + 1;
     const fim = function () { if (refazer) rascunho.refazendo -= 1; };
+    // revisao 2 da 215: o Desfazer da copia que vai nesta gravacao (copia_desfeita, por familia)
+    const desfeitas = {};
+    Object.keys(rascunho.familias).forEach(function (g) {
+      const f = rascunho.familias[g];
+      if (f && f.copia_desfeita) desfeitas[g] = f.copia_desfeita;
+    });
     return enviar('/api/rascunho', corpoDoRascunho())
       .then(function () {
         gravou = true;
@@ -416,8 +446,16 @@
         rascunho.avisoNoRodape = false;
         rascunho.falha = null;
         avisarNoRodape('');
+        // revisao 2 da 215: o Desfazer da copia gravou. copia_desfeita sai da familia (o servidor ja tirou a copia, e
+        // a hora dela nao vale mais la), e a frase do Desfazer que esperava a gravacao tambem sai
+        Object.keys(desfeitas).forEach(function (g) {
+          const f = rascunho.familias[g];
+          if (f && f.copia_desfeita === desfeitas[g]) delete f.copia_desfeita;
+        });
+        if (document.getElementById('ed-mensagem').textContent === MSG_DESFAZER_NAO_SALVO) mensagem('');
       })
       .then(function () { return refazer ? refazerPasso3().then(function (x) { fim(); return x; }, function (e) { fim(); throw e; }) : conferirSalvo(); })
+      .then(function () { return Object.keys(desfeitas).length && !refazer ? avisosDoServidor() : null; })
       .then(function () { atualizarSalvar(); redesenharEspera(); return true; })
       .catch(function (e) {
         if (!gravou) fim();
@@ -428,6 +466,9 @@
           return true;
         }
         if (refazer) p2Mudou = true;
+        // decisao 215 (M5): a copia do layout mudou no servidor (o ato da janela gravou outra): a pagina le o rascunho
+        // gravado de novo, e o que ela tinha antes da copia sai
+        if (e && e.motivo === MSG_COPIA_MUDOU) return copiaMudou();
         // revisao 0.9.3: o motivo do servidor vale para o DA, e gravar de novo sozinho nao resolve
         if (e && e.motivo) rascunho.tentativas = REPETIR_RASCUNHO_MS.length;
         marcarRascunho('erro');
@@ -438,6 +479,27 @@
         redesenharEspera();
         return false;
       });
+  }
+  /* decisao 215 (M5): o servidor recusou a gravacao porque a copia do layout desta familia mudou la (a pagina mandou
+     a familia de antes da copia). A pagina le o rascunho gravado e o passo 3 de novo, volta a familia e diz o que
+     aconteceu; a escolha recusada nao conta como gravada */
+  function copiaMudou() {
+    const gid = vista.familia;
+    rascunho.tentativas = 0;
+    // a previa em voo e a frase da ultima edicao sao da familia recusada
+    ++ed.pedido;
+    ed.ultimaEdicao = null;
+    ed.alinhou = null;
+    return lerRascunho().then(refazerPasso3).then(function () {
+      if (gid) irParaFamilia(gid);
+      atualizarSalvar();
+      mensagem(MSG_COPIA_MUDOU);
+      avisarNoRodape(MSG_COPIA_MUDOU);
+      return false;
+    }, function () {
+      marcarRascunho('erro');
+      return false;
+    });
   }
   /* revisao 0.9.3: a escolha que nao gravou aparece no rodape, ao lado de "Salvar e seguir", com o motivo do servidor
      quando ele vem */
@@ -534,6 +596,14 @@
       atualizarSalvar();
     }).catch(function () { return null; });
   }
+  /* revisao 2 da 215: depois do Desfazer da copia gravado, o aviso de arquivo trocado que voltou com ele vem do
+     servidor (servidor._gravar_rascunho pede as frases de novo no proximo estado). So a frase de cada familia muda, no
+     lugar; sem resposta, fica a frase de antes */
+  function avisosDoServidor() {
+    return pedir('/api/estado').then(function (e) {
+      if (semAvisos(e.orientacoes) === semAvisos(estado.orientacoes)) trocarAvisos(e.orientacoes || []);
+    }).catch(function () { return null; });
+  }
   /* as familias do estado sem a frase de cada uma: a frase que muda sozinha nao redesenha o passo 3 */
   function semAvisos(orientacoes) {
     return JSON.stringify(orientacoes, function (k, v) { return k === 'aviso' || k === 'reconfirmar' ? undefined : v; });
@@ -553,6 +623,9 @@
   /* cada mudanca recomeca a espera: o rascunho vai ao servidor quando o DA para de mexer */
   function mudouRascunho() {
     if (!escrita || rascunho.espera === null) return;
+    // decisao 215 (M5): com a janela de um ato da estrutura aberta, a mudanca so fica marcada; ela vai ao rascunho se
+    // o DA cancelar, e sai se o ato for feito (era de antes dele)
+    if (rascunho.atoAberto) { rascunho.pendente = true; return; }
     // o briefing salvo deixa de valer para a tela: a mudanca nova pede outro Salvar e seguir
     if (salvoNaTela || layoutsARefazer().length) {
       salvoNaTela = false;
@@ -745,7 +818,41 @@
       return Object.assign({}, dados, { edicoes: (f && f.edicoes) || [], quebras: (f && f.quebras) || [] });
     }
     if (nome === 'salvar') return { rascunho: corpoDoRascunho() };
+    if (nome === 'familia_copiar') {
+      // decisao 215: as duas familias como a pagina as mostra (a sem entrada no rascunho vai vazia)
+      const v = function (gid) {
+        const f = rascunho.familias[gid];
+        return { versao: (f && f.versao) || null, edicoes: (f && f.edicoes) || [], quebras: (f && f.quebras) || [] };
+      };
+      return Object.assign({}, dados, { vista: { de: v(dados.de), para: v(dados.familia) } });
+    }
     return dados;
+  }
+  /* decisao 215 (M5): a janela de um ato da estrutura abre. As previas em voo ficam de fora (elas sao da familia de
+     antes do ato), e a mudanca que chegar enquanto ela esta aberta nao vai ao rascunho sozinha (mudouRascunho) */
+  function abrirAtoDaEstrutura() {
+    const emVoo = raiz.dataset.previa === 'pedindo';
+    ++ed.pedido;
+    rascunho.atoAberto = true;
+    rascunho.pendente = false;
+    // a mudanca feita enquanto o rascunho de antes gravava ja tem hora para ir: ela espera a janela, como as outras
+    if (rascunho.espera_id !== null) {
+      clearTimeout(rascunho.espera_id);
+      rascunho.espera_id = null;
+      rascunho.pendente = true;
+    }
+    return emVoo;
+  }
+  /* a janela fechou sem o ato: a mudanca que esperou vai ao rascunho, e a previa jogada fora e pedida de novo */
+  function soltarAtoDaEstrutura(emVoo) {
+    if (!rascunho.atoAberto) return;
+    rascunho.atoAberto = false;
+    const desfez = rascunho.desfazendo === DESFEITA_NA_JANELA;
+    if (desfez) rascunho.desfazendo = null;
+    if (rascunho.pendente) { rascunho.pendente = false; mudouRascunho(); }
+    // o Desfazer da copia feito com a janela aberta grava agora, e a previa vem depois dele (gravarODesfazerDaCopia)
+    if (desfez && rascunho.espera_id !== null) { gravarODesfazerDaCopia(); return; }
+    if (emVoo && vista.familia && editavel()) pedirPrevia();
   }
   /* revisao 0.9.3: o botao clicado mostra que esta trabalhando enquanto o Vapt confere o pedido (desligado,
      aria-busy; o "Salvar e seguir" diz "Conferindo"), e volta quando a janela abre ou a recusa chega */
@@ -782,6 +889,7 @@
        0.9.3), que mostra o trabalho e perto do qual a recusa aparece */
     let recusado = false;
     let erroDoPedido = null;
+    let estrutura = null; // decisao 215 (M5): a janela aberta de um ato da estrutura
     raiz.dataset.estadoAto = '';
     if (!rascunho.avisoNoRodape) avisarNoRodape('');
     trabalhando(origem, true);
@@ -794,6 +902,9 @@
     }
     return antes.then(function (gravou) {
       if (gravou === false) throw new Error('rascunho');
+      // decisao 215 (M5, revisao): a trava do ato da estrutura vale desde o pedido. O servidor confere a vista contra o
+      // rascunho gravado, e a mudanca feita enquanto ele confere so vai ao rascunho se a janela fechar sem o ato
+      if (ATOS_DA_ESTRUTURA.indexOf(nome) >= 0) estrutura = { emVoo: abrirAtoDaEstrutura() };
       return enviar('/api/ato/pedir', { ato: nome, dados: comVista(nome, dados || {}) }).catch(function (e) {
         recusado = !!(e && e.message === 'rota 403');
         erroDoPedido = e;
@@ -809,7 +920,10 @@
       return confirmarNaJanela(Object.assign({}, p, extra ? { extra: extra,
         larga: nome === 'familia' } : {},
         { perigo: perigo })).then(function (sim) {
-        if (!sim) return enviar('/api/ato/cancelar', { pedido: p.pedido }).then(function () { raiz.dataset.estadoAto = 'cancelado'; });
+        if (!sim) {
+          if (estrutura) soltarAtoDaEstrutura(estrutura.emVoo);
+          return enviar('/api/ato/cancelar', { pedido: p.pedido }).then(function () { raiz.dataset.estadoAto = 'cancelado'; });
+        }
         const chave = JSON.stringify(dados || {});
         let resposta = null;
         return enviar('/api/ato/confirmar', { pedido: p.pedido, resposta: 'confirmar' })
@@ -826,6 +940,7 @@
       });
     }).catch(function (e) {
       raiz.dataset.estadoAto = 'erro';
+      if (estrutura) soltarAtoDaEstrutura(estrutura.emVoo);
       const motivo = (erroDoPedido && erroDoPedido.motivo) || (e && e.motivo) || null;
       if (recusado && aoRecusar && !motivo) { trabalhando(origem, false); aoRecusar(); return; }
       // revisao 0.9.3: o motivo que o servidor deu, no rodape; nunca "Tente de novo" quando nao resolve
@@ -3435,7 +3550,41 @@
       no.appendChild(el('span', 'Este arquivo saiu de outra família e tem o layout próprio.', 'cabecalho-nota'));
       no.appendChild(botaoAto('Juntar de volta', 'familia_juntar', { familia: g.id }, 'botao botao-vista'));
     }
+    const copia = vista.familia === g.id ? copiaValendo() : copiaDa(g.id);
+    if (copia) no.appendChild(el('span', notaCopiado(nomeDoArquivo(copia.arquivo)), 'cabecalho-nota nota-copiado'));
     montarTrocar(g, no);
+    montarCopiar(g, no);
+  }
+  /* decisao 215: a copia gravada na familia (as edicoes 'caixa' do ato e o copiado_de do servidor), ou null */
+  function copiaDa(gid) {
+    const f = rascunho.familias[gid];
+    if (!(f && f.copiado_de && (f.edicoes || []).some(function (e) { return e.acao === 'caixa'; }))) return null;
+    return f.copiado_de;
+  }
+  /* a copia que vale no palco da familia aberta: a previa diz quando ela ficou sem efeito (o arquivo de edicao ou a
+     medida mudou), e entao as versoes do Vapt voltam a valer */
+  function copiaValendo() {
+    const c = copiaDa(vista.familia);
+    return c && !(ed.previa && ed.previa.copia_sem_efeito) ? c : null;
+  }
+  /* "Copiar layout de outra familia" (decisao 215), no molde do "Trocar arquivo de edicao": um botao por familia da
+     mesma orientacao que o servidor oferece (copiar_de), pelo nome do arquivo de edicao dela, sem porcentagem. A janela
+     do servidor diz o que acontece e quanto o conteudo muda */
+  function montarCopiar(g, no) {
+    const origens = g.copiar_de || [];
+    if (!origens.length || !escrita) return;
+    const d = el('details', null, 'copiar-layout');
+    d.appendChild(el('summary', 'Copiar layout de outra família', 'botao botao-vista'));
+    const caixa = el('div', null, 'trocar-lista copiar-lista');
+    caixa.appendChild(el('p', COPIAR_NOTA, 'nota'));
+    origens.forEach(function (o) {
+      const b = botaoAto(null, 'familia_copiar', { familia: g.id, de: o.familia }, 'botao botao-vista trocar-opcao');
+      b.dataset.formato = o.arquivo;
+      b.appendChild(el('span', 'Copiar do ' + nomeDoArquivo(o.arquivo), 'trocar-nome'));
+      caixa.appendChild(b);
+    });
+    d.appendChild(caixa);
+    no.appendChild(d);
   }
   /* a frase do motivo (decisao 208): o arquivo de referencia pelo nome que o DA ve (a medida da entrega e o giro,
      nunca a medida em pe da composicao) e o percentual inteiro da copia; com mais de um arquivo no grupo, a faixa do
@@ -3593,6 +3742,9 @@
       }
       b.appendChild(texto);
       b.addEventListener('click', function () {
+        // decisao 215: com a copia valendo, escolher outra versao nao muda nada que se veja; a galeria fica travada (o
+        // clique e as setas, que clicam a aba) ate o Desfazer tirar a copia
+        if (copiaValendo()) { mensagem(notaGaleriaCopiada(nomeDoArquivo(copiaValendo().arquivo))); return; }
         escolherNoRascunho(v.id); // so o clique do DA vai ao rascunho; a primeira versao do motor, nao
         ed.previa = null;
         escolherVariante(fid, v);
@@ -3600,6 +3752,18 @@
       lista.appendChild(b);
       desenharPalco(mini, v.palco, { miniatura: true });
     });
+    travarGaleria();
+  }
+  /* decisao 215: a galeria travada enquanto a copia vale (os cartoes desligados, com a nota de por que); o Desfazer que
+     tira a copia, ou a copia que ficou sem efeito, a destrava */
+  function travarGaleria() {
+    const c = vista.familia ? copiaValendo() : null;
+    document.querySelectorAll('#variantes [role=tab]').forEach(function (b) {
+      if (c) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
+    });
+    const nota = document.getElementById('nota-galeria');
+    if (c) nota.textContent = notaGaleriaCopiada(nomeDoArquivo(c.arquivo));
+    else if (escrita) nota.textContent = NOTA_GALERIA_RASCUNHO;
   }
   function descreverVariante(v) {
     const no = document.getElementById('variante-palco');
@@ -3631,7 +3795,10 @@
     const b = Array.from(lista.querySelectorAll('[role=tab]')).find(function (x) { return x.dataset.variante === v.id; });
     if (b) selecionar(lista, b);
     const total = lista.querySelectorAll('[role=tab]').length;
-    mostrarSelo('Versão ' + v.ordem + ' de ' + total + ': ' + SELO_VARIANTE, 'proposta');
+    // decisao 215: com a copia valendo, a versao e so a partida dela; o selo diz de onde veio o layout
+    const copia = copiaValendo();
+    mostrarSelo(copia ? notaCopiado(nomeDoArquivo(copia.arquivo)) :
+      'Versão ' + v.ordem + ' de ' + total + ': ' + SELO_VARIANTE, 'proposta');
     descreverVariante(v);
     return desenharPalco(area, v.palco, { usarVista: true }).then(function () {
       return depoisDoDesenho(fid);
@@ -4205,9 +4372,10 @@
     if (!r) return null;
     montarMembros(r);
     montarResumo(r);
-    // "Trocar arquivo de edicao" segue o rascunho: com a primeira edicao, ele diz por que nao troca mais
-    const trocar = document.querySelector('#cabecalho-familia .trocar-arquivo');
-    if (vista.grupo && trocar && !trocar.open) montarCabecalho(vista.grupo);
+    // "Trocar arquivo de edicao" segue o rascunho: com a primeira edicao, ele diz por que nao troca mais. Decisao 215:
+    // o cabecalho e refeito sempre (a nota da copia segue a previa), menos com uma lista dele aberta
+    if (vista.grupo && !document.querySelector('#cabecalho-familia details[open]')) montarCabecalho(vista.grupo);
+    travarGaleria();
     const m = r.membros.find(function (x) { return x.formato === vista.formato; });
     if (!m) return null;
     const area = document.getElementById('palco');
@@ -4284,7 +4452,9 @@
     });
   }
   function atualizarSelo() {
+    const copia = copiaValendo();
     if (familiaConfirmada()) mostrarSelo(SELO_CONFIRMADA, 'confirmada');
+    else if (copia) mostrarSelo(notaCopiado(nomeDoArquivo(copia.arquivo)), 'proposta'); // decisao 215
     else if (comEdicoes()) mostrarSelo('Com as suas edições: ' + SELO_VARIANTE, 'proposta');
   }
   /* ------------------------------------------------ como fica em cada arquivo (decisao 199, 6; 0.10.0)
@@ -4629,6 +4799,15 @@
   function decisoes(m) { return m.decisoes_do_da || []; }
   function montarResumo(r) {
     const partes = [];
+    // decisao 215: de onde veio o layout, e o que o Vapt ajustou na hora da copia (resposta 6 do Duda: as frases da
+    // escada ficam aqui e na janela, nunca como alerta no palco)
+    const copia = copiaDa(vista.familia);
+    if (copia && r.copia_sem_efeito) {
+      partes.push(copiaSemEfeito(nomeDoArquivo(copia.arquivo), nomeDoArquivo(r.copia_sem_efeito.arquivo)));
+    } else if (copia) {
+      partes.push('Layout copiado do ' + nomeDoArquivo(copia.arquivo) + '.');
+      if ((copia.frases || []).length) partes.push('Na hora da cópia: ' + copia.frases.join(' '));
+    }
     if (r.textos_editados.length) partes.push('Texto editado nesta família: ' + nomes(r.textos_editados) + '.');
     /* 0.15.0 (decisao 204): o grafismo que a versao da galeria tirou vem com origem 'vapt' e ganha "Devolver" */
     const doVapt = r.apagados.filter(function (x) { return x.origem === 'vapt'; });
@@ -4813,7 +4992,8 @@
   function tamanhoDe(id) {
     let s = 1;
     edicoesDa().forEach(function (e) {
-      if (e.acao === 'apagar' && e.elemento === id) s = 1;
+      // decisao 215: a caixa copiada e o tamanho de partida, como o apagar (vapt.tela.edicao.escalas)
+      if ((e.acao === 'apagar' || e.acao === 'caixa') && e.elemento === id) s = 1;
       else if (e.acao === 'escalar' && membrosDa(e).indexOf(id) >= 0) s *= e.fator;
     });
     return s;
@@ -5049,8 +5229,35 @@
     return novaEdicao({ elemento: id, acao: 'devolver' }, false);
   }
   function desfazer() {
+    // decisao 215 (revisao): o Desfazer da copia que ainda nao gravou vai primeiro. O clique seguinte espera a gravacao
+    // dele e so entao roda; com a janela de um ato aberta, ele fica desligado ate ela fechar. Assim o segundo clique
+    // nunca troca a copia desfeita antes de o servidor ver a primeira
+    if (rascunho.desfazendo === DESFEITA_NA_JANELA) return null;
+    if (rascunho.desfazendo) {
+      const gid = vista.familia;
+      return rascunho.desfazendo.then(function (ok) {
+        return ok && vista.familia === gid && editavel() ? desfazer() : null;
+      });
+    }
     const f = familiaAtual();
     if (!f || !f.edicoes.length) return null;
+    // decisao 215 (resposta 2 do Duda): as edicoes do DA de depois da copia saem uma por clique; quando so restam as da
+    // copia (a ultima e uma caixa), o clique tira a copia inteira
+    if (f.copiado_de && f.edicoes[f.edicoes.length - 1].acao === 'caixa') {
+      // revisao 2 da 215: a gravacao do Desfazer da copia anterior falhou, e o servidor ainda tem a copia que ele
+      // tirou. Este clique tiraria a copia de antes dela, e o servidor recusaria os dois: ele espera a gravacao.
+      // Revisao 3: copia_desfeita so fica na familia enquanto o Desfazer anterior nao grava (gravarRascunho a tira
+      // depois da gravacao boa), em qualquer situacao do rascunho: tambem com outra mudanca esperando (pendente). E
+      // quando nada mais vai gravar sozinho (as tentativas pararam), o clique grava agora, e a frase de espera vale
+      if (f.copia_desfeita) {
+        if (rascunho.espera_id === null && !rascunho.atoAberto && raiz.dataset.rascunho !== 'salvando') {
+          gravarODesfazerDaCopia();
+        }
+        mensagem(MSG_DESFAZER_NAO_SALVO);
+        return null;
+      }
+      return desfazerCopia(f);
+    }
     const desfeita = f.edicoes.pop();
     // o texto volta ao de antes: a quebra que contava no texto desfeito sai com ele
     if (desfeita.acao === 'texto') tirarQuebra(desfeita.elemento);
@@ -5060,6 +5267,57 @@
     mudouRascunho();
     atualizarBotaoFamilia();
     return pedirPrevia();
+  }
+  /* decisao 215 (resposta 2 do Duda): o Desfazer da copia devolve a familia como estava antes dela: a versao, as
+     edicoes e as quebras que o servidor guardou em copiado_de.antes, com a copia de antes quando havia (copia de
+     copia). A pagina manda copia_desfeita com a hora da copia: so assim o servidor aceita tirar as caixas. O palco, a
+     galeria e o cabecalho sao refeitos */
+  function desfazerCopia(f) {
+    const c = f.copiado_de;
+    const antes = JSON.parse(JSON.stringify(c.antes || {}));
+    f.versao = antes.versao === undefined ? null : antes.versao;
+    f.edicoes = antes.edicoes || [];
+    f.quebras = antes.quebras || [];
+    f.copia_desfeita = c.em;
+    if (antes.copiado_de) f.copiado_de = antes.copiado_de; else delete f.copiado_de;
+    // revisao 2 da 215: os avisos de antes da copia voltam com ela. O de layout mudado a pagina mostra pelo rascunho
+    // (avisoDoLayoutMudado); o de arquivo trocado o servidor monta de novo depois da gravacao (avisosDoServidor)
+    if (antes.layout_mudou) f.layout_mudou = antes.layout_mudou; else delete f.layout_mudou;
+    if (antes.arquivo_trocado) f.arquivo_trocado = antes.arquivo_trocado; else delete f.arquivo_trocado;
+    f.confirmada = false;
+    delete f.confirmacao;
+    vista.variante = f.versao;
+    ed.previa = null;
+    ed.selecionado = null;
+    ed.selecao = [];
+    fecharEditorTexto();
+    fecharControle();
+    mudouRascunho();
+    mensagem(msgDesfezCopia(nomeDoArquivo(c.arquivo)));
+    if (vista.grupo) { montarCabecalho(vista.grupo); mostrarAvisoDaFamilia(vista.grupo); }
+    // decisao 215 (revisao): a previa so vai depois da gravacao. Na copia de copia, a familia de antes tem as caixas da
+    // primeira copia, e o servidor recusa a previa com caixas diferentes das gravadas. Com a janela de um ato aberta,
+    // mudouRascunho so marcou a mudanca: ela grava quando a janela fecha sem o ato (soltarAtoDaEstrutura)
+    if (rascunho.espera_id !== null && !rascunho.atoAberto) return gravarODesfazerDaCopia();
+    if (rascunho.atoAberto) rascunho.desfazendo = DESFEITA_NA_JANELA;
+    return mostrarFormato(vista.formato);
+  }
+  /* decisao 215 (revisao): o Desfazer da copia grava na hora, e o palco e a previa vem depois da gravacao. Enquanto ela
+     nao volta, rascunho.desfazendo guarda o pedido, e o Desfazer seguinte espera por ele. Gravacao recusada: o palco
+     fica, e o rodape ja diz por que (a copia que mudou no Vapt le o rascunho de novo) */
+  const DESFEITA_NA_JANELA = 'janela';
+  function gravarODesfazerDaCopia() {
+    clearTimeout(rascunho.espera_id);
+    rascunho.espera_id = null;
+    const p = gravarRascunho().then(function (ok) {
+      if (!ok) return false;
+      return Promise.resolve(mostrarFormato(vista.formato)).then(function () { return true; });
+    }).then(function (ok) {
+      if (rascunho.desfazendo === p) rascunho.desfazendo = null;
+      return ok;
+    });
+    rascunho.desfazendo = p;
+    return p;
   }
   /* ------------------------------------------------ escolha, arraste e teclado no palco */
   function selecionarElemento(id) {
@@ -6133,13 +6391,63 @@
     /* decisao 199 (0.10.0): depois de trocar o arquivo de edicao, separar ou juntar, o rascunho e as familias vem de
        novo do servidor, e a tela volta a familia do ato */
     function depoisDaEstrutura(_dados, resposta) {
-      return lerRascunho().then(function () { return refazerPasso3(); }).then(function () {
-        if (resposta && resposta.familia) irParaFamilia(resposta.familia);
+      const alvo = resposta && resposta.familia;
+      // revisao 2 da 215: a mudanca que esperou a janela so era de antes do ato na familia dele. A das outras familias
+      // (a origem da copia, por exemplo) fica: a pagina a guarda antes de ler o rascunho de novo
+      const guardadas = rascunho.pendente ? JSON.parse(JSON.stringify(rascunho.familias)) : null;
+      return lerRascunho().then(function () {
+        // decisao 215 (M5): a janela fechou com o ato feito; a mudanca que esperou era de antes dele e sai
+        rascunho.atoAberto = false;
+        rascunho.pendente = false;
+        if (rascunho.desfazendo === DESFEITA_NA_JANELA) rascunho.desfazendo = null;
+        return refazerPasso3();
+      }).then(function () {
+        if (guardadas && devolverPendentes(guardadas, alvo)) mudouRascunho();
+        if (alvo) irParaFamilia(alvo);
       });
+    }
+    /* revisao 2 da 215: devolve ao rascunho da pagina as escolhas do DA (a versao, as edicoes, as quebras e a
+       confirmacao) das familias que mudaram enquanto a janela do ato estava aberta, menos a do ato. So volta a familia
+       que ainda existe depois do ato (o separar e o juntar trocam as familias); os campos que so o servidor grava
+       ficam como ele os leu agora (o ato pode ter mudado os de outra familia, como os cedidos da copia). A familia
+       nunca gravada (sem entrada no rascunho do servidor) volta inteira. Devolve true quando alguma voltou */
+    const ESCOLHAS_DA_PAGINA = ['versao', 'confirmada', 'confirmacao', 'edicoes', 'quebras', 'copia_desfeita'];
+    function devolverPendentes(guardadas, alvo) {
+      const escolhas = function (f) {
+        return JSON.stringify(ESCOLHAS_DA_PAGINA.map(function (k) { return f && f[k] !== undefined ? f[k] : null; }));
+      };
+      const existem = {};
+      (estado.orientacoes || []).forEach(function (o) { o.grupos.forEach(function (g) { existem[g.id] = true; }); });
+      let voltou = false;
+      Object.keys(guardadas).forEach(function (gid) {
+        const agora = rascunho.familias[gid];
+        if (gid === alvo || !existem[gid] || escolhas(guardadas[gid]) === escolhas(agora)) return;
+        const f = Object.assign({}, agora || {});
+        ESCOLHAS_DA_PAGINA.forEach(function (k) {
+          if (guardadas[gid][k] === undefined) delete f[k]; else f[k] = guardadas[gid][k];
+        });
+        // revisao 3 da 215: o Desfazer da copia feito enquanto a janela estava aberta tambem mexeu na copia e nos
+        // avisos da familia (desfazerCopia). Eles voltam com ele: o servidor ainda os tinha de antes do Desfazer
+        if (guardadas[gid].copia_desfeita !== undefined &&
+            guardadas[gid].copia_desfeita !== (agora || {}).copia_desfeita) {
+          ['copiado_de', 'layout_mudou', 'arquivo_trocado'].forEach(function (k) {
+            if (guardadas[gid][k] === undefined) delete f[k]; else f[k] = guardadas[gid][k];
+          });
+        }
+        rascunho.familias[gid] = f;
+        voltou = true;
+      });
+      return voltou;
     }
     depoisDoAto.familia_arquivo = depoisDaEstrutura;
     depoisDoAto.familia_separar = depoisDaEstrutura;
     depoisDoAto.familia_juntar = depoisDaEstrutura;
+    // decisao 215: depois da copia, a familia volta com o layout copiado (o palco, a galeria e o cabecalho de novo)
+    depoisDoAto.familia_copiar = function (dados, resposta) {
+      return depoisDaEstrutura(dados, resposta).then(function () {
+        if (resposta && resposta.mensagem) mensagem(resposta.mensagem);
+      });
+    };
     depoisDoAto.familia = function () {
       return lerRascunho().then(function () {
         atualizarSelo(); atualizarBotaoFamilia(); atualizarSalvar(); mostrarBorda(); marcarBordaNoPalco();

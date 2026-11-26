@@ -2225,21 +2225,35 @@ def nomes_dos_formatos_da_derivacao(formatos, ordem=None):
 def arquivo_trocado(familia, grupo):
     """{'de', 'para'} quando o arquivo de edicao gravado da familia editada saiu dela (revisao da 0.10.0): o gravado
     pelo servidor (rascunho._com_a_estrutura) ou, antes da proxima gravacao, o que a tela vai gravar. None no resto.
-    familia: a do rascunho gravado; grupo: o da tela (abas)."""
+    familia: a do rascunho gravado; grupo: o da tela (abas). Decisao 215: a familia com o layout copiado de outra
+    familia (as caixas e o copiado_de) leva tambem 'copia', o copiado_de: as caixas ficam sem efeito no arquivo novo."""
+    from vapt.tela import edicao
     f = familia or {}
+    copia = {'copia': dict(f['copiado_de'])} if f.get('copiado_de') and edicao.caixas_de(f.get('edicoes')) else {}
     if f.get('arquivo_trocado'):
-        return dict(f['arquivo_trocado'])
+        return dict(f['arquivo_trocado'], **copia)
     fids = [x['id'] for c in grupo['composicoes'] for x in c['formatos']]
     gravado = f.get('arquivo_de_edicao')
     if gravado and gravado not in fids and (f.get('edicoes') or f.get('quebras')):
-        return {'de': gravado, 'para': grupo['arquivo_de_edicao']}
+        return dict({'de': gravado, 'para': grupo['arquivo_de_edicao']}, **copia)
     return None
 
 
-def frase_do_arquivo_trocado(de, para, nomes=None):
+# decisao 215: o layout copiado de outra familia preso ao arquivo de edicao e a medida da hora da copia (as caixas
+# ficam sem efeito em outro arquivo, vapt.derivacao.proposta.caixas_que_valem); o texto e os apagados continuam
+COPIA_SEM_EFEITO = ('O layout copiado do %s era do %s e deixou de valer aqui, porque o arquivo de edição ou a medida '
+                    'mudou. Use Desfazer para tirar a cópia, ou copie de novo.')
+
+
+def frase_do_arquivo_trocado(de, para, nomes=None, copia=None):
     nomes = nomes or {}
-    return ('O arquivo em que você editava esta família, o %s, saiu dela. As suas edições passam a valer no %s, o '
-            'maior arquivo que ficou. Confira a família e confirme de novo.' % (nomes.get(de, de), nomes.get(para, para)))
+    frase = ('O arquivo em que você editava esta família, o %s, saiu dela. As suas edições passam a valer no %s, o '
+             'maior arquivo que ficou. Confira a família e confirme de novo.'
+             % (nomes.get(de, de), nomes.get(para, para)))
+    if copia:
+        frase += ' ' + COPIA_SEM_EFEITO % (nomes.get(copia['arquivo'], copia['arquivo']),
+                                          nomes.get(copia['para'], copia['para']))
+    return frase
 
 
 def nomes_da_tela(conteudo):
@@ -2567,7 +2581,9 @@ def _sem_previa(_dados, origem=None, antes=None):
 
 def montar(pasta, teto=None):
     """Conteudo do servidor da tela para o job: {'estado', 'previas', 'assets', 'fontes', 'recarregar', 'editar',
-    'familias', 'elementos', 'atualizar', 'sugestoes'}. editar(dados, origem) e a previa da edicao por familia
+    'familias', 'elementos', 'atualizar', 'sugestoes', 'copiar'}. copiar(destino, origem): a copia do layout de outra
+    familia (decisao 215; vapt.tela.edicao.Editor.copia_entre_familias), None na espera. editar(dados, origem) e a
+    previa da edicao por familia
     (vapt.tela.edicao.Editor.previa); familias: {id: {'formatos', 'versoes', 'pecas', 'por_confirmar', 'aviso'}}
     para o ato de confirmar a familia (o id e o que o job ja conhece para esses formatos; familias_conhecidas e abas);
     elementos: {id: [layer_ids]} da mestre da tela (None enquanto o passo 3 espera), que o rascunho usa para conferir
@@ -2695,7 +2711,11 @@ def montar(pasta, teto=None):
     # situacao do briefing usa a mesma (0.18.0)
     def ler_sugestoes():
         return funcoes_da_tela.sugestoes_na_tela(pasta, teto)
-    estado['briefing'] = dict(salvar.situacao_na_tela(pasta, familias, sugestoes=ler_sugestoes),
+    # a familia de onde cada uma saiu, como a tela mostra e o "Salvar e seguir" grava (com a da regra do tamanho,
+    # decisao 208): a situacao do briefing compara com o mesmo
+    separado_de = {gid: g.get('separado_de') for gid, g in grupos_da_tela.items()}
+    estado['briefing'] = dict(salvar.situacao_na_tela(pasta, familias, sugestoes=ler_sugestoes,
+                                                      separado_de=separado_de),
                               avisos=_avisos_do_job(pasta))
     # a aprovacao de cada formato do briefing (M7b, B4): aprovado, caiu (com o campo e o motivo para o DA) ou sem
     # aprovacao, e o painel de situacao por formato (M7b, B5), medidos a cada montagem e depois de cada ato
@@ -2719,6 +2739,14 @@ def montar(pasta, teto=None):
                                [f for f in faces if f['id'] in fontes], specs=specs, arquivo_specs=arquivo_specs,
                                params=params, arquivos=arquivos)
     versoes = {gid: sorted(editor.versoes(gid)) if editor else [] for gid in familias}
+    # decisao 215: as familias de onde cada familia pode copiar o layout (as da mesma orientacao que passam na regra do
+    # tamanho, sem a mestre propria; Editor.origens_da_copia), vazio na espera. Dependem so da estrutura e dos quadros:
+    # o recarregar nao as refaz
+    orientacao_de = {g['id']: o['id'] for o in estado['orientacoes'] for g in o['grupos']}
+    irmas = {g['id']: [x['id'] for x in o['grupos']] for o in estado['orientacoes'] for g in o['grupos']}
+    copiar_de = {gid: editor.origens_da_copia(gid, irmas.get(gid) or []) if editor else [] for gid in familias}
+    estado['orientacoes'] = [dict(o, grupos=[dict(g, copiar_de=copiar_de.get(g['id']) or []) for g in o['grupos']])
+                             for o in estado['orientacoes']]
     pecas = {gid: impressao_das_pecas(fids, r['formatos'], versoes[gid], arquivo=arquivos.get(gid))
              for gid, fids in familias.items()}
     # a familia sem edicao vista pela regra de antes da 185 continua valendo: a previa dela e a mesma. A familia sem
@@ -2743,7 +2771,7 @@ def montar(pasta, teto=None):
             partes = [RECONFIRMAR_0100] if g['id'] in velhas else []
             t = arquivo_trocado(fams_r.get(g['id']), g)
             if t:
-                partes.append(frase_do_arquivo_trocado(t['de'], t['para'], nomes_dos_formatos_do_job))
+                partes.append(frase_do_arquivo_trocado(t['de'], t['para'], nomes_dos_formatos_do_job, t.get('copia')))
             return ' '.join(partes)
         return [dict(o, grupos=[dict(g, reconfirmar=frase(g)) for g in o['grupos']]) for o in orientacoes]
     estado['orientacoes'] = com_a_reconfirmacao(estado['orientacoes'])
@@ -2767,9 +2795,19 @@ def montar(pasta, teto=None):
                     faltam=faltam(novo_lido, r['formatos'], n_variantes, familias,
                                   familias_confirmadas(pasta, familias, por_confirmar(r['formatos']), pecas, sem_edicao),
                                   arquivos),
-                    briefing=dict(salvar.situacao_na_tela(pasta, familias, sugestoes=ler_sugestoes),
+                    briefing=dict(salvar.situacao_na_tela(pasta, familias, sugestoes=ler_sugestoes,
+                                                          separado_de=separado_de),
                                   avisos=_avisos_do_job(pasta)),
                     aprovacoes=aprovacoes, painel=painel)
+
+    def copiar_com(ed):
+        def copiar(destino, origem):
+            # o rascunho gravado das duas familias agora: a janela confere a vista dela contra ele (vapt.tela.atos)
+            dados_r, _de_outro = mod_rascunho.ler(pasta, mod_rascunho.laudo_sha256(pasta))
+            fams = (dados_r or {}).get('familias') or {}
+            # resposta 1 do Duda (26/11): a origem menor que o destino vem da copia (origem_menor, Editor._copiar)
+            return ed.copia_entre_familias(destino, origem, fams.get(origem) or {}, fams.get(destino) or {})
+        return copiar
 
     conteudo = {'estado': estado, 'previas': previas, 'assets': assets, 'fontes': fontes, 'recarregar': recarregar,
                 'editar': editor.previa if editor is not None else _sem_previa,
@@ -2785,8 +2823,13 @@ def montar(pasta, teto=None):
                                    'arquivo_de_edicao': arquivos.get(gid),
                                    'separados': list(grupos_da_tela[gid].get('separados') or []),
                                    'separado_de': grupos_da_tela[gid].get('separado_de'),
-                                   'separado_por_tamanho': grupos_da_tela[gid].get('separado_por_tamanho')}
+                                   'separado_por_tamanho': grupos_da_tela[gid].get('separado_por_tamanho'),
+                                   # decisao 215: a orientacao da aba e as familias de onde ela pode copiar o layout
+                                   'orientacao': orientacao_de.get(gid), 'copiar_de': copiar_de.get(gid) or []}
                              for gid, fids in familias.items()},
+                # decisao 215: a copia do layout de outra familia, com o rascunho gravado das duas (Editor.copia_entre_
+                # familias, guardada no Editor); None na espera
+                'copiar': copiar_com(editor) if editor is not None else None,
                 # M7c, S4: a rota leve /api/sugestoes le de novo, a cada pedido, o arquivo validado do modo de agora
                 # (com o teto desta tela), sem gravar nada (vapt.tela.funcoes.sugestoes_na_tela)
                 'sugestoes': ler_sugestoes}

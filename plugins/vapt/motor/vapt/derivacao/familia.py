@@ -758,6 +758,17 @@ def _deslocamento(b, eixo, qr, qm, s):
     return cb, (cm - cr) + (cb - cr) * (s - 1.0)
 
 
+def escala_unica(quadros_m, quadros_r):
+    """A escala unica s do membro (199, 1): a menor razao das margens nos dois eixos, nunca acima de 1. Pura.
+    quadros_m e quadros_r: {'margem': [x0, y0, x1, y1], ...} do membro e da referencia. A copia entre familias (215)
+    usa a mesma conta."""
+    # s nunca passa de 1 (199, 1; revisao da 0.10.0): o arquivo de edicao e o maior em area, mas a area segura dele
+    # pode apertar o quadro mais que a do membro, e a razao dos quadros passaria de 1. Nada amplia alem do que o DA
+    # viu: a sobra fica nos eixos
+    return min(_lado(quadros_m['margem'], 'x') / _lado(quadros_r['margem'], 'x'),
+               _lado(quadros_m['margem'], 'y') / _lado(quadros_r['margem'], 'y'), 1.0)
+
+
 def transferir(modelo, membro):
     """O layout de um arquivo da familia, copiado do modelo (199, 2). Conta fechada, sem otimizador. Puro.
     membro: {'id', 'W', 'H', 'quadros': {'margem', 'area_segura'}} na composicao (em pe).
@@ -767,11 +778,7 @@ def transferir(modelo, membro):
     'escala' (s x g), 'crescimento' (g), 'hospede', 'modo'}; ajustes: as ancoras desfeitas pelo fundo."""
     W, H = float(membro['W']), float(membro['H'])
     qm, qr = _quadros(membro), modelo['quadros']
-    # s nunca passa de 1 (199, 1; revisao da 0.10.0): o arquivo de edicao e o maior em area, mas a area segura dele
-    # pode apertar o quadro mais que a do membro, e a razao dos quadros passaria de 1. Nada amplia alem do que o DA
-    # viu: a sobra fica nos eixos
-    s = min(_lado(qm['margem'], 'x') / _lado(qr['margem'], 'x'), _lado(qm['margem'], 'y') / _lado(qr['margem'], 'y'),
-            1.0)
+    s = escala_unica(qm, qr)
     els = modelo['elementos']
     est = {'membro': membro.get('id'), 'W': W, 'H': H, 'quadros': qm, 's': s, 'sobra': {}, 'caixas': {},
            'caixas_asset': {}, 'recortes': {}, 'geometrias': {}, 'fatores': {}, 'blocos': {'x': {}, 'y': {}},
