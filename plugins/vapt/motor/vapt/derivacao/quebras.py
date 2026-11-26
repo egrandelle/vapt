@@ -460,10 +460,166 @@ def _trecho_e_paragrafo(camada):
     return r0, rt._paragrafo_de(t.get('paragrafos') or [], r0['inicio'])
 
 
+# os campos do run que nao sao estilo: a posicao, o texto e o que sai do texto; o kerning manual era de um par do
+# texto antigo e sai do texto editado
+_FORA_DO_ESTILO = ('inicio', 'fim', 'texto', 'tem_tinta', 'tem_caractere_visivel', 'kerning')
+
+
+def _estilo(run):
+    return {k: v for k, v in run.items() if k not in _FORA_DO_ESTILO}
+
+
+def _base_do_kv(runs_kv):
+    """[(caractere, indice do run)] do texto do KV pelos runs (o caractere k do run r fica na posicao r['inicio'] + k),
+    com as quebras gravadas (U+000D, U+000A, U+0003) como LF e sem as do fim (elas nao abrem linha)."""
+    por_pos = {}
+    for i, r in enumerate(runs_kv):
+        for k, ch in enumerate(r.get('texto') or ''):
+            por_pos[int(r.get('inicio', 0)) + k] = ('\n' if ch in casamento.CONTROLES_DE_QUEBRA else ch, i)
+    base = [por_pos[p] for p in sorted(por_pos)]
+    while base and base[-1][0] == '\n':
+        base.pop()
+    return base
+
+
+def _no_mesmo_papel(ch_kv, i, ch_novo, com_tinta):
+    """O run i do caractere do KV para o caractere do texto novo na mesma posicao, ou None (herda o vizinho) quando o
+    run nao tem tinta e o caractere mudou de papel (a quebra que virou espaco, o espaco que virou quebra): o run sem
+    tinta guarda o estilo de um espaco ou de uma quebra, que so vale no mesmo papel."""
+    return i if com_tinta is None or i in com_tinta or ch_kv == ch_novo else None
+
+
+def _donos_por_palavra(base, novo, r0, com_tinta=None):
+    """O indice do run de origem de cada caractere das palavras do texto novo (None nos separadores, menos o vao entre
+    duas palavras pareadas seguidas igual ao do KV, que fica com os runs do KV), pela regra R3 (com_tinta: os indices
+    dos runs com tinta; sem ele, todos contam como com tinta):
+    as palavras (\\S+) do KV e as do texto novo alinhadas por difflib. A palavra igual fica caractere a caractere com o
+    run de origem; a trocada (bloco replace) herda a de mesma ordem no bloco antigo (a ultima, quando sobram novas),
+    pelo primeiro caractere com tinta dela; a inserida herda a palavra a esquerda na mesma linha, no comeco da linha a
+    da direita, e a linha nova inteira o ultimo caractere antes dela (sem nenhum, r0). A apagada some. A insercao olha
+    a linha: as linhas tem de ser as finais, com a quebra da familia, em toda camada (palco, medida e render)."""
+    import difflib
+    import re
+    texto_base = ''.join(ch for ch, _i in base)
+    pb = [(m.start(), m.end()) for m in re.finditer(r'\S+', texto_base)]
+    pn = [(m.start(), m.end()) for m in re.finditer(r'\S+', novo)]
+    donos = [None] * len(novo)
+    inseridas = []
+    par = {}  # {palavra nova: palavra do KV} no bloco equal e no replace de mesmo tamanho
+    sm = difflib.SequenceMatcher(None, [texto_base[a:b] for a, b in pb], [novo[a:b] for a, b in pn], autojunk=False)
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == 'equal' or (tag == 'replace' and i2 - i1 == j2 - j1):
+            par.update((j1 + m, i1 + m) for m in range(j2 - j1))
+        if tag == 'equal':
+            for m in range(i2 - i1):
+                a, _b = pb[i1 + m]
+                c, d = pn[j1 + m]
+                for k in range(d - c):
+                    donos[c + k] = base[a + k][1]
+        elif tag == 'replace':
+            for m in range(j2 - j1):
+                a, b = pb[min(i1 + m, i2 - 1)]
+                velha = base[a:b]
+                dono = next((i for ch, i in velha if casamento.tem_tinta(ch)), velha[0][1])
+                c, d = pn[j1 + m]
+                donos[c:d] = [dono] * (d - c)
+        elif tag == 'insert':
+            inseridas.extend(range(j1, j2))
+    # o vao entre duas palavras pareadas seguidas, igual ao do KV (' ' e quebra contando como o mesmo), fica caractere
+    # a caractere com o run do KV: a quebra de uma linha que o DA nao tocou guarda o run dela (e a entrelinha). O vao so
+    # de quebras nos dois textos, com mais ou menos linhas vazias, alinha a primeira com a primeira, a ultima com a
+    # ultima e as do meio com a do meio do KV: o respiro entre paragrafos fica quando o DA poe ou tira uma linha vazia.
+    # O vao antes da primeira palavra (as linhas vazias do comeco) conta como pareado quando a primeira palavra nova
+    # pareia com a primeira do KV
+    vaos = [(0, pb[0][0], 0, pn[0][0])] if pb and pn and par.get(0) == 0 else []
+    vaos += [(pb[par[j] - 1][1], pb[par[j]][0], pn[j - 1][1], pn[j][0]) for j in range(1, len(pn))
+             if par.get(j) is not None and par.get(j - 1) == par[j] - 1]
+    for a, b, c, d in vaos:
+        vb, vn = texto_base[a:b], novo[c:d]
+        if vb.replace('\n', ' ') == vn.replace('\n', ' '):
+            donos[c:d] = [_no_mesmo_papel(base[a + k][0], base[a + k][1], vn[k], com_tinta) for k in range(d - c)]
+        elif set(vb) == {'\n'} and set(vn) == {'\n'}:
+            kq = [base[a + k][1] for k in range(b - a)]
+            meio = (kq[1:-1] or kq[-1:])[len(kq[1:-1] or kq[-1:]) // 2]
+            donos[c:d] = [kq[0] if k == 0 else kq[-1] if k == d - c - 1 else meio for k in range(d - c)]
+    linha = [novo.count('\n', 0, c) for c, _d in pn]
+    for j in inseridas:
+        c, d = pn[j]
+        dono = None
+        if j > 0 and linha[j - 1] == linha[j]:
+            dono = donos[pn[j - 1][1] - 1]
+        if dono is None:
+            dono = next((donos[pn[k][0]] for k in range(j + 1, len(pn))
+                         if linha[k] == linha[j] and donos[pn[k][0]] is not None), None)
+        if dono is None:
+            dono = next((donos[k] for k in range(c - 1, -1, -1) if donos[k] is not None), r0)
+        donos[c:d] = [dono] * (d - c)
+    return donos
+
+
+def runs_do_editado(runs_kv, linhas, separador='\r'):
+    """Os trechos do texto editado pelo DA (linhas: as linhas finais, ja com a quebra da familia; linhas_editadas)
+    sobre os trechos do KV (runs_kv: os runs do laudo, ou os do contrato do render, com inicio e texto), pela regra R3:
+    cada caractere do texto novo herda o estilo de um run do KV, e o estilo depende so do KV e das linhas (a chave
+    chave_editado continua completa). O separador ' ' e a quebra contam como o mesmo nos dois textos:
+      - so a quebra mudou (o texto igual ao do KV trocando ' ' e quebra): cada caractere fica com o run do caractere
+        de mesma posicao, espacos inclusive;
+      - senao, por palavra (_donos_por_palavra), e o separador herda o caractere a esquerda (no comeco da linha ou do
+        texto, o da direita); o vao entre duas palavras pareadas seguidas (iguais, ou trocadas uma a uma) que e igual
+        ao do KV fica com os runs do KV, para a quebra de uma linha nao tocada guardar a entrelinha dela; o vao so de
+        quebras, com mais ou menos linhas vazias, alinha as quebras (a primeira, a ultima e a do meio do KV).
+    A palavra inserida e o separador olham a linha: o palco, a medida, o render e a conferencia da fonte passam sempre
+    as linhas finais (linhas_editadas com o item da quebra da familia), para baterem. O espaco ou a quebra de um run
+    sem tinta guarda o run so no mesmo papel (_no_mesmo_papel): a quebra que continua quebra fica com o estilo dela (o
+    respiro entre paragrafos, o CR de corpo maior: a entrelinha do KV), e a quebra que vira espaco (ou o contrario)
+    herda o vizinho, para nao levar o estilo do run sem tinta (o CR que guardou a fonte de um texto apagado) para a
+    linha. A regra nao olha a cor, que o laudo e o contrato do render guardam de jeitos diferentes. O texto igual ao do
+    KV sai com os runs do KV.
+    Devolve os runs no texto novo ('separador'.join(linhas): CR como o Photoshop grava, na pagina de medida; o render
+    usa LF): cada um com os campos do run de origem, inicio, fim e texto no texto novo, kerning None (o kerning manual
+    era de um par do texto antigo) e tem_tinta recalculado; os vizinhos de estilo identico (todo campo fora
+    _FORA_DO_ESTILO) viram um. O KV de um run so da um run so, com os campos dele, como antes da R3.
+    A cor de cada run sai do estilo, por isso ela tem de ser campo do run: no laudo ela e (cor_hex, cor_valores); no
+    contrato do render, onde fica fora do run (cores_por_trecho[str(inicio)]), o chamador poe a cor num campo do run
+    antes (por exemplo 'cor') e tira depois, com cores_por_trecho[str(novo inicio)] = a cor do run novo. Sem o campo,
+    dois runs que so mudam de cor seriam juntados. None sem run com tinta no KV."""
+    r0 = next((i for i, r in enumerate(runs_kv or ()) if r.get('tem_tinta')), None)
+    if r0 is None:
+        return None
+    base = _base_do_kv(runs_kv)
+    novo = '\n'.join(linhas)
+    com_tinta = {i for i, r in enumerate(runs_kv) if r.get('tem_tinta')}
+    if ''.join(ch for ch, _i in base).replace('\n', ' ') == novo.replace('\n', ' '):
+        donos = [_no_mesmo_papel(ch, i, novo[k], com_tinta) for k, (ch, i) in enumerate(base)]
+    else:
+        donos = _donos_por_palavra(base, novo, r0, com_tinta)
+    for k in range(1, len(novo)):
+        if donos[k] is None and novo[k - 1] != '\n':
+            donos[k] = donos[k - 1]
+    for k in range(len(novo) - 2, -1, -1):
+        if donos[k] is None:
+            donos[k] = donos[k + 1]
+    donos = [r0 if d is None else d for d in donos]
+    s = novo.replace('\n', separador)
+    saida = []
+    for k, dono in enumerate(donos):
+        if saida and _estilo(runs_kv[dono]) == _estilo(saida[-1]):
+            saida[-1]['fim'] = k + 1
+            continue
+        saida.append(dict(runs_kv[dono], inicio=k, fim=k + 1))
+    if not saida:
+        saida.append(dict(runs_kv[r0], inicio=0, fim=0))
+    for r in saida:
+        r.update(texto=s[r['inicio']:r['fim']], kerning=None)
+        r['tem_tinta'] = any(casamento.tem_tinta(ch) for ch in r['texto'])
+    return saida
+
+
 def camada_do_editado(camada, linhas):
-    """Copia da camada de texto do laudo com o texto editado num trecho so: o estilo do primeiro trecho com tinta, sem
-    kerning manual, o paragrafo dele e as linhas do DA (como vapt.render.derivado.texto_editado_na_entrada). Para a
-    pagina de medida e para a conta da caixa (caixa_do_editado). None sem trecho com tinta."""
+    """Copia da camada de texto do laudo com o texto editado nas linhas do DA, nos trechos da regra R3
+    (runs_do_editado: cada caractere com o estilo de um trecho do KV, sem kerning manual), no paragrafo do primeiro
+    trecho com tinta (como vapt.render.derivado.texto_editado_na_entrada). Para a pagina de medida e para a conta da
+    caixa (caixa_do_editado). None sem trecho com tinta."""
     import copy
     r0, par = _trecho_e_paragrafo(camada)
     if r0 is None:
@@ -472,7 +628,7 @@ def camada_do_editado(camada, linhas):
     s = '\r'.join(linhas)
     t = c.setdefault('texto', {})
     t['conteudo'] = s
-    t['runs'] = [dict(r0, inicio=0, fim=len(s), texto=s, kerning=None, tem_tinta=True)]
+    t['runs'] = runs_do_editado(t.get('runs') or [], linhas)
     t['paragrafos'] = [dict(par, inicio=0, fim=len(s) + 1)] if par else []
     return c
 

@@ -2,6 +2,16 @@
 
 O que muda em cada versão, em palavras simples. O detalhe técnico de cada mudança está em `docs/m1-interfaces.md` e no histórico do git.
 
+## 0.19.1 (25/11/2026): o texto editado guarda as cores do KV
+
+Terceira leva dos pedidos de 25/11.
+
+- O texto que você edita continua com as cores e os estilos do KV. Cada palavra fica com a cor que tinha; a palavra trocada fica com a cor da que estava no lugar; a palavra nova pega a cor da vizinha da esquerda na mesma linha, ou a da direita no começo da linha. Mexer só na quebra de linha de um texto igual ao do KV não muda cor nenhuma.
+- A prévia, a medida e a arte final usam a mesma regra, então o que você vê no palco é o que sai no PNG. Isso vale também para a entrelinha de cada linha, o respiro entre parágrafos e o lugar da primeira linha.
+- O espaço numa fonte que não está no job não some mais do PNG: ele sai na fonte da palavra ao lado, na mesma linha. Na caixa de parágrafo, esse espaço não para mais o render com "O layout do texto não fechou".
+- Texto de um estilo só (mesma fonte, corpo, cor e tracking em tudo) fica igual. Pode pedir um "Salvar e seguir" a mais na família confirmada: o texto com mais de uma cor, fonte ou corpo que você já editou, o texto com um espaço ou uma quebra invisível de outro estilo, e a família cuja quebra junta ou parte a primeira linha do KV. A arte já feita muda no próximo render.
+- Como a fonte agora é conferida na palavra de cada fonte, um texto já confirmado com uma letra que só a primeira fonte tinha pode ser recusado. Nesse caso, troque a letra e confirme a família de novo.
+
 ## 0.19.0 (25/11/2026): a biblioteca de marca sai
 
 Segunda leva dos pedidos de 25/11: o Vapt fica mais simples.

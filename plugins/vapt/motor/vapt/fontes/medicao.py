@@ -90,10 +90,17 @@ def montar(camadas_texto, pares, faces, prefixo):
                 'motivo_sem_largura': motivo_sem_largura(texto, pares), 'linhas': [], 'spans': []}
         # pedacos por linha: (fonte_ps, estilo, ls_px, texto, cdp)
         linhas = [[]]
-        for r in runs:
+        for i, r in enumerate(runs):
+            # decisao 214: o espaco sem tinta de uma fonte sem face vai na face e no estilo do vizinho, como no render
+            v = casamento.vizinho_com_face(runs, i, lambda x: pares.get(x.get('fonte_ps')) is not None)
+            if v is not None:
+                r = dict(v, texto=r.get('texto'), kerning=None)
             ps = r.get('fonte_ps')
             face = pares.get(ps)
             if face is None:
+                # o trecho sem face nao e desenhado, mas a quebra dele abre a linha, como no render
+                # (render.texto.linhas_da_camada quebra antes de olhar a face)
+                linhas.extend([] for ch in casamento.texto_do_trecho(r) if ch in casamento.CONTROLES_DE_QUEBRA)
                 continue
             corpo = float(r.get('corpo_espaco_texto') or 0) * escala
             ls = float(r.get('tracking') or 0) / 1000.0 * corpo  # numero-neutro: tracking em milesimos de em

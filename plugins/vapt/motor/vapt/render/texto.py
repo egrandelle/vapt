@@ -160,12 +160,14 @@ def quebras_da_caixa(entrada, posicoes, faces_por_ps):
     t = entrada['texto']
     largura = largura_da_quebra(entrada)
     quebras = set(entrada.get('quebras_automaticas') or ())
+    no_vizinho = _runs_no_vizinho(t, faces_por_ps)
     for n, ln in enumerate(linhas_da_camada(t, quebras | set(entrada.get('quebras_inseridas') or ()),
                                              entrada.get('quebras_juntadas'))):
         if not ln['pedacos']:
             continue
+        pedacos = [(s, no_vizinho.get(id(r), r)) for s, r in ln['pedacos']]
         texto_linha = ''.join(caixa_alta(s) if r.get('font_caps') in ('ALL_CAPS', 'SMALL_CAPS') else s
-                              for s, r in ln['pedacos'] if faces_por_ps.get(r.get('fonte_ps')) is not None)
+                              for s, r in pedacos if faces_por_ps.get(r.get('fonte_ps')) is not None)
         if len(texto_linha) != len(ln['indices']):
             raise ValueError('linha com trecho sem face')
         xs = _x_dos_caracteres(texto_linha, (posicoes or {}).get('L%d' % n))
@@ -180,8 +182,23 @@ def quebras_da_caixa(entrada, posicoes, faces_por_ps):
     return sorted(quebras)
 
 
+def _runs_no_vizinho(t, faces_por_ps):
+    """Decisao 214: {id do run: o run em que ele se desenha} para o trecho sem tinta de uma fonte sem face (o espaco
+    de outra fonte), que vai na face e no estilo do vizinho com face, para o espaco nao sumir; a pagina de quebra, a
+    de render, o palco e a medida fazem o mesmo (casamento.vizinho_com_face). A copia nao leva o kerning manual do
+    vizinho."""
+    rs = [r for r in t.get('runs') or [] if r.get('texto')]
+    no_vizinho = {}
+    for i, r in enumerate(rs):
+        v = casamento.vizinho_com_face(rs, i, lambda x: faces_por_ps.get(x.get('fonte_ps')) is not None)
+        if v is not None:
+            no_vizinho[id(r)] = dict(v, kerning=None)
+    return no_vizinho
+
+
 def _chave_estilo(r, face):
-    return (face['id'] if face else None, r.get('corpo_espaco_texto'), r.get('tracking'), r.get('kerning'),
+    # kerning manual 0 (o que o laudo grava sem kerning) e None sao o mesmo estilo
+    return (face['id'] if face else None, r.get('corpo_espaco_texto'), r.get('tracking'), r.get('kerning') or 0,
             r.get('autokerning', True), r.get('font_caps'), r.get('faux_bold'), r.get('ligaduras', True))
 
 
@@ -251,11 +268,13 @@ def montar_svg(entrada, faces_por_ps, prefixo, cor_da_passada=None, posicoes=Non
                               entrada.get('quebras_juntadas'))
     corpo, spans, defs, cores_linhas = [], [], [], {}
     ancoras_x, y = origem_das_linhas(t, linhas, faces_por_ps)
+    no_vizinho = _runs_no_vizinho(t, faces_por_ps)
     for n, ln in enumerate(linhas):
         if n > 0:
             y += ln['entrelinha']
         if not ln['pedacos']:
             continue
+        ln = dict(ln, pedacos=[(s, no_vizinho.get(id(r), r)) for s, r in ln['pedacos']])
         ancora = ANCORA.get(ln['just'], 'start')
         ultimo = ln['pedacos'][-1][1]
         ls_ultimo = float(ultimo.get('tracking') or 0) / MILESIMOS * float(ultimo.get('corpo_espaco_texto') or 0)

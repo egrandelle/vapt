@@ -228,7 +228,8 @@ def _na_pagina(textos, faces, servidos, estado):
 def medir_editados(pasta, laudo, estado, pedidos):
     """A caixa da tinta do texto editado pelo DA com as linhas dele (Linhas do DA, 0.9.4). pedidos: [(layer_id,
     linhas)], as linhas como o render as desenha (derivacao.quebras.linhas_editadas). Cada texto vai a pagina de medida
-    num trecho so, com o estilo do primeiro trecho com tinta (derivacao.quebras.camada_do_editado), e a caixa sai da
+    com os trechos da regra R3, cada caractere com o estilo de um trecho do KV (derivacao.quebras.camada_do_editado e
+    runs_do_editado; o KV de um trecho so da a camada e a chave de antes), e a caixa sai da
     tinta medida pela ancora do render (derivacao.quebras.caixa_do_editado), no espaco do documento. O mesmo cache da
     medida das quebras: o mesmo texto nao abre o Chromium de novo.
     Devolve {chave_editado: {'caixa_doc': [x0, y0, x1, y1], 'linhas': n}} ou {chave_editado: {'erro': motivo}}."""
@@ -262,8 +263,8 @@ def medir_editados(pasta, laudo, estado, pedidos):
         if motivo:
             saida[ch] = {'erro': motivo}
             continue
-        r0 = sint['texto']['runs'][0]
-        if pares.get(r0.get('fonte_ps')) is None:
+        # a face de todo trecho do texto editado (a regra R3 leva o estilo de cada trecho do KV)
+        if any(pares.get(r.get('fonte_ps')) is None for r in sint['texto']['runs'] if r.get('tem_tinta')):
             saida[ch] = {'erro': 'face_ausente'}
             continue
         item = plano['camadas'][k]

@@ -4040,16 +4040,33 @@
     else if (ancoraX === 'direita') dx = t.largura - tinta[2];
     let dy = -tinta[1];
     const ancora = t.peca.texto_editado && t.peca.ancora_kv;
-    const primeiro = t.no.querySelector('.trecho');
+    /* decisao 214: o primeiro trecho com texto visivel (o espaco sem tinta do comeco pode ter outra face e corpo) */
+    const primeiro = Array.from(t.no.querySelectorAll('.trecho')).find(function (s) { return s.textContent.trim(); })
+      || t.no.querySelector('.trecho');
     if (ancora && primeiro && bases.length) {
       /* revisao 0.9.4: o texto editado ancora pela primeira linha de base, como o render. A linha de base do KV e o
          topo da tinta dele (t.y) mais a ascendente da primeira linha do KV com tinta, menos as entrelinhas acima
          dela; a primeira linha do DA (vazia ou nao, marco na linha de base bases[0]) cai nela */
       const cs = getComputedStyle(primeiro);
-      regua.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
-      regua.letterSpacing = cs.letterSpacing === 'normal' ? '0px' : cs.letterSpacing;
-      const sobe = regua.measureText(ancora.texto).actualBoundingBoxAscent;
-      if (isFinite(sobe) && sobe > 0) dy = sobe - ancora.acima - bases[0];
+      let sobe;
+      if (ancora.trechos && ancora.trechos.length) {
+        /* decisao 214: no KV de varios estilos, a subida da linha do KV sai dos trechos dela, cada um na sua face e
+           no seu corpo (a mais alta), e nao do primeiro trecho do texto editado */
+        sobe = 0;
+        ancora.trechos.forEach(function (tr) {
+          const fam = tr.face && familiaCss.has(tr.face) ? '"' + familiaCss.get(tr.face) + '"' : cs.fontFamily;
+          regua.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + (tr.corpo ? tr.corpo + 'px' : cs.fontSize) + ' ' + fam;
+          regua.letterSpacing = '0px';
+          sobe = Math.max(sobe, regua.measureText(tr.texto).actualBoundingBoxAscent);
+        });
+      } else {
+        regua.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+        regua.letterSpacing = cs.letterSpacing === 'normal' ? '0px' : cs.letterSpacing;
+        sobe = regua.measureText(ancora.texto).actualBoundingBoxAscent;
+      }
+      /* na caixa de paragrafo, a primeira linha de base do texto editado desce o que a ascendente da primeira linha
+         dele passa da do KV (ancora.caixa, a regra do render) */
+      if (isFinite(sobe) && sobe > 0) dy = sobe - ancora.acima - bases[0] + (ancora.caixa || 0);
     }
     t.no.style.left = (t.x + dx) + 'px';
     t.no.style.top = (t.y + dy) + 'px';

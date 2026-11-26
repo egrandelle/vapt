@@ -8,12 +8,13 @@ transformacao do elemento a que a camada pertence (escala uniforme e deslocament
     canvas da mestre e acaba na borda dele);
   - texto: a matriz da camada recebe a escala e o deslocamento do elemento (as quebras e o tracking ficam os da
     mestre, so o tamanho muda); a regiao da pagina e a da origem transformada, com a margem do render;
-  - texto editado pelo DA no palco (decisoes-v1.md, 169 e 171; M7b, A7): o texto novo num trecho so, com o estilo do
-    primeiro trecho com tinta e so as linhas do DA (Linhas do DA, 0.9.4: nunca quebra na largura da caixa); a caixa
+  - texto editado pelo DA no palco (decisoes-v1.md, 169, 171 e 214; M7b, A7): o texto novo nos trechos da regra R3
+    (cada caractere com o estilo e a cor de um trecho do KV; o KV de um estilo so da um trecho so), no paragrafo do
+    primeiro trecho com tinta e so nas linhas do DA (Linhas do DA, 0.9.4: nunca quebra na largura da caixa); a caixa
     validada e a tinta medida na derivacao (caixa_texto_editado). O texto que passa da borda do formato sai cortado
     na borda, como o palco mostrou ao DA que confirmou a familia (0.9.6, aprovacao soberana), com o registro
     texto_editado_cortado_pelo_da (nunca calado). Sem a medida, a pagina cobre o formato inteiro. O cmap da face
-    do job e conferido como na edicao, e a tinta e conferida depois de compor;
+    do job de cada trecho e conferido como na edicao, e a tinta e conferida depois de compor;
   - quebra de linha da familia da tela (M7b, C2): junta as quebras gravadas e insere quebra nos espacos (a mesma
     insercao por posicao da mestre propria), no texto do KV ou no texto editado pelo DA na familia;
   - linkado: o quadrilatero de colocacao e a caixa recebem a transformacao.
@@ -288,25 +289,39 @@ def tinta_fora_da_caixa(entradas, estatisticas, W, H):
     return saida
 
 
-def texto_editado_na_entrada(entrada, texto):
-    """A entrada de texto do contrato com o texto editado pelo DA (M7b, A7): um trecho so, com o estilo, a cor e a
-    face do primeiro trecho com tinta (como a previa da tela, vapt.tela.edicao.trocar_texto) e o paragrafo dele.
-    Linhas do DA (0.9.4): linhas_do_da, e nunca largura_quebra; o render nao quebra a linha na largura da caixa
-    (vapt.render.texto.largura_da_quebra), nem na caixa de paragrafo. A matriz e a da entrada (ja no formato)."""
+def texto_editado_na_entrada(entrada, texto, item=None):
+    """A entrada de texto do contrato com o texto editado pelo DA (M7b, A7; decisoes-v1.md, 214): os trechos da regra
+    R3 (vapt.derivacao.quebras.runs_do_editado, a mesma da previa da tela e da medida), em que cada caractere herda o
+    estilo, a cor e a face de um trecho do KV, sem kerning manual; o paragrafo e o do primeiro trecho com tinta. O KV
+    de uma cor e um estilo da um trecho so, como antes. Linhas do DA (0.9.4): linhas_do_da, e nunca largura_quebra; o
+    render nao quebra a linha na largura da caixa (vapt.render.texto.largura_da_quebra), nem na caixa de paragrafo. A
+    matriz e a da entrada (ja no formato). item: o item da quebra da familia do texto (_item_da_familia), ou None. A R3
+    roda sobre as linhas finais, ja com essa quebra (derivacao.quebras.linhas_editadas, como a tela e a medida), e os
+    trechos levam o texto sem ela (a troca e de 1 caractere por 1): o render aplica a quebra depois, pelas posicoes de
+    quebras_do_texto_editado."""
+    from vapt.derivacao import quebras as mq
     from vapt.render import texto as rt
     texto = texto.replace('\r\n', '\n').replace('\r', '\n')
     t = entrada['texto']
     r0 = next(r for r in t['runs'] if r.get('tem_tinta'))
     par = rt._paragrafo_de(t.get('paragrafos') or [], r0['inicio'])
-    cor = entrada['cores_por_trecho'][str(r0['inicio'])]
+    # a cor fica fora do run no contrato (cores_por_trecho): entra num campo do run para contar no estilo da R3 (sem
+    # ele, dois trechos que so mudam de cor seriam juntados) e sai depois, com a chave do inicio novo
+    com_cor = [dict(r, cor=entrada['cores_por_trecho'][str(r['inicio'])]) for r in t['runs']]
+    runs = mq.runs_do_editado(com_cor, mq.linhas_editadas(texto, item), '\n')
     novo = json.loads(json.dumps(entrada))
-    # o kerning manual era de um par do texto antigo
-    novo['texto']['runs'] = [dict(r0, inicio=0, fim=len(texto), texto=texto, kerning=None, tem_tinta=True)]
+    por_trecho = {}
+    for r in runs:
+        por_trecho[str(r['inicio'])] = r.pop('cor')
+        r['texto'] = texto[r['inicio']:r['fim']]
+    cores = list(dict.fromkeys(por_trecho.values()))
+    ps = list(dict.fromkeys(r.get('fonte_ps') for r in runs))
+    novo['texto']['runs'] = runs
     novo['texto']['paragrafos'] = [dict(par, inicio=0, fim=len(texto) + 1)] if par else []
-    novo['cores'] = [cor]
-    novo['cores_por_trecho'] = {'0': cor}
-    novo['valores_cor'] = {cor: entrada['valores_cor'][cor]}
-    novo['faces'] = {k: v for k, v in entrada['faces'].items() if k == r0.get('fonte_ps')}
+    novo['cores'] = cores
+    novo['cores_por_trecho'] = por_trecho
+    novo['valores_cor'] = {c: entrada['valores_cor'][c] for c in cores}
+    novo['faces'] = {k: entrada['faces'][k] for k in ps if k in entrada['faces']}
     novo.pop('largura_quebra', None)
     novo['linhas_do_da'] = True
     novo['texto_editado'] = True
@@ -315,13 +330,18 @@ def texto_editado_na_entrada(entrada, texto):
 
 def caracteres_fora_da_face(entrada, faces_do_job):
     """Os caracteres do texto editado da entrada que a face do job nao cobre (a conferencia da edicao na tela,
-    vapt.tela.edicao.caracteres_que_faltam, pelo cmap lido pelo filho das fontes)."""
+    vapt.tela.edicao.caracteres_que_faltam, pelo cmap lido pelo filho das fontes), em ordem e sem repetir: cada trecho
+    (decisoes-v1.md, 214) conferido contra a sua face e com o seu font_caps. O trecho sem face no job fica de fora."""
     from vapt.tela import edicao
-    r = entrada['texto']['runs'][0]
-    face = next((f for f in faces_do_job if f['id'] == entrada['faces'].get(r.get('fonte_ps'))), None)
-    if face is None:
-        return []
-    return edicao.caracteres_que_faltam(r['texto'], face, r.get('font_caps') in ('ALL_CAPS', 'SMALL_CAPS'))
+    saida = []
+    for r in entrada['texto']['runs']:
+        face = next((f for f in faces_do_job if f['id'] == entrada['faces'].get(r.get('fonte_ps'))), None)
+        if face is None:
+            continue
+        for ch in edicao.caracteres_que_faltam(r['texto'], face, r.get('font_caps') in ('ALL_CAPS', 'SMALL_CAPS')):
+            if ch not in saida:
+                saida.append(ch)
+    return saida
 
 
 def _efeitos_partidos(entradas, regs):
@@ -439,7 +459,7 @@ def montar(pasta_job, formato):
             novo['texto']['matriz'] = [xx * s, xy * s, yx * s, yy * s, nx, ny]
             ct = (camadas_laudo.get(e['layer_id']) or {}).get('geometria') or {}
             if el.get('texto_editado') is not None:
-                novo = texto_editado_na_entrada(novo, el['texto_editado'])
+                novo = texto_editado_na_entrada(novo, el['texto_editado'], _item_da_familia(el, e['layer_id']))
                 novo.update(quebras_do_texto_editado(el, e['layer_id']))
                 novo = _com_alinhamento(novo, el, e['layer_id'], registros)
                 if faces_do_job is None:

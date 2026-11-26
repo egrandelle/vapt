@@ -5,8 +5,10 @@ Criterios de pronto cobertos aqui:
   - a derivacao nunca junta as quebras da proposta com o texto editado: o texto do DA leva so as quebras dele (o \\n);
     Linhas do DA (0.9.4): nada quebra na largura da caixa, e a derivacao guarda a caixa medida da tinta
     (caixa_texto_editado), que o contrato usa como caixa validada;
-  - o contrato do render leva o texto editado num trecho so, com o estilo do primeiro trecho com tinta, e confere o
-    cmap da face do job como a edicao na tela: caractere que a fonte nao tem e recusado com motivo claro;
+  - o contrato do render leva o texto editado nos trechos da regra R3 (decisoes-v1.md, 214): cada caractere com o
+    estilo e a cor de um trecho do KV, e o KV de uma cor (o PSD de duas linhas) num trecho so (a quebra sem tinta de
+    outro estilo que continua quebra guarda o run dela, sem tinta, e a linha leva a entrelinha do KV); e confere o
+    cmap da face do job de cada trecho como a edicao na tela: caractere que a fonte nao tem e recusado com motivo claro;
   - no Chromium, o texto com \\n sai exatamente nas linhas pedidas, e a linha mais larga que a caixa do KV fica numa
     linha so, com o mesmo corpo (0.9.4);
   - a tinta do render bate com a previa da tela dentro da tolerancia da tinta do texto (render.tolerancia_tinta_texto);
@@ -26,6 +28,7 @@ import test_tela_palco as tp
 from vapt import contratos, humano
 from vapt.briefing import modelo as mb
 from vapt.derivacao import nucleo as nd
+from vapt.derivacao import quebras as mq
 from vapt.render import derivado as rd
 from vapt.render import execucao
 from vapt.render import texto as rt
@@ -125,7 +128,8 @@ def test_derivacao_nao_junta_as_quebras_da_proposta_ao_texto_editado(job, modelo
     assert x['quebras'] == 'do_texto_editado' and 'quebras_camada' not in x, x.get('quebras')
 
 
-def test_contrato_leva_o_texto_editado_num_trecho_so(job, modelo):
+def test_contrato_leva_o_texto_editado_do_kv_de_uma_cor_num_trecho_so(job, modelo):
+    # o PSD de duas linhas tem uma cor e um estilo: a regra R3 (214) junta tudo num trecho so, como antes
     el = _editar(job, DUAS_LINHAS)
     contrato, bloqueios, _c = rd.montar(job, 'mesma')
     assert bloqueios == [], bloqueios
@@ -164,6 +168,173 @@ def test_caractere_fora_do_cmap_e_recusado_no_contrato(job, modelo):
 
 def test_texto_editado_sem_bloqueio_antigo():
     assert 'texto_editado_sem_render' not in rd.DESCRICOES
+
+
+# ------------------------------------------------------------------ duas cores (decisoes-v1.md, 214; regra R3)
+PRETO_E_AZUL = {'c0': {'rgb': [0.0, 0.0, 0.0], 'alfa': 1.0}, 'c1': {'rgb': [0.0, 0.2, 0.9], 'alfa': 1.0}}
+FACE_X = {'id': 'f01', 'peso_declarado': 700, 'metricas': None}
+
+
+def _run(inicio, texto, **extra):
+    r = {'inicio': inicio, 'fim': inicio + len(texto), 'texto': texto, 'fonte_ps': 'X', 'corpo_espaco_texto': 20,
+         'tracking': 0, 'entrelinha': 24, 'autoleading': False, 'font_caps': None, 'autokerning': True,
+         'kerning': None, 'ligaduras': True, 'tem_tinta': True, 'faux_bold': False}
+    r.update(extra)
+    return r
+
+
+def _entrada_tres_linhas():
+    """O KV do relato: tres linhas, as duas primeiras pretas e a ultima azul, como o contrato do render as leva (a cor
+    fora do run, em cores_por_trecho)."""
+    runs = [_run(0, 'L1 a\rL2 b\r'), _run(10, 'L3 c')]
+    return {'id': 'e01', 'regiao': [0, 0, 128, 96],
+            'texto': {'matriz': [1, 0, 0, 1, 2, 20], 'runs': runs,
+                      'paragrafos': [{'inicio': 0, 'fim': 15, 'justificacao': 'LEFT'}]},
+            'cores': ['c0', 'c1'], 'cores_por_trecho': {'0': 'c0', '10': 'c1'}, 'valores_cor': dict(PRETO_E_AZUL),
+            'faces': {'X': 'f01'}, 'largura_quebra': 50.0}
+
+
+def _por_cor(novo):
+    return [(r['texto'], novo['cores_por_trecho'][str(r['inicio'])]) for r in novo['texto']['runs']]
+
+
+@pytest.mark.parametrize('texto, esperado', [
+    # so a quebra mudou (pelo campo de texto, CR LF ou CR viram LF): cada caractere com a cor dele
+    ('L1 a\nL2 b\nL3 c', [('L1 a\nL2 b\n', 'c0'), ('L3 c', 'c1')]),
+    ('L1 a\r\nL2 b\r\nL3 c', [('L1 a\nL2 b\n', 'c0'), ('L3 c', 'c1')]),
+    # juntar as linhas 2 e 3: o espaco no lugar da quebra herda o preto da esquerda
+    ('L1 a\nL2 b L3 c', [('L1 a\nL2 b ', 'c0'), ('L3 c', 'c1')]),
+    # trocar a palavra azul: a nova fica azul
+    ('L1 a\nL2 b\nL3 xyz', [('L1 a\nL2 b\n', 'c0'), ('L3 xyz', 'c1')]),
+    # palavra nova no comeco da linha azul: herda a da direita
+    ('L1 a\nL2 b\nnova L3 c', [('L1 a\nL2 b\n', 'c0'), ('nova L3 c', 'c1')]),
+])
+def test_texto_editado_de_duas_cores_leva_a_cor_de_cada_trecho(texto, esperado):
+    entrada = _entrada_tres_linhas()
+    novo = rd.texto_editado_na_entrada(entrada, texto)
+    assert _por_cor(novo) == esperado
+    runs = novo['texto']['runs']
+    assert [(r['inicio'], r['fim']) for r in runs] == [(0, len(esperado[0][0])),
+                                                       (len(esperado[0][0]), len(esperado[0][0] + esperado[1][0]))]
+    assert all('cor' not in r and r['kerning'] is None and r['tem_tinta'] for r in runs)
+    assert sorted(novo['cores_por_trecho']) == sorted(str(r['inicio']) for r in runs)
+    assert novo['cores'] == ['c0', 'c1'] and novo['valores_cor'] == PRETO_E_AZUL and novo['faces'] == {'X': 'f01'}
+    s = ''.join(r['texto'] for r in runs)
+    assert novo['texto']['paragrafos'] == [{'inicio': 0, 'fim': len(s) + 1, 'justificacao': 'LEFT'}]
+    assert 'largura_quebra' not in novo and novo['linhas_do_da'] is True and novo['texto_editado'] is True
+    # a entrada do contrato fica como estava
+    assert entrada == _entrada_tres_linhas()
+
+
+def test_texto_editado_com_quebra_da_familia_pinta_como_a_tela_e_a_medida():
+    # a R3 roda nas linhas finais (a familia junta a 2a quebra): a palavra nova fica na linha do 'b' e herda o preto
+    # da esquerda, como em linhas_editadas na tela e na medida; os trechos levam o texto sem a quebra da familia,
+    # que o render aplica depois (quebras_do_texto_editado)
+    texto = 'L1 a\nL2 b\nNOVO L3 c'
+    item = {'aprovadas': [0], 'inseridas': []}
+    novo = rd.texto_editado_na_entrada(_entrada_tres_linhas(), texto, item)
+    assert _por_cor(novo) == [('L1 a\nL2 b\nNOVO ', 'c0'), ('L3 c', 'c1')]
+    kv = [dict(r, cor=c) for r, c in zip(_entrada_tres_linhas()['texto']['runs'], ('c0', 'c1'))]
+    finais = mq.runs_do_editado(kv, mq.linhas_editadas(texto, item), '\n')
+    assert [(r['inicio'], r['fim'], r['cor']) for r in finais] == \
+        [(r['inicio'], r['fim'], novo['cores_por_trecho'][str(r['inicio'])]) for r in novo['texto']['runs']]
+    # sem a quebra da familia, a palavra nova no comeco da linha azul herda a da direita
+    assert _por_cor(rd.texto_editado_na_entrada(_entrada_tres_linhas(), texto)) == \
+        [('L1 a\nL2 b\n', 'c0'), ('NOVO L3 c', 'c1')]
+
+
+def test_texto_editado_so_com_cores_usadas_e_faces_de_todos_os_trechos():
+    # o texto todo preto (a palavra azul apagada) leva so a cor preta; a face de cada trecho usado entra
+    entrada = _entrada_tres_linhas()
+    entrada['texto']['runs'][1]['fonte_ps'] = 'Y'
+    entrada['faces']['Y'] = 'f02'
+    novo = rd.texto_editado_na_entrada(entrada, 'L1 a\nL2 b')
+    assert _por_cor(novo) == [('L1 a\nL2 b', 'c0')]
+    assert novo['cores'] == ['c0'] and list(novo['valores_cor']) == ['c0'] and novo['faces'] == {'X': 'f01'}
+    novo = rd.texto_editado_na_entrada(entrada, 'L1 a L2 b L3 c')
+    assert novo['cores'] == ['c0', 'c1'] and novo['faces'] == {'X': 'f01', 'Y': 'f02'}
+    assert [r['fonte_ps'] for r in novo['texto']['runs']] == ['X', 'Y']
+
+
+def test_texto_editado_de_uma_cor_sai_como_antes():
+    # o KV de uma cor (o kerning manual parte o run no Photoshop; a quebra do fim pode ter outra cor e nao ter tinta):
+    # um trecho so, com o estilo do primeiro trecho com tinta, como antes da R3
+    runs = [_run(0, 'HA', kerning=-20), _run(2, 'H\rHOX'), _run(7, '\r', tem_tinta=False)]
+    entrada = {'id': 'e01', 'regiao': [0, 0, 128, 96],
+               'texto': {'matriz': [1, 0, 0, 1, 2, 20], 'runs': runs,
+                         'paragrafos': [{'inicio': 0, 'fim': 8, 'justificacao': 'CENTER'}]},
+               'cores': ['c0', 'c1'], 'cores_por_trecho': {'0': 'c0', '2': 'c0', '7': 'c1'},
+               'valores_cor': dict(PRETO_E_AZUL), 'faces': {'X': 'f01'}}
+    for texto in (DUAS_LINHAS, 'HAH HOX', REFLOW, 'HAH\nHOX\nHAX'):
+        novo = rd.texto_editado_na_entrada(entrada, texto)
+        assert novo['texto']['runs'] == [dict(runs[0], inicio=0, fim=len(texto), texto=texto, kerning=None,
+                                              tem_tinta=True)]
+        assert novo['cores'] == ['c0'] and novo['cores_por_trecho'] == {'0': 'c0'}
+        assert novo['valores_cor'] == {'c0': PRETO_E_AZUL['c0']} and novo['faces'] == {'X': 'f01'}
+
+
+def _entrada_cr_do_meio():
+    # o KV preto na vista com a quebra do meio num run sem tinta azul, numa fonte que nao esta no job (Y), com outro
+    # corpo e outra entrelinha
+    runs = [_run(0, 'HAH'), _run(3, '\r', fonte_ps='Y', corpo_espaco_texto=40, entrelinha=60, tem_tinta=False),
+            _run(4, 'HOX')]
+    return {'id': 'e01', 'regiao': [0, 0, 128, 96],
+            'texto': {'matriz': [1, 0, 0, 1, 2, 20], 'runs': runs,
+                      'paragrafos': [{'inicio': 0, 'fim': 8, 'justificacao': 'LEFT'}]},
+            'cores': ['c0', 'c1'], 'cores_por_trecho': {'0': 'c0', '3': 'c1', '4': 'c0'},
+            'valores_cor': dict(PRETO_E_AZUL), 'faces': {'X': 'f01'}}
+
+
+@pytest.mark.parametrize('texto', ['HAH HOX', 'HAH\nHOX', 'HAH novo HOX'])
+def test_cr_do_meio_sem_tinta_de_outra_cor_e_fonte_nao_vira_trecho(texto):
+    # so a face X e desenhada, preta, em todo caractere; a quebra que vira espaco (ou fica fora do par, com a palavra
+    # inserida) herda o vizinho e o texto editado sai num trecho so, com o espaco desenhado
+    entrada = _entrada_cr_do_meio()
+    runs = entrada['texto']['runs']
+    novo = rd.texto_editado_na_entrada(entrada, texto)
+    assert novo['faces'] == {'X': 'f01'}
+    _svg, _spans, linhas = rt.montar_svg(novo, {'X': FACE_X}, 'p')
+    assert [c for ln in linhas.values() for c in ln] == ['c0'] * len(texto.replace('\n', ''))
+    assert rd.caracteres_fora_da_face(novo, [{'id': 'f01', 'cmap': [[32, 32], [65, 90], [97, 122]]}]) == []
+    if '\n' not in texto:
+        assert novo['texto']['runs'] == [dict(runs[0], inicio=0, fim=len(texto), texto=texto, kerning=None,
+                                              tem_tinta=True)]
+        assert novo['cores'] == ['c0'] and novo['cores_por_trecho'] == {'0': 'c0'}
+        return
+    # rodada 4 (_no_mesmo_papel): a quebra que continua quebra guarda o run sem tinta dela (um run so de '\n', sem
+    # tinta, com a cor, a fonte e a entrelinha do KV); ela nao e desenhada, e a linha 1 fica com a entrelinha do KV
+    assert novo['texto']['runs'] == [dict(runs[0], kerning=None), dict(runs[1], texto='\n', kerning=None),
+                                     dict(runs[2], kerning=None)]
+    assert novo['cores'] == ['c0', 'c1'] and novo['cores_por_trecho'] == {'0': 'c0', '3': 'c1', '4': 'c0'}
+    kv = rt.linhas_da_camada(entrada['texto'])
+    assert [ln['entrelinha'] for ln in rt.linhas_da_camada(novo['texto'])] == [ln['entrelinha'] for ln in kv]
+    assert [ln['entrelinha'] for ln in kv][0] == 60  # numero-neutro: a entrelinha do run sem tinta
+
+
+def test_svg_do_texto_editado_de_duas_cores_pinta_o_azul_nos_caracteres_dele():
+    novo = rd.texto_editado_na_entrada(_entrada_tres_linhas(), 'L1 a\nL2 b L3 c')
+    svg, spans, linhas = rt.montar_svg(novo, {'X': FACE_X}, 'p')
+    # cada linha num tspan so (os trechos so mudam de cor), e a cor por caractere
+    assert linhas == {'L0': ['c0'] * 4, 'L1': ['c0'] * 5 + ['c1'] * 4}
+    assert svg.count('<tspan') == 2 and len(spans) == 2
+    pos = {'L0': [[10 * k, 0, 10 * k + 9] for k in range(4)], 'L1': [[10 * k, 0, 10 * k + 9] for k in range(9)]}
+    azul, _s, _l = rt.montar_svg(novo, {'X': FACE_X}, 'p', 'c1', pos)
+    # na passada azul, a linha preta fica transparente e a linha 2 leva o gradiente na fronteira
+    assert 'url(#gL1)' in azul and '<linearGradient id="gL1"' in azul and 'gL0' not in azul
+    paginas = rt.paginas_da_entrada(novo, {'X': FACE_X}, [FACE_X], 'p')
+    assert len(paginas) == 1 and paginas[0]['posicoes'] and not paginas[0]['pdf']
+    assert [p['cor'] for p in rt.paginas_de_cor(novo, {'X': FACE_X}, [FACE_X], 'p', pos)] == ['c0', 'c1']
+
+
+def test_caracteres_fora_da_face_confere_cada_trecho_na_sua_face():
+    entrada = {'texto': {'runs': [_run(0, 'AC', fonte_ps='X'), _run(2, 'ac', fonte_ps='Y', font_caps='ALL_CAPS'),
+                                  _run(4, 'Z', fonte_ps='W')]},
+               'faces': {'X': 'f01', 'Y': 'f02'}}
+    faces_do_job = [{'id': 'f01', 'cmap': [[65, 66]]}, {'id': 'f02', 'cmap': [[97, 99]]}]
+    # X nao tem o C; Y so tem minusculas e o trecho e caixa alta (o C ja contado sai uma vez so); W nao tem face no job
+    assert rd.caracteres_fora_da_face(entrada, faces_do_job) == ['C', 'A']
+    entrada['texto']['runs'][1]['font_caps'] = None
+    assert rd.caracteres_fora_da_face(entrada, faces_do_job) == ['C']
 
 
 def test_tinta_do_texto_editado_cortada_na_borda_do_formato_reprova():

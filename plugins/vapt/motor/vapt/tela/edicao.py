@@ -58,7 +58,9 @@ As regras abaixo valem nele, e os outros arquivos copiam o layout aprovado nele 
     das fontes; o processo principal nunca abre a fonte); a previa leva o texto novo com a face real, e as linhas
     sao as do DA (Linhas do DA, 0.9.4): nada quebra na largura da caixa, e o texto cresce em volta da ancora com o
     mesmo corpo. A pagina mede a tinta e avisa quando ela passa da borda do formato. O texto vale so na familia
-    editada (171);
+    editada (171). Cada caractere do texto editado fica com o estilo (face, cor, corpo, tracking) de um trecho do KV,
+    pela regra por palavra (decisao 214; vapt.derivacao.quebras.runs_do_editado), e e conferido na face do trecho
+    dele;
   - o elemento apagado sai de todos os membros, fica registrado com a origem do rascunho ('da', ou fixture_de_teste no
     modo de teste da tela) e deixa de reprovar o inventario (vapt.derivacao.validacao, apagados);
   - a quebra de linha da familia (M7b, C3; decisoes-v1.md, 167 e 171): o pedido pode levar as quebras do rascunho da
@@ -652,12 +654,130 @@ def _texto_da_recusa(faltam):
     return 'A fonte deste texto não tem os caracteres %s. Troque esses caracteres ou envie a fonte que os tenha.' % lista
 
 
-def trocar_texto(palco, elemento, texto, quebra=None):
-    """As pecas de texto do elemento no palco levam o texto novo, linha a linha (as quebras do DA), com o estilo do
-    primeiro trecho (face, cor, corpo e tracking ja na escala do formato); a pagina desenha so as linhas do DA, sem
-    quebra na largura da caixa (Linhas do DA, 0.9.4). quebra: a quebra de linha da familia no texto (o item do
-    rascunho, M7b, C4): as linhas juntadas e as inseridas, como o render desenha
-    (vapt.derivacao.quebras.linhas_do_editado)."""
+def _trechos_do_editado(texto_kv, faces, s, linhas):
+    """[{'trechos', 'entrelinha'}] de cada linha do texto editado no palco: os trechos da regra por palavra (decisao 214;
+    vapt.derivacao.quebras.runs_do_editado) sobre os runs do KV (texto_kv: o _texto da peca base, nunca as linhas do
+    palco, que podem ja ter a quebra da familia com posicoes do texto editado), cada um como estado._linhas o monta
+    (texto, fonte_ps, face, cor, corpo, tracking) e com o corpo na escala s do formato, como estado._peca_no_formato.
+    Os vizinhos com o mesmo estilo no palco viram um trecho; a linha vazia leva o estilo do trecho com tinta antes dela
+    (no comeco do texto, o do primeiro com tinta) e a entrelinha da quebra dela. None sem run com tinta no KV."""
+    from vapt.derivacao import quebras as mq
+    from vapt.tela import estado
+    from vapt.render import texto as rt
+    from vapt.fontes import casamento
+    runs = mq.runs_do_editado((texto_kv or {}).get('runs') or [], linhas, '\n')
+    if runs is None:
+        return None
+    _r0, par = mq._trecho_e_paragrafo({'texto': texto_kv})
+    m = (texto_kv or {}).get('matriz') or [1.0, 0.0, 0.0, 1.0]
+    sy = math.hypot(float(m[2]), float(m[3]))
+
+    def entrelinha(rs):
+        # a do render e da medida (render.texto.linhas_da_camada): a maior dos runs da linha, no paragrafo de r0, com
+        # o arredondamento duplo de estado._linhas e estado._peca_no_formato (o KV de um estilo so da a de antes)
+        lead = max((rt._entrelinha(r, par or {}) for r in rs), default=0.0)
+        return estado._arred(estado._arred(lead * sy) * s) if lead else None
+
+    def trecho(r, parte):
+        cor = r.get('cor_hex') if isinstance(r.get('cor_hex'), str) and estado.COR.match(r['cor_hex']) else None
+        corpo = r.get('corpo_efetivo')
+        return {'texto': parte, 'fonte_ps': r.get('fonte_ps'), 'face': faces.get(r.get('fonte_ps')), 'cor': cor,
+                'corpo': None if corpo is None else estado._arred(corpo * s), 'tracking': r.get('tracking') or 0}
+
+    def estilo(t):
+        return {k: v for k, v in t.items() if k != 'texto'}
+    # decisao 214: o espaco sem tinta de uma fonte sem face vai no estilo do vizinho com face, como na medida e no render
+    no_vizinho = {}
+    for i, r in enumerate(runs):
+        v = casamento.vizinho_com_face(runs, i, lambda x: faces.get(x.get('fonte_ps')) is not None)
+        if v is not None:
+            no_vizinho[id(r)] = v
+    saida, a = [], 0
+    for n, ln in enumerate(linhas):
+        b = a + len(ln)
+        # os runs da linha no render: os dos caracteres dela e o da quebra que a termina (a ultima linha nao tem)
+        e = b + 1 if n + 1 < len(linhas) else b
+        da_linha = [r for r in runs if r['inicio'] < e and r['fim'] > a]
+        trechos = []
+        for r in runs:
+            i, f = max(r['inicio'], a), min(r['fim'], b)
+            if i >= f:
+                continue
+            t = trecho(no_vizinho.get(id(r), r), ln[i - a:f - a])
+            if trechos and estilo(trechos[-1]) == estilo(t):
+                trechos[-1]['texto'] += t['texto']
+            else:
+                trechos.append(t)
+        if not trechos:
+            # o estilo do trecho com tinta antes dela (a quebra da linha vazia pode ser de um run sem tinta, que guarda
+            # so a entrelinha); no comeco do texto, o primeiro com tinta
+            vizinho = next((r for r in reversed(runs) if r['inicio'] < a and r['tem_tinta']),
+                           next((r for r in runs if r['tem_tinta']), runs[0]))
+            trechos = [trecho(vizinho, '')]
+            da_linha = da_linha or [vizinho]
+        saida.append({'trechos': trechos, 'entrelinha': entrelinha(da_linha)})
+        a = b + 1
+    return saida
+
+
+def _linhas_do_psd(pb, escala):
+    """As linhas do texto do KV como o PSD as grava (estado._linhas sem a quebra da familia), com o corpo e a
+    entrelinha na escala do formato, como estado._peca_no_formato. None sem o texto ou sem a escala."""
+    from vapt.tela import estado
+    if not (pb or {}).get('_texto') or escala is None:
+        return None
+    s = float(escala)
+    linhas = estado._linhas(pb['_texto'], (pb.get('_faces') or {}).get)
+    if not linhas:
+        return None
+    return [{'trechos': [dict(t, corpo=None if t['corpo'] is None else estado._arred(t['corpo'] * s))
+                         for t in ln['trechos']],
+             'entrelinha': None if ln['entrelinha'] is None else estado._arred(ln['entrelinha'] * s)} for ln in linhas]
+
+
+def _desvio_da_caixa(pb, linhas, faces, escala):
+    """Na caixa de paragrafo, quanto a primeira linha de base do texto editado desce em relacao a do KV no palco (px do
+    formato), pela regra do render (render.texto.origem_das_linhas: topo da caixa mais a ascendente da face da primeira
+    linha cheia): a diferenca entre a do texto editado (trechos da regra R3) e a do KV. 0 no texto de ponto, sem as
+    faces ou sem a escala."""
+    from vapt.derivacao import quebras as mq
+    from vapt.render import texto as rt
+    from vapt.tela import estado
+    t = (pb or {}).get('_texto')
+    if not t or not faces or escala is None or not rt.eh_caixa_de_paragrafo(t):
+        return 0.0
+    fp = {ps: faces[fid] for ps, fid in (pb.get('_faces') or {}).items() if fid in faces}
+    cam = mq.camada_do_editado({'texto': t}, linhas)
+    if not (cam.get('texto') or {}).get('runs'):
+        return 0.0
+    linhas_kv = rt.linhas_da_camada(t)
+    # a ascendente do KV tem de ser conhecida: sem a face ou as metricas de um trecho da primeira linha cheia, o render
+    # conta 0 nele e o desvio sairia de uma ascendente que o palco nao tem (o palco fica como antes)
+    primeira = next((ln for ln in linhas_kv if ln['pedacos']), None)
+    for _s, r in (primeira or {}).get('pedacos') or ():
+        m = (fp.get(r.get('fonte_ps')) or {}).get('metricas') or {}
+        if not (m.get('ascender') and m.get('unidades_por_em')):
+            return 0.0
+    y_kv = rt.origem_das_linhas(t, linhas_kv, fp)[1]
+    y_novo = rt.origem_das_linhas(cam['texto'], rt.linhas_da_camada(cam['texto']), fp)[1]
+    m = t.get('matriz') or [1.0, 0.0, 0.0, 1.0]
+    return estado._arred((y_novo - y_kv) * math.hypot(float(m[2]), float(m[3])) * float(escala))
+
+
+def trocar_texto(palco, elemento, texto, quebra=None, base=None, escala=None, faces=None):
+    """As pecas de texto do elemento no palco levam o texto novo, linha a linha (as quebras do DA); a pagina desenha so
+    as linhas do DA, sem quebra na largura da caixa (Linhas do DA, 0.9.4). quebra: a quebra de linha da familia no
+    texto (o item do rascunho, M7b, C4): as linhas juntadas e as inseridas, como o render desenha
+    (vapt.derivacao.quebras.linhas_do_editado). base e escala: as pecas base do palco ({layer_id: peca},
+    vapt.tela.estado.pecas_base) e a escala do elemento no formato (transformacao['s']): cada caractere fica com o
+    estilo de um trecho do KV (face, cor, corpo e tracking, o corpo na escala do formato), pela regra por palavra
+    (decisao 214, _trechos_do_editado), como a medida e o render. Sem elas, ou sem trecho com tinta no KV, o estilo do
+    primeiro trecho do palco e a entrelinha da primeira linha do KV que a tem, como antes. Cada linha leva a entrelinha
+    do render e da medida (a maior dos runs dela); o KV de um estilo so da o mesmo palco de antes (o hash da familia
+    confirmada nao muda), menos quando um espaco ou uma quebra sem tinta tinha outro estilo (corpo, fonte, cor,
+    tracking ou outro campo): o palco e o render passam a seguir o KV nele (vapt.derivacao.quebras._no_mesmo_papel), e
+    quando a quebra da familia toca a linha da tinta do KV (a ancora sai das linhas do PSD). faces: {id: face servida,
+    com as metricas}, para a ancora da caixa de paragrafo (_desvio_da_caixa)."""
     from vapt.derivacao import quebras as mq
     if quebra is not None:
         linhas = mq.linhas_do_editado(texto, quebra['manter'], quebra['inseridas'])
@@ -666,19 +786,46 @@ def trocar_texto(palco, elemento, texto, quebra=None):
     for p in palco['pecas']:
         if p.get('elemento') != elemento or p.get('tipo') != 'texto' or not p.get('linhas'):
             continue
-        t0 = p['linhas'][0]['trechos'][0]
+        # o primeiro trecho do palco (a primeira linha do KV pode ser vazia, quando o texto comeca com CR)
+        t0 = next((t for ln in p['linhas'] for t in ln.get('trechos') or []), None)
         ent = next((ln['entrelinha'] for ln in p['linhas'] if ln.get('entrelinha')), None)
+        pb = (base or {}).get(p.get('camada')) or {}
+        novas = None
+        if escala is not None and pb.get('_texto'):
+            novas = _trechos_do_editado(pb['_texto'], pb.get('_faces') or {}, float(escala), linhas)
+        if novas is None:
+            if t0 is None:
+                continue
+            novas = [{'trechos': [dict(t0, texto=ln)], 'entrelinha': ent} for ln in linhas]
         if 'ancora_kv' not in p:
             # revisao 0.9.4: o render ancora o texto editado pela primeira linha de base do KV. A pagina so tem a caixa
             # de tinta do KV (caixa_tinta), cujo topo e o da primeira linha do KV com tinta: leva o texto dessa linha e
             # a distancia da primeira linha de base ate a dela (as entrelinhas acima), para medirTexto achar a linha
             # de base do KV e por nela a primeira linha do DA, vazia ou nao
-            kv = [''.join(str(t.get('texto') or '') for t in ln.get('trechos') or []) for ln in p['linhas']]
+            estilos = {(t.get('face'), t.get('corpo')) for ln in p['linhas'] for t in ln.get('trechos') or []
+                       if str(t.get('texto') or '').strip()}
+            # decisao 214: a ancora sai das linhas do PSD (sem a quebra da familia, que pode juntar a primeira linha a
+            # outra, ou partir a linha da tinta do KV), na escala do formato
+            lk = _linhas_do_psd(pb, escala) or p['linhas']
+            kv = [''.join(str(t.get('texto') or '') for t in ln.get('trechos') or []) for ln in lk]
             j = next((i for i, s in enumerate(kv) if s.strip()), None)
-            acima = [p['linhas'][i].get('entrelinha') for i in range(1, j + 1)] if j is not None else None
+            acima = [lk[i].get('entrelinha') for i in range(1, j + 1)] if j is not None else None
             if j is not None and all(isinstance(a, (int, float)) and a > 0 for a in acima):
                 p['ancora_kv'] = {'texto': kv[j], 'acima': round(float(sum(acima)), 4)}
-        p['linhas'] = [{'trechos': [dict(t0, texto=ln)], 'entrelinha': ent} for ln in linhas]
+                # o primeiro trecho do texto editado pode nao ter a face e o corpo da linha do KV: a pagina mede a
+                # subida dela nos trechos dela (o KV de um estilo so fica como antes)
+                if len(estilos) > 1:
+                    p['ancora_kv']['trechos'] = [{'texto': str(t['texto']), 'face': t.get('face'), 'corpo': t.get('corpo')}
+                                                 for t in lk[j]['trechos'] if str(t.get('texto') or '').strip()]
+        if p.get('ancora_kv') is not None:
+            # na caixa de paragrafo o render poe a primeira linha de base no topo da caixa mais a ascendente da primeira
+            # linha do texto editado, que pode ter outra face ou corpo que a do KV: o palco desce o mesmo tanto
+            d = _desvio_da_caixa(pb, linhas, faces, escala)
+            if d:
+                p['ancora_kv']['caixa'] = d
+            else:
+                p['ancora_kv'].pop('caixa', None)
+        p['linhas'] = novas
         p['texto_editado'] = True
         # Linhas do DA (0.9.4): o texto cresce ate a linha mais longa, entao o recorte dele vai alem do mundo do palco
         # (um formato para cada lado): a pagina mede a tinta inteira e mostra a que passa da borda (o membro fica
@@ -884,8 +1031,12 @@ class Editor:
             self._cf = {k: v for k, v in self._cf.items() if k[1] != velha}
         return viva
 
-    def _texto(self, eid, texto):
-        """(texto aceito, recusa ou None) de uma edicao de texto no elemento."""
+    def _texto(self, eid, texto, quebra=None):
+        """(texto aceito, recusa ou None) de uma edicao de texto no elemento. Cada caractere com tinta e conferido na
+        face do trecho do KV de que ele herda o estilo (decisao 214; vapt.derivacao.quebras.runs_do_editado), com a
+        caixa alta desse trecho, nas linhas que o palco desenha (quebra: o item da quebra da familia do elemento, como
+        em trocar_texto): a palavra inserida na fronteira de linha herda pela linha em que fica."""
+        from vapt.derivacao import quebras as mq
         el = self.kv_por_id[eid]
         if any((self.base.get(lid) or {}).get('como_imagem') for lid in el['layer_ids']):
             return None, TEXTO_COMO_IMAGEM
@@ -895,12 +1046,30 @@ class Editor:
         if not texto.strip():
             return None, 'O texto ficou vazio. Para tirar o elemento, use Apagar.'
         peca = self.base[textos[0]]
-        face_id = next((t['face'] for ln in peca['linhas'] for t in ln['trechos'] if t['face']), None)
-        face = self.faces.get(face_id)
-        if face is None:
-            return None, 'A fonte deste texto não está no job, e sem ela a tela não mostra o texto novo.'
+        sem_fonte = 'A fonte deste texto não está no job, e sem ela a tela não mostra o texto novo.'
         runs = (peca.get('_texto') or {}).get('runs') or [{}]
-        faltam = caracteres_que_faltam(texto, face, runs[0].get('font_caps') in ('ALL_CAPS', 'SMALL_CAPS'))
+        if quebra is not None:
+            linhas = mq.linhas_do_editado(texto, quebra['manter'], quebra['inseridas'])
+        else:
+            linhas = mq.linhas_editadas(texto)
+        novos = mq.runs_do_editado(runs, linhas, '\n') if runs[0] else None
+        if novos is None:
+            face_id = next((t['face'] for ln in peca['linhas'] for t in ln['trechos'] if t['face']), None)
+            face = self.faces.get(face_id)
+            if face is None:
+                return None, sem_fonte
+            faltam = caracteres_que_faltam(texto, face, runs[0].get('font_caps') in ('ALL_CAPS', 'SMALL_CAPS'))
+        else:
+            faltam = []
+            for r in novos:
+                if not r['tem_tinta']:
+                    continue
+                face = self.faces.get((peca.get('_faces') or {}).get(r.get('fonte_ps')))
+                if face is None:
+                    return None, sem_fonte
+                for ch in caracteres_que_faltam(r['texto'], face, r.get('font_caps') in ('ALL_CAPS', 'SMALL_CAPS')):
+                    if ch not in faltam:
+                        faltam.append(ch)
         if faltam:
             return None, _texto_da_recusa(faltam)
         return texto, None
@@ -944,9 +1113,14 @@ class Editor:
         inicio = time.perf_counter()
         gid, versao = dados['familia'], dados['versao']
         recusas, aceitas = [], []
-        for e in dados['edicoes']:
+        # decisao 214: a fonte e conferida nas linhas que o palco desenha, com a quebra da familia; as posicoes dela
+        # contam na ultima edicao de texto do elemento
+        ultima = {e['elemento']: n for n, e in enumerate(dados['edicoes']) if e['acao'] == 'texto'}
+        quebra_de = {q['elemento']: q for q in dados.get('quebras') or []}
+        for n, e in enumerate(dados['edicoes']):
             if e['acao'] == 'texto':
-                texto, recusa = self._texto(e['elemento'], e['texto'])
+                item = quebra_de.get(e['elemento']) if ultima.get(e['elemento']) == n else None
+                texto, recusa = self._texto(e['elemento'], e['texto'], item)
                 if recusa is not None:
                     recusas.append({'elemento': e['elemento'], 'texto': recusa})
                     continue
@@ -999,7 +1173,11 @@ class Editor:
             els = lay['elementos']
             palco = estado.palco_da_variante(fid, W, H, {'elementos': els}, self.laudo, self.base)
             for eid, texto in textos.items():
-                trocar_texto(palco, eid, texto, quebras_por_elemento.get(eid))
+                # decisao 214: o estilo de cada caractere sai dos trechos do KV (as pecas base), com o corpo na escala
+                # do elemento no formato, a mesma do palco
+                tr = next((x.get('transformacao') for x in els if x['id'] == eid), None) or {}
+                trocar_texto(palco, eid, texto, quebras_por_elemento.get(eid), base=self.base, escala=tr.get('s'),
+                             faces=self.faces)
             # 0.12.0: o alinhamento das linhas que o DA escolheu, em todo arquivo da familia
             for eid, valor in sorted((lay.get('alinhamentos') or {}).items()):
                 el = next((x for x in els if x['id'] == eid), {'id': eid})

@@ -165,6 +165,53 @@ def tem_tinta(ch):
     return not (ch.isspace() or unicodedata.category(ch) in ('Cc', 'Cf', 'Zs', 'Zl', 'Zp'))
 
 
+def vizinho_com_face(runs, i, tem_face):
+    """Decisao 214: o run em que se desenha o run i sem tinta cuja fonte nao tem face no job (o espaco de outra fonte),
+    para o espaco nao sumir do PNG nem da medida. Como na regra R3, o estilo de um run sem tinta nao vale fora do seu
+    papel: o vizinho e o run com face e tinta na mesma linha, o da esquerda ou, no comeco da linha, o da direita.
+    Sem nenhum na linha, o run com face e tinta mais perto antes, sem nenhum o depois; sem nenhum com tinta, o run com
+    texto e face mais perto. O palco, a medida e o render usam o mesmo. None quando o run i tem face ou tinta, ou
+    quando nenhum outro tem face."""
+    r = runs[i]
+    if tem_face(r) or any(tem_tinta(ch) for ch in r.get('texto') or ''):
+        return None
+
+    def com_tinta(s):
+        return any(tem_tinta(ch) for ch in s)
+
+    def quebra(s, ultima):
+        ks = [k for k, ch in enumerate(s) if ch in CONTROLES_DE_QUEBRA]
+        return (ks[-1] if ultima else ks[0]) if ks else None
+
+    # a quebra dentro do proprio run i conta: '\r ' abre a linha de baixo (so a direita), ' \r' fecha a de cima (so a
+    # esquerda); o run so de quebra fecha a linha de cima
+    si = r.get('texto') or ''
+    qi, qf = quebra(si, False), quebra(si, True)
+    pela_esquerda = qi is None or bool(si[:qi]) or not si[qf + 1:]
+    pela_direita = qi is None or bool(si[qf + 1:])
+    for k in range(i - 1, -1, -1) if pela_esquerda else ():  # a esquerda na mesma linha: o trecho depois da ultima quebra do run
+        s = runs[k].get('texto') or ''
+        q = quebra(s, True)
+        if tem_face(runs[k]) and com_tinta(s if q is None else s[q + 1:]):
+            return runs[k]
+        if q is not None:
+            break
+    for k in range(i + 1, len(runs)) if pela_direita else ():  # a direita na mesma linha: o trecho antes da primeira quebra do run
+        s = runs[k].get('texto') or ''
+        q = quebra(s, False)
+        if tem_face(runs[k]) and com_tinta(s if q is None else s[:q]):
+            return runs[k]
+        if q is not None:
+            break
+    antes, depois = runs[i - 1::-1] if i else [], runs[i + 1:]
+    for serve in (lambda x: tem_face(x) and com_tinta(x.get('texto') or ''),
+                  lambda x: bool(x.get('texto')) and tem_face(x)):
+        v = next((x for x in antes if serve(x)), None) or next((x for x in depois if serve(x)), None)
+        if v is not None:
+            return v
+    return None
+
+
 def texto_do_trecho(run):
     """O texto como o Chromium vai desenhar: caixa alta aplicada quando o trecho pede."""
     t = run.get('texto') or ''
